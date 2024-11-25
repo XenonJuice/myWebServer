@@ -11,10 +11,12 @@ public class HttpResponse implements HttpServletResponse {
     // 状态码和消息
     private int status = SC_OK;
     private String statusMessage = "OK";
-
+    // 状态行
+    private StringBuilder statusLine;
     // 响应头部
     private Map<String, List<String>> headers = new HashMap<>();
-
+    // 用于格式化 Cookie 的 StringBuilder
+    private final StringBuilder cookieBuilder = new StringBuilder();
     // Cookie 列表
     private List<Cookie> cookies = new ArrayList<>();
 
@@ -55,6 +57,21 @@ public class HttpResponse implements HttpServletResponse {
             }
         };
         this.writer = new PrintWriter(new OutputStreamWriter(outputStreamBuffer, this.characterEncoding));
+    }
+
+    /**
+     * 回收对象，清理资源
+     */
+    void recycle() {
+        this.status = SC_OK;
+        this.statusMessage = "OK";
+        this.statusLine.setLength(0);
+        this.statusLine.trimToSize();
+        this.headers.clear();
+        this.cookies.clear();
+        this.contentType = null;
+        this.characterEncoding = "ISO-8859-1";
+        this.outputStreamBuffer.reset();
     }
 
     // 设置状态码
@@ -171,7 +188,6 @@ public class HttpResponse implements HttpServletResponse {
         // 清空缓冲区
         outputStreamBuffer.reset();
         writer = new PrintWriter(new OutputStreamWriter(outputStreamBuffer, this.characterEncoding));
-        // TODO 可根据需要在响应体中写入错误信息
 
     }
 
@@ -180,6 +196,11 @@ public class HttpResponse implements HttpServletResponse {
         sendError(sc);
         this.statusMessage = msg;
         writer.write(msg);
+        writer.write("<html><head><title>Error</title></head><body>");
+        writer.write("<h1>HTTP Error " + sc + " - " + msg + "</h1>");
+        writer.write("</body></html>");
+        writer.flush();
+        flushBuffer();
     }
 
     // 发送重定向
@@ -202,9 +223,34 @@ public class HttpResponse implements HttpServletResponse {
             // 在这里可以将响应头部和状态行写入实际的输出流
             // 尚未涉及实际的网络传输，具体实现取决于服务器架构
             isCommitted = true;
+            writeStatusLineAndHeaders();
         }
         writer.flush();
         outputStream.flush();
+    }
+
+    // 响应行和头部写入缓冲区
+    private void writeStatusLineAndHeaders() throws IOException {
+        statusLine.append("HTTP/1.1 ").append(status).append(" ").append(statusMessage).append("\r\n");
+        headers.forEach((name, values) -> {
+            values.forEach(value -> statusLine.append(name).append(": ").append(value).append("\r\n"));
+        });
+        for (Cookie cookie : cookies) {
+            statusLine.append("Set-Cookie: ").append(formatCookie(cookie)).append("\r\n");
+        }
+        statusLine.append("\r\n");
+        outputStreamBuffer.write(statusLine.toString().getBytes(characterEncoding));
+    }
+
+    // 格式化 Cookie
+    private String formatCookie(Cookie cookie) {
+        cookieBuilder.append(cookie.getName()).append("=").append(cookie.getValue());
+        if (cookie.getMaxAge() >= 0) cookieBuilder.append("; Max-Age=").append(cookie.getMaxAge());
+        if (cookie.getPath() != null) cookieBuilder.append("; Path=").append(cookie.getPath());
+        if (cookie.getDomain() != null) cookieBuilder.append("; Domain=").append(cookie.getDomain());
+        if (cookie.getSecure()) cookieBuilder.append("; Secure");
+        if (cookie.isHttpOnly()) cookieBuilder.append("; HttpOnly");
+        return cookieBuilder.toString();
     }
 
     @Override
@@ -302,8 +348,6 @@ public class HttpResponse implements HttpServletResponse {
 
     /**
      *
-     *
-     * @author LILINJIAN
      */
     public byte[] getResponseData() throws IOException {
         flushBuffer(); // 确保所有数据都已写入缓冲区
