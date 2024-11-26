@@ -1,12 +1,15 @@
 package erangel.connector.http;
 
-import javax.servlet.*;
-import javax.servlet.http.*;
+import erangel.log.BaseLogger;
+
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class HttpResponse implements HttpServletResponse {
+public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     // 状态码和消息
     private int status = SC_OK;
@@ -14,49 +17,41 @@ public class HttpResponse implements HttpServletResponse {
     // 状态行
     private StringBuilder statusLine;
     // 响应头部
-    private Map<String, List<String>> headers = new HashMap<>();
+    private final Map<String, List<String>> headers = new HashMap<>();
     // 用于格式化 Cookie 的 StringBuilder
     private final StringBuilder cookieBuilder = new StringBuilder();
     // Cookie 列表
-    private List<Cookie> cookies = new ArrayList<>();
+    private final List<Cookie> cookies = new ArrayList<>();
 
     // 内容类型和字符编码
     private String contentType;
     private String characterEncoding = "ISO-8859-1";
 
     // 输出流和缓冲区
-    // Servlet通过 ServletOutputStream 或 PrintWriter 向响应写入数据时，
-    // 实际上是将数据写入到这个缓冲区ByteArrayOutputStream中。
-    private final ByteArrayOutputStream outputStreamBuffer = new ByteArrayOutputStream();
-    private final ServletOutputStream outputStream;
-    private PrintWriter writer;
+    private final OutputStream clientOutputStream;
+    private final BufferedOutputStream bufferedOutputStream;
+    private final HttpResponseStream servletOutputStream;
+    private final PrintWriter writer;
 
     // 是否已提交？
     private boolean isCommitted = false;
+    // 标志，防止同时使用 Writer 和 OutputStream
+    private boolean writerUsed = false;
+    private boolean outputStreamUsed = false;
     // 缓冲区大小
     private int bufferSize = 8192;
 
-    // 构造函数
-    public HttpResponse() throws UnsupportedEncodingException {
-        this.outputStream = new ServletOutputStream() {
-            @Override
-            //异步相关
-            public boolean isReady() {
-                return true;
-            }
-
-            @Override
-            // 暂时为空
-            public void setWriteListener(WriteListener writeListener) {
-
-            }
-
-            @Override
-            public void write(int b) throws IOException {
-                outputStreamBuffer.write(b);
-            }
-        };
-        this.writer = new PrintWriter(new OutputStreamWriter(outputStreamBuffer, this.characterEncoding));
+    /**
+     * 构造函数，初始化输出流和缓冲区。
+     *
+     * @param outputStream 客户端的 OutputStream（Socket 的 OutputStream）
+     * @throws UnsupportedEncodingException 如果指定的字符编码不支持
+     */
+    public HttpResponse(OutputStream outputStream) throws UnsupportedEncodingException {
+        this.clientOutputStream = outputStream;
+        this.bufferedOutputStream = new BufferedOutputStream(this.clientOutputStream, 8192);
+        this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
+        this.writer = new PrintWriter(new OutputStreamWriter(this.servletOutputStream, this.characterEncoding));
     }
 
     /**
@@ -71,7 +66,6 @@ public class HttpResponse implements HttpServletResponse {
         this.cookies.clear();
         this.contentType = null;
         this.characterEncoding = "ISO-8859-1";
-        this.outputStreamBuffer.reset();
     }
 
     // 设置状态码
@@ -119,7 +113,7 @@ public class HttpResponse implements HttpServletResponse {
     @Override
     public String getHeader(String name) {
         List<String> values = headers.get(name);
-        return (values != null && !values.isEmpty()) ? values.getFirst() : null;
+        return (values != null && !values.isEmpty()) ? values.get(0) : null;
     }
 
     @Override
@@ -155,21 +149,34 @@ public class HttpResponse implements HttpServletResponse {
         return this.characterEncoding;
     }
 
-    // 获取输出流
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
-        return this.outputStream;
+        if (writerUsed) {
+            throw new IllegalStateException("getWriter() has already been called on this response.");
+        }
+        if (!isCommitted) {
+            writeStatusLineAndHeaders();
+            isCommitted = true;
+        }
+        outputStreamUsed = true;
+        return this.servletOutputStream;
     }
 
     // 获取 PrintWriter
     @Override
     public PrintWriter getWriter() throws IOException {
+        if (outputStreamUsed) {
+            throw new IllegalStateException("getOutputStream() has already been called on this response.");
+        }
         return this.writer;
     }
 
     // 添加 Cookie
     @Override
     public void addCookie(Cookie cookie) {
+        if (isCommitted) {
+            throw new IllegalStateException("Cannot add cookie after response has been committed.");
+        }
         this.cookies.add(cookie);
     }
 
@@ -181,25 +188,29 @@ public class HttpResponse implements HttpServletResponse {
     // 发送错误
     @Override
     public void sendError(int sc) throws IOException {
-        if (isCommitted) {
-            throw new IllegalStateException("Cannot send error after response has been committed");
-        }
-        setStatus(sc);
-        // 清空缓冲区
-        outputStreamBuffer.reset();
-        writer = new PrintWriter(new OutputStreamWriter(outputStreamBuffer, this.characterEncoding));
-
+        sendError(sc, getReasonPhrase(sc));
     }
 
     @Override
     public void sendError(int sc, String msg) throws IOException {
-        sendError(sc);
-        this.statusMessage = msg;
-        writer.write(msg);
-        writer.write("<html><head><title>Error</title></head><body>");
-        writer.write("<h1>HTTP Error " + sc + " - " + msg + "</h1>");
-        writer.write("</body></html>");
-        writer.flush();
+        if (isCommitted) {
+            throw new IllegalStateException("Cannot send error after response has been committed.");
+        }
+        setStatus(sc, msg);
+        // 清空头部和 Cookies
+        headers.clear();
+        cookies.clear();
+        // 设置内容类型
+        setContentType("text/html; charset=UTF-8");
+        // 构建错误页面
+        String errorPage = "<html><head><title>Error</title></head><body>"
+                + "<h1>HTTP Error " + sc + " - " + msg + "</h1>"
+                + "</body></html>";
+        // 设置 Content-Length
+        setContentLength(errorPage.getBytes(this.characterEncoding).length);
+        // 写入错误页面
+        writer.write(errorPage);
+        // 发送响应
         flushBuffer();
     }
 
@@ -207,11 +218,21 @@ public class HttpResponse implements HttpServletResponse {
     @Override
     public void sendRedirect(String location) throws IOException {
         if (isCommitted) {
-            throw new IllegalStateException("Cannot send redirect after response has been committed");
+            throw new IllegalStateException("Cannot send redirect after response has been committed.");
         }
         setStatus(SC_FOUND);
         setHeader("Location", location);
-        // 通常重定向不需要响应体，但可以根据需要添加
+        // 设置内容类型
+        setContentType("text/html; charset=UTF-8");
+        // 构建重定向页面
+        String redirectPage = "<html><head><title>Redirect</title></head><body>"
+                + "<h1>Redirecting to <a href=\"" + location + "\">" + location + "</a></h1>"
+                + "</body></html>";
+        // 设置 Content-Length
+        setContentLength(redirectPage.getBytes(this.characterEncoding).length);
+        // 写入重定向页面
+        writer.write(redirectPage);
+        // 发送响应
         flushBuffer();
     }
 
@@ -219,27 +240,44 @@ public class HttpResponse implements HttpServletResponse {
     @Override
     public void flushBuffer() throws IOException {
         if (!isCommitted) {
-            //TODO
-            // 在这里可以将响应头部和状态行写入实际的输出流
-            // 尚未涉及实际的网络传输，具体实现取决于服务器架构
-            isCommitted = true;
             writeStatusLineAndHeaders();
+            isCommitted = true;
         }
-        writer.flush();
-        outputStream.flush();
+        // 确保所有数据都被写入
+        writer.flush();               // 刷新 PrintWriter 到 BufferedOutputStream
+        servletOutputStream.flush();  // 刷新 ServletOutputStream 到 BufferedOutputStream
+        // 将缓冲区的数据写入客户端 OutputStream
+        bufferedOutputStream.flush();
     }
 
-    // 响应行和头部写入缓冲区
+    /**
+     * 写入状态行和头部到缓冲区。
+     *
+     * @throws IOException 如果发生 I/O 错误
+     */
     private void writeStatusLineAndHeaders() throws IOException {
-        statusLine.append("HTTP/1.1 ").append(status).append(" ").append(statusMessage).append("\r\n");
-        headers.forEach((name, values) -> {
-            values.forEach(value -> statusLine.append(name).append(": ").append(value).append("\r\n"));
-        });
-        for (Cookie cookie : cookies) {
-            statusLine.append("Set-Cookie: ").append(formatCookie(cookie)).append("\r\n");
+        StringBuilder responseBuilder = new StringBuilder();
+        // 构建状态行
+        responseBuilder.append("HTTP/1.1 ").append(status).append(" ").append(statusMessage).append("\r\n");
+        // 构建头部
+        for (Map.Entry<String, List<String>> header : headers.entrySet()) {
+            String name = header.getKey();
+            for (String value : header.getValue()) {
+                responseBuilder.append(name).append(": ").append(value).append("\r\n");
+            }
         }
-        statusLine.append("\r\n");
-        outputStreamBuffer.write(statusLine.toString().getBytes(characterEncoding));
+        // 构建 Set-Cookie 头部
+        for (Cookie cookie : cookies) {
+            responseBuilder.append("Set-Cookie: ").append(formatCookie(cookie)).append("\r\n");
+        }
+        // 添加日期头部
+        responseBuilder.append("Date: ").append(formatDate(System.currentTimeMillis())).append("\r\n");
+        // 添加服务器信息
+        responseBuilder.append("Server: CustomJavaServer/1.0\r\n");
+        // 空行，分隔头部和主体
+        responseBuilder.append("\r\n");
+        // 写入状态行和头部到缓冲区
+        bufferedOutputStream.write(responseBuilder.toString().getBytes(this.characterEncoding));
     }
 
     // 格式化 Cookie
@@ -274,15 +312,16 @@ public class HttpResponse implements HttpServletResponse {
     @Override
     public void resetBuffer() {
         if (isCommitted) {
-            throw new IllegalStateException("Cannot reset buffer after response has been committed");
+            throw new IllegalStateException("Cannot reset buffer after response has been committed.");
         }
-        outputStreamBuffer.reset();
+        headers.clear();
+        cookies.clear();
     }
 
     @Override
     public void reset() {
         if (isCommitted) {
-            throw new IllegalStateException("Cannot reset after response has been committed");
+            throw new IllegalStateException("Cannot reset after response has been committed.");
         }
         status = SC_OK;
         statusMessage = "OK";
@@ -290,7 +329,9 @@ public class HttpResponse implements HttpServletResponse {
         cookies.clear();
         contentType = null;
         characterEncoding = "ISO-8859-1";
-        outputStreamBuffer.reset();
+        writerUsed = false;
+        outputStreamUsed = false;
+        // 注意：无法重置 BufferedOutputStream，因此仅清除内部状态
     }
 
     // 设置内容长度
@@ -346,13 +387,6 @@ public class HttpResponse implements HttpServletResponse {
         return Locale.getDefault();
     }
 
-    /**
-     *
-     */
-    public byte[] getResponseData() throws IOException {
-        flushBuffer(); // 确保所有数据都已写入缓冲区
-        return outputStreamBuffer.toByteArray();
-    }
 
     public List<Cookie> getCookies() {
         return this.cookies;
