@@ -2,22 +2,23 @@ package erangel.connector.http;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
-import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 /**
- * 自定义的 ServletOutputStream 实现，使用 BufferedOutputStream 进行数据写入。
+ * 自定义的 ServletOutputStream 实现，直接写入 ByteArrayOutputStream。
  */
 public class HttpResponseStream extends ServletOutputStream {
-    private final BufferedOutputStream bufferedOutputStream;
+    private final ByteArrayOutputStream outputStream;
+    private int byteCount;
 
     /**
-     * 构造函数，初始化 BufferedOutputStream。
+     * 构造函数，初始化 ByteArrayOutputStream。
      *
-     * @param bufferedOutputStream 用于实际数据写入的 BufferedOutputStream
+     * @param outputStream 用于实际数据写入的 ByteArrayOutputStream
      */
-    public HttpResponseStream(BufferedOutputStream bufferedOutputStream) {
-        this.bufferedOutputStream = bufferedOutputStream;
+    public HttpResponseStream(ByteArrayOutputStream outputStream) {
+        this.outputStream = outputStream;
     }
 
     /**
@@ -49,7 +50,8 @@ public class HttpResponseStream extends ServletOutputStream {
      */
     @Override
     public void write(int b) throws IOException {
-        bufferedOutputStream.write(b);
+        outputStream.write(b);
+        byteCount++;
     }
 
     /**
@@ -62,26 +64,16 @@ public class HttpResponseStream extends ServletOutputStream {
      */
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
-        bufferedOutputStream.write(b, off, len);
+        outputStream.write(b, off, len);
+        byteCount += len;
     }
 
     /**
-     * 刷新缓冲区，将数据写入底层输出流。
+     * 获取已写入的字节数。
      *
-     * @throws IOException 如果发生 I/O 错误
+     * @return 已写入的字节数
      */
-    @Override
-    public void flush() throws IOException {
-        bufferedOutputStream.flush();
-    }
-
-    /**
-     * 关闭输出流，释放资源。
-     *
-     * @throws IOException 如果发生 I/O 错误
-     */
-    @Override
-    public void close() throws IOException {
-        bufferedOutputStream.close();
+    public int getByteCount() {
+        return byteCount;
     }
 }
