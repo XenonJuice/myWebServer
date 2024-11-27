@@ -9,17 +9,16 @@ import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+/**
+ * 自定义的 HttpServletResponse 实现，用于处理 HTTP 响应。
+ */
 public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     // 状态码和消息
     private int status = SC_OK;
     private String statusMessage = "OK";
-    // 状态行
-    private StringBuilder statusLine;
     // 响应头部
     private final Map<String, List<String>> headers = new HashMap<>();
-    // 用于格式化 Cookie 的 StringBuilder
-    private final StringBuilder cookieBuilder = new StringBuilder();
     // Cookie 列表
     private final List<Cookie> cookies = new ArrayList<>();
 
@@ -29,7 +28,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     // 输出流和缓冲区
     private final OutputStream clientOutputStream;
-    private final BufferedOutputStream bufferedOutputStream;
+    private final ByteArrayOutputStream bufferStream; // 临时缓冲区
     private final HttpResponseStream servletOutputStream;
     private final PrintWriter writer;
 
@@ -44,28 +43,31 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     /**
      * 构造函数，初始化输出流和缓冲区。
      *
-     * @param outputStream 客户端的 OutputStream（Socket 的 OutputStream）
+     * @param outputStream 客户端的输出流
      * @throws UnsupportedEncodingException 如果指定的字符编码不支持
      */
     public HttpResponse(OutputStream outputStream) throws UnsupportedEncodingException {
         this.clientOutputStream = outputStream;
-        this.bufferedOutputStream = new BufferedOutputStream(this.clientOutputStream, 8192);
-        this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
-        this.writer = new PrintWriter(new OutputStreamWriter(this.servletOutputStream, this.characterEncoding));
+        this.bufferStream = new ByteArrayOutputStream();
+        this.servletOutputStream = new HttpResponseStream(this.bufferStream);
+        this.writer = new PrintWriter(new OutputStreamWriter(this.bufferStream, this.characterEncoding));
     }
 
     /**
      * 回收对象，清理资源
      */
-    void recycle() {
+    public void recycle() {
         this.status = SC_OK;
         this.statusMessage = "OK";
-        this.statusLine.setLength(0);
-        this.statusLine.trimToSize();
         this.headers.clear();
         this.cookies.clear();
         this.contentType = null;
         this.characterEncoding = "ISO-8859-1";
+        // 重置缓冲区
+        this.bufferStream.reset();
+        this.isCommitted = false;
+        this.writerUsed = false;
+        this.outputStreamUsed = false;
     }
 
     // 设置状态码
@@ -92,6 +94,9 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
             case SC_OK -> "OK";
             case SC_NOT_FOUND -> "Not Found";
             case SC_INTERNAL_SERVER_ERROR -> "Internal Server Error";
+            case SC_BAD_REQUEST -> "Bad Request";
+            case SC_FOUND -> "Found";
+            // case SC_UNAUTHORIZED -> "Unauthorized";
             // 添加其他状态码
             default -> "";
         };
@@ -154,10 +159,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         if (writerUsed) {
             throw new IllegalStateException("getWriter() has already been called on this response.");
         }
-        if (!isCommitted) {
-            writeStatusLineAndHeaders();
-            isCommitted = true;
-        }
         outputStreamUsed = true;
         return this.servletOutputStream;
     }
@@ -168,6 +169,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         if (outputStreamUsed) {
             throw new IllegalStateException("getOutputStream() has already been called on this response.");
         }
+        writerUsed = true;
         return this.writer;
     }
 
@@ -177,12 +179,14 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         if (isCommitted) {
             throw new IllegalStateException("Cannot add cookie after response has been committed.");
         }
-        this.cookies.add(cookie);
+        if (cookie != null) {
+            this.cookies.add(cookie);
+        }
     }
 
     @Override
     public boolean containsHeader(String name) {
-        return false;
+        return headers.containsKey(name);
     }
 
     // 发送错误
@@ -206,11 +210,9 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         String errorPage = "<html><head><title>Error</title></head><body>"
                 + "<h1>HTTP Error " + sc + " - " + msg + "</h1>"
                 + "</body></html>";
-        // 设置 Content-Length
-        setContentLength(errorPage.getBytes(this.characterEncoding).length);
-        // 写入错误页面
+        // 写入错误页面到缓冲区
         writer.write(errorPage);
-        // 发送响应
+        writer.flush();
         flushBuffer();
     }
 
@@ -220,7 +222,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         if (isCommitted) {
             throw new IllegalStateException("Cannot send redirect after response has been committed.");
         }
-        setStatus(SC_FOUND);
+        setStatus(SC_FOUND, getReasonPhrase(SC_FOUND));
         setHeader("Location", location);
         // 设置内容类型
         setContentType("text/html; charset=UTF-8");
@@ -228,66 +230,91 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         String redirectPage = "<html><head><title>Redirect</title></head><body>"
                 + "<h1>Redirecting to <a href=\"" + location + "\">" + location + "</a></h1>"
                 + "</body></html>";
-        // 设置 Content-Length
-        setContentLength(redirectPage.getBytes(this.characterEncoding).length);
-        // 写入重定向页面
+        // 写入重定向页面到缓冲区
         writer.write(redirectPage);
-        // 发送响应
+        writer.flush();
         flushBuffer();
     }
 
     // 缓冲区管理
     @Override
     public void flushBuffer() throws IOException {
-        if (!isCommitted) {
-            writeStatusLineAndHeaders();
-            isCommitted = true;
-        }
-        // 确保所有数据都被写入
-        writer.flush();               // 刷新 PrintWriter 到 BufferedOutputStream
-        servletOutputStream.flush();  // 刷新 ServletOutputStream 到 BufferedOutputStream
-        // 将缓冲区的数据写入客户端 OutputStream
-        bufferedOutputStream.flush();
+        if (isCommitted) return;
+        if (writerUsed) writer.flush();
+        if (outputStreamUsed) servletOutputStream.flush();
+        // 获取缓冲区中的数据
+        byte[] body = bufferStream.toByteArray();
+        // 设置 Content-Length
+        setContentLength(body.length);
+        // 写入状态行和头部
+        writeStatusLineAndHeaders();
+        // 将主体写入客户端输出流
+        clientOutputStream.write(body, 0, body.length);
+        clientOutputStream.flush();
+        // 标记响应已提交
+        isCommitted = true;
     }
 
     /**
-     * 写入状态行和头部到缓冲区。
+     * 写入状态行和头部到实际输出流。
      *
      * @throws IOException 如果发生 I/O 错误
      */
     private void writeStatusLineAndHeaders() throws IOException {
         StringBuilder responseBuilder = new StringBuilder();
+
         // 构建状态行
         responseBuilder.append("HTTP/1.1 ").append(status).append(" ").append(statusMessage).append("\r\n");
-        // 构建头部
+
+        // 优先输出 Content-Type
+        if (headers.containsKey("Content-Type")) {
+            for (String value : headers.get("Content-Type")) {
+                responseBuilder.append("Content-Type: ").append(value).append("\r\n");
+            }
+        }
+
+        // 然后输出其他头部，包括 Content-Length
         for (Map.Entry<String, List<String>> header : headers.entrySet()) {
             String name = header.getKey();
+            if ("Content-Type".equalsIgnoreCase(name)) continue; // 已经处理
             for (String value : header.getValue()) {
                 responseBuilder.append(name).append(": ").append(value).append("\r\n");
             }
         }
-        // 构建 Set-Cookie 头部
+
+        // 构建每个 Set-Cookie 头部
         for (Cookie cookie : cookies) {
             responseBuilder.append("Set-Cookie: ").append(formatCookie(cookie)).append("\r\n");
         }
+
         // 添加日期头部
         responseBuilder.append("Date: ").append(formatDate(System.currentTimeMillis())).append("\r\n");
-        // 添加服务器信息
         responseBuilder.append("Server: CustomJavaServer/1.0\r\n");
+
         // 空行，分隔头部和主体
         responseBuilder.append("\r\n");
-        // 写入状态行和头部到缓冲区
-        bufferedOutputStream.write(responseBuilder.toString().getBytes(this.characterEncoding));
+
+        // 写入状态行和头部到实际输出流
+        clientOutputStream.write(responseBuilder.toString().getBytes(this.characterEncoding));
     }
 
+
     // 格式化 Cookie
-    private String formatCookie(Cookie cookie) {
+    public String formatCookie(Cookie cookie) {
+        StringBuilder cookieBuilder = new StringBuilder();
+        // 基本的 name=value
         cookieBuilder.append(cookie.getName()).append("=").append(cookie.getValue());
+        // 可选属性
         if (cookie.getMaxAge() >= 0) cookieBuilder.append("; Max-Age=").append(cookie.getMaxAge());
-        if (cookie.getPath() != null) cookieBuilder.append("; Path=").append(cookie.getPath());
+        if (cookie.getPath() != null) {
+            cookieBuilder.append("; Path=").append(cookie.getPath());
+        } else {
+            cookieBuilder.append("; Path=/"); // 默认路径
+        }
         if (cookie.getDomain() != null) cookieBuilder.append("; Domain=").append(cookie.getDomain());
         if (cookie.getSecure()) cookieBuilder.append("; Secure");
         if (cookie.isHttpOnly()) cookieBuilder.append("; HttpOnly");
+
         return cookieBuilder.toString();
     }
 
@@ -316,6 +343,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         }
         headers.clear();
         cookies.clear();
+        bufferStream.reset();
     }
 
     @Override
@@ -331,7 +359,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         characterEncoding = "ISO-8859-1";
         writerUsed = false;
         outputStreamUsed = false;
-        // 注意：无法重置 BufferedOutputStream，因此仅清除内部状态
+        bufferStream.reset();
     }
 
     // 设置内容长度
@@ -368,7 +396,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     }
 
     // 日期格式化
-    private String formatDate(long date) {
+    public String formatDate(long date) {
         // 格式化为 HTTP 日期格式，例如：Sun, 06 Nov 1994 08:49:37 GMT
         SimpleDateFormat dateFormat = new SimpleDateFormat(
                 "EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
@@ -379,14 +407,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     // 设置是否使用字符编码
     @Override
     public void setLocale(Locale loc) {
-
+        // 可根据需要实现
     }
 
     @Override
     public Locale getLocale() {
         return Locale.getDefault();
     }
-
 
     public List<Cookie> getCookies() {
         return this.cookies;
@@ -399,7 +426,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     public String getStatusMessage() {
         return this.statusMessage;
     }
-
 
     // HttpServletResponse 接口中被弃用的方法
     @Deprecated
