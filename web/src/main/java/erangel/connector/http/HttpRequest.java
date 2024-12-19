@@ -7,7 +7,6 @@ import javax.servlet.http.*;
 import java.io.*;
 import java.security.Principal;
 import java.util.*;
-import java.net.URLDecoder;
 
 /**
  * 自定义 HttpRequest 类，实现 HttpServletRequest 接口。
@@ -21,9 +20,9 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     // 协议版本（例如：HTTP/1.1）
     private String protocol;
     // 存储HTTP头的映射
-    private final Map<String, List<String>> headers = new HashMap<>();
+    private Map<String, List<String>> headers;
     // 存储请求参数的映射
-    private final Map<String, List<String>> parameters = new HashMap<>();
+    private Map<String, List<String>> parameters;
     // 请求体内容（字节数组形式）
     private byte[] body = null;
     // 封装后的 ServletInputStream
@@ -44,132 +43,12 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
      * @param inputStream 客户端发送的 InputStream
      * @param remoteAddr  客户端的IP地址
      * @param remoteHost  客户端的主机名
-     * @throws IOException 如果解析请求失败
      */
-    public HttpRequest(InputStream inputStream, String remoteAddr, String remoteHost) throws IOException {
+    public HttpRequest(InputStream inputStream, String remoteAddr, String remoteHost) {
         this.remoteAddr = remoteAddr;
         this.remoteHost = remoteHost;
         this.servletInputStream = new HttpRequestStream(inputStream);
         logger.info("收到来自 {} 的新请求", remoteAddr);
-        parseRequest();
-    }
-
-    /**
-     * 解析HTTP请求
-     */
-    private void parseRequest() throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(servletInputStream, characterEncoding));
-        String line = reader.readLine();
-        if (line == null || line.isEmpty()) {
-            throw new IOException("Empty request");
-        }
-
-        // 解析请求行（例如：GET /index.html?name=John HTTP/1.1）
-        String[] requestLine = line.split(" ");
-        if (requestLine.length != 3) {
-            throw new IOException("Invalid request line: " + line);
-        }
-        method = requestLine[0];
-        String fullUri = requestLine[1];
-        protocol = requestLine[2];
-
-        logger.info("请求方法: {}", method);
-        logger.info("完整URI: {}", fullUri);
-        logger.info("协议版本: {}", protocol);
-
-        // 解析URI和查询字符串
-        if (fullUri.contains("?")) {
-            String[] uriParts = fullUri.split("\\?", 2);
-            uri = uriParts[0];
-            parseParameters(uriParts[1]);
-
-            logger.info("解析后的URI: {}", uri);
-            logger.info("解析后的查询参数: {}", parameters);
-
-        } else {
-            uri = fullUri;
-        }
-
-        // 解析请求头
-        int contentLength = 0;
-        while ((line = reader.readLine()) != null && !line.isEmpty()) {
-            int separatorIndex = line.indexOf(": ");
-            if (separatorIndex == -1) {
-                logger.info("格式错误的头部: {}", line);
-                // 支持多行头部（续行），如果需要
-                // 这里暂时忽略
-                continue;
-            }
-            String key = line.substring(0, separatorIndex).trim();
-            String value = line.substring(separatorIndex + 2).trim();
-            headers.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-            logger.info("头部: {} = {}", key, value);
-
-            if ("Content-Length".equalsIgnoreCase(key)) {
-                try {
-                    contentLength = Integer.parseInt(value);
-                    logger.info("Content-Length: {}", contentLength);
-                } catch (NumberFormatException e) {
-                    throw new IOException("Invalid Content-Length value: " + value);
-                }
-            }
-
-            if ("Content-Type".equalsIgnoreCase(key)) {
-                String[] typeParts = value.split(";");
-                if (typeParts.length > 1) {
-                    String charsetPart = typeParts[1].trim();
-                    if (charsetPart.startsWith("charset=")) {
-                        String charset = charsetPart.substring("charset=".length());
-                        setCharacterEncoding(charset);
-                        // 重新创建 BufferedReader 以使用新的字符编码
-                        reader = new BufferedReader(new InputStreamReader(servletInputStream, characterEncoding));
-                    }
-                }
-            }
-        }
-
-        // 解析请求体
-        if (contentLength > 0) {
-            logger.info("开始读取请求体, 长度: {}", contentLength);
-            body = new byte[contentLength];
-            int bytesRead = 0;
-            while (bytesRead < contentLength) {
-                int read = servletInputStream.read(body, bytesRead, contentLength - bytesRead);
-                if (read == -1) {
-                    break;
-                }
-                bytesRead += read;
-            }
-            if (bytesRead != contentLength) {
-                logger.warn("请求体不完整: 已读 {} 字节, 期望 {} 字节", bytesRead, contentLength);
-                throw new IOException("Request body is incomplete");
-            }
-            logger.info("成功读取请求体");
-            // 如果Content-Type是application/x-www-form-urlencoded，解析参数
-            String contentType = getContentType();
-            if (contentType != null && contentType.startsWith("application/x-www-form-urlencoded")) {
-                String bodyStr = new String(body, characterEncoding);
-                parseParameters(bodyStr);
-                logger.info("解析后的请求体参数: {}", parameters);
-            }
-        }
-        logger.info("HTTP请求解析完成");
-    }
-
-    /**
-     * 解析查询字符串参数
-     */
-    private void parseParameters(String queryString) throws UnsupportedEncodingException {
-        logger.info("解析参数: {}", queryString);
-        String[] pairs = queryString.split("&");
-        for (String pair : pairs) {
-            if (pair.isEmpty()) continue;
-            String[] keyValue = pair.split("=", 2);
-            String key = URLDecoder.decode(keyValue[0], characterEncoding);
-            String value = keyValue.length > 1 ? URLDecoder.decode(keyValue[1], characterEncoding) : "";
-            parameters.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-            logger.info("参数: {} = {}", key, value);
-        }
     }
 
     /**
@@ -244,6 +123,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         return Collections.enumeration(values != null ? values : Collections.emptyList());
     }
 
+    public void setHeaders(Map<String, List<String>> headers) {
+        this.headers = headers;
+    }
+
     @Override
     public Enumeration<String> getHeaderNames() {
         return Collections.enumeration(headers.keySet());
@@ -263,6 +146,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     @Override
     public String getMethod() {
         return method;
+    }
+
+    public void setMethod(String method) {
+        this.method = method;
     }
 
     @Override
@@ -291,7 +178,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         for (Map.Entry<String, List<String>> entry : parameters.entrySet()) {
             String key = entry.getKey();
             for (String value : entry.getValue()) {
-                if (sb.length() > 0) sb.append("&");
+                if (!sb.isEmpty()) sb.append("&");
                 sb.append(key).append("=").append(value);
             }
         }
@@ -383,7 +270,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     }
 
     @Override
-    public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
+    public boolean authenticate(HttpServletResponse response) throws ServletException {
         // 未实现认证逻辑
         return false;
     }
@@ -467,6 +354,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         return (values != null && !values.isEmpty()) ? values.get(0) : null;
     }
 
+    public void setParameters(Map<String, List<String>> parameters) {
+        this.parameters = parameters;
+    }
+
     @Override
     public Enumeration<String> getParameterNames() {
         return Collections.enumeration(parameters.keySet());
@@ -491,6 +382,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     @Override
     public String getProtocol() {
         return protocol;
+    }
+
+    public void setProtocol(String protocol) {
+        this.protocol = protocol;
     }
 
     @Override
@@ -664,4 +559,14 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         // 简单实现，根据需求调整
         return DispatcherType.REQUEST;
     }
+
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        this.uri = uri;
+    }
+
+
 }
