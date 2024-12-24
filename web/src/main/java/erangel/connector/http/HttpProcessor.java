@@ -3,17 +3,21 @@ package erangel.connector.http;
 import erangel.log.BaseLogger;
 
 import javax.servlet.ServletInputStream;
+import javax.servlet.http.Cookie;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.*;
 
+import static erangel.connector.Utils.CookieUtils.convertToCookieArray;
+import static erangel.connector.Utils.CookieUtils.convertToCookieList;
+
 /**
  * HTTP解析器，用于解析HTTP请求。
  *
  * @author LILINJIAN
- * @version  $Date: 2024/12/19 15:24
+ * @version $Date: 2024/12/19 15:24
  */
 public class HttpProcessor extends BaseLogger {
     HttpRequest request;
@@ -25,6 +29,8 @@ public class HttpProcessor extends BaseLogger {
     public String characterEncoding;
     // 存储HTTP头的映射
     public Map<String, List<String>> headers = new HashMap<>();
+    // 存储Cookie的映射
+    public Map<String, String> cookies = new HashMap<>();
     // 存储请求参数的映射
     public Map<String, List<String>> parameters = new HashMap<>();
     public String method;
@@ -142,6 +148,10 @@ public class HttpProcessor extends BaseLogger {
                     }
                 }
             }
+            // 解析Cookies
+            if ("Cookie".equalsIgnoreCase(key)) {
+                parseCookies(value);
+            }
         }
 
         // 3. 根据Content-Length从流中按字节读取请求体
@@ -189,23 +199,134 @@ public class HttpProcessor extends BaseLogger {
         }
     }
 
+
+    /**
+     * 解析Cookie字符串
+     */
+    private void parseCookies(String cookieHeader) {
+        String[] cookiePairs = cookieHeader.split("; ");
+        for (String cookie : cookiePairs) {
+            String[] keyValue = cookie.split("=", 2);
+            if (keyValue.length == 2) {
+                String key = keyValue[0].trim();
+                String value = keyValue[1].trim();
+                cookies.put(key, value);
+                logger.info("解析Cookie: {} = {}", key, value);
+            }
+
+        }
+    }
+
     /**
      * 组装请求对象
      */
     private void assembleRequest(HttpRequest request, String method, String uri, String protocol, Map<String, List<String>> headers, Map<String, List<String>> parameters) {
+        parseHeaders(headers);
         request.setMethod(method);
         request.setUri(uri);
         request.setProtocol(protocol);
         request.setHeaders(headers);
         request.setParameters(parameters);
+        request.setCookies(convertToCookieList(cookies));
     }
 
     /**
      * 解析请求头
      */
     //TODO
-    private void parseHeaders (Map<String, List<String>> headers) {
+    private void parseHeaders(Map<String, List<String>> headers) {
         if (headers.isEmpty()) return;
-        if (headers.containsKey("")) {}
+        // 为request设置权限
+        if (headers.containsKey("authorization")) {
+            System.out.println("权限未实现");
+            // request.setAuthorization();
+        }
+        // 为request设置语言
+        if (headers.containsKey("Accept-Language")) {
+            Locale highestPriorityLocale = null;
+            List<String> acceptLanguageHeaders = headers.get("Accept-Language");
+            if (acceptLanguageHeaders != null && !acceptLanguageHeaders.isEmpty()) {
+                String acceptLanguage = acceptLanguageHeaders.get(0); // 假设只取第一个值
+                if (acceptLanguage != null && !acceptLanguage.isEmpty()) {
+                    String[] locales = acceptLanguage.split(",");
+                    double highestWeight = -1.0;
+
+                    for (String localeEntry : locales) {
+                        String[] parts = localeEntry.trim().split(";");
+                        String languageTag = parts[0].trim();
+                        double weight = 1.0; // 默认权重
+
+                        // 解析权重（如果存在）
+                        if (parts.length > 1 && parts[1].trim().startsWith("q=")) {
+                            try {
+                                weight = Double.parseDouble(parts[1].trim().substring(2));
+                            } catch (NumberFormatException e) {
+                                // 忽略异常，使用默认权重
+                            }
+                        }
+                        // 如果当前权重更高，更新最高优先语言
+                        if (weight > highestWeight) {
+                            highestWeight = weight;
+                            highestPriorityLocale = Locale.forLanguageTag(languageTag);
+                        }
+                    }
+                    // 设置语言
+                    if (highestPriorityLocale != null) {
+                        request.setLocale(highestPriorityLocale);
+                    } else {
+                        request.setLocale(Locale.getDefault());
+                    }
+                }
+            }
+        }
+        // 为request设置sessionId使用来源
+        if (headers.containsKey("Cookie")) {
+            List<String> cookieHeaders = headers.get("Cookie");
+            if (cookieHeaders != null && !cookieHeaders.isEmpty()) {
+                Cookie[] cookies = convertToCookieArray(cookieHeaders);
+                for (Cookie cookie : cookies) {
+                    if (cookie.getName().equals("JSESSIONID")) {
+                        if (!request.isRequestedSessionIdFromCookie()) {
+                            String value = cookie.getValue();
+                            logger.info("设置sessionId: {}", value);
+                            request.setRequestedSessionId(cookie.getValue());
+                            request.setRequestedSessionIdFromCookie(true);
+                            request.setRequestedSessionIdFromURL(false);
+                        }
+                    }
+                }
+            }
+        }
+        // 为request设置host
+        if (headers.containsKey("Host")) {
+            List<String> hostHeaders = headers.get("Host");
+            if (hostHeaders != null && !hostHeaders.isEmpty()) {
+                String host = hostHeaders.get(0);
+                if (host != null && !host.isEmpty()) {
+                    int colonIndex = host.indexOf(':'); // 检查是否包含冒号
+                    if (colonIndex < 0) {
+                        // 没有冒号，只设置主机名
+                        request.setServerName(host.trim());
+                        request.setServerPort(80); // 默认端口
+                    } else {
+                        // 分离主机名和端口号
+                        String serverName = host.substring(0, colonIndex).trim();
+                        String portString = host.substring(colonIndex + 1).trim();
+
+                        int port = 80; // 默认端口
+                        try {
+                            port = Integer.parseInt(portString); // 尝试解析端口号
+                        } catch (NumberFormatException e) {
+                            throw new IllegalArgumentException("Invalid port number in Host header: " + host);
+                        }
+
+                        // 设置主机名和端口号
+                        request.setServerName(serverName);
+                        request.setServerPort(port);
+                    }
+                }
+
+            }
+        }
     }
 }

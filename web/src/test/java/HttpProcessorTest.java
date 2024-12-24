@@ -10,6 +10,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -370,6 +371,284 @@ public class HttpProcessorTest {
         new HttpProcessor(mockRequest, mockResponse);
     }
 
+    /**
+     * 测试包含绝大多数常见字段的请求头
+     * 请求行示例：
+     * GET /resource HTTP/1.1
+     * Host: localhost
+     * User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36
+     * Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,;q=0.8
+     * Accept-Encoding: gzip, deflate, br
+     * Accept-Language: en-US,en;q=0.9
+     * Cache-Control: no-cache
+     * Connection: keep-alive
+     * Authorization: Basic SOMEONE_BASE64
+     */
+    @Test
+    public void testRequestWithMostCommonHeaders() throws IOException {
+        String rawRequest =
+                """
+                        GET /resource HTTP/1.1\r
+                        Host: localhost\r
+                        User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36\r
+                        Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8\r
+                        Accept-Encoding: gzip, deflate, br\r
+                        Accept-Language: en-US,en;q=0.9\r
+                        Cache-Control: no-cache\r
+                        Connection: keep-alive\r
+                        Authorization: Basic SOMEONE_BASE64\r
+                        Cookie: sessionId=abc123; theme=dark; userId=42\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        HttpProcessor processor = new HttpProcessor(mockRequest, mockResponse);
+
+        // 验证请求行解析正确
+        verify(mockRequest).setMethod("GET");
+        verify(mockRequest).setUri("/resource");
+        verify(mockRequest).setProtocol("HTTP/1.1");
+
+        // 验证请求头解析正确
+        Map<String, List<String>> headers = processor.headers;
+        assertEquals("localhost", headers.get("Host").get(0));
+        assertEquals("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                headers.get("User-Agent").get(0));
+        assertEquals("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                headers.get("Accept").get(0));
+        assertEquals("gzip, deflate, br", headers.get("Accept-Encoding").get(0));
+        assertEquals("en-US,en;q=0.9", headers.get("Accept-Language").get(0));
+        assertEquals("no-cache", headers.get("Cache-Control").get(0));
+        assertEquals("keep-alive", headers.get("Connection").get(0));
+        assertEquals("Basic SOMEONE_BASE64", headers.get("Authorization").get(0));
+        assertEquals("sessionId=abc123; theme=dark; userId=42", headers.get("Cookie").get(0));
+    }
+
+    /**
+     * 测试Host字段解析：包含主机名和端口
+     */
+    @Test
+    public void testHostWithPort() throws IOException {
+        String rawRequest =
+                """
+                        GET / HTTP/1.1\r
+                        Host: localhost:8080\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        HttpProcessor processor = new HttpProcessor(mockRequest, mockResponse);
+
+        // 验证请求头中的Host解析
+        verify(mockRequest).setServerName("localhost");
+        verify(mockRequest).setServerPort(8080);
+    }
+
+    /**
+     * 测试Host字段解析：只包含主机名
+     */
+    @Test
+    public void testHostWithoutPort() throws IOException {
+        String rawRequest =
+                """
+                        GET / HTTP/1.1\r
+                        Host: example.com\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        HttpProcessor processor = new HttpProcessor(mockRequest, mockResponse);
+
+        // 验证请求头中的Host解析
+        verify(mockRequest).setServerName("example.com");
+        verify(mockRequest).setServerPort(80); // 默认端口
+    }
+
+    /**
+     * 测试Host字段解析：无效端口
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testHostWithInvalidPort() throws IOException {
+        String rawRequest =
+                """
+                        GET / HTTP/1.1\r
+                        Host: localhost:invalidPort\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        // 解析过程中应该抛出IllegalArgumentException
+        new HttpProcessor(mockRequest, mockResponse);
+    }
+
+    /**
+     * 测试Host字段解析：缺少Host头部
+     */
+    @Test(expected = IOException.class)
+    public void testMissingHostHeader() throws IOException {
+        String rawRequest =
+                """
+                        GET / HTTP/1.1\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        // 解析过程中应该抛出IOException，因为Host头部缺失
+        new HttpProcessor(mockRequest, mockResponse);
+    }
+
+    /**
+     * 单个 Cookie 的解析
+     */
+    @Test
+    public void testSingleCookieParsing() throws IOException {
+        String rawRequest =
+                """
+                        GET / HTTP/1.1\r
+                        Host: localhost\r
+                        Cookie: sessionId=abc123\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        HttpProcessor processor = new HttpProcessor(mockRequest, mockResponse);
+
+        // 验证 Cookie 解析结果
+        Map<String, String> cookies = processor.cookies;
+        assertEquals(1, cookies.size());
+        assertEquals("abc123", cookies.get("sessionId"));
+    }
+
+    /**
+     * 多个 Cookie 的解析
+     */
+    @Test
+    public void testMultipleCookiesParsing() throws IOException {
+        String rawRequest =
+                """
+                        GET / HTTP/1.1\r
+                        Host: localhost\r
+                        Cookie: sessionId=abc123; theme=dark; userId=42\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        HttpProcessor processor = new HttpProcessor(mockRequest, mockResponse);
+
+        // 验证 Cookie 解析结果
+        Map<String, String> cookies = processor.cookies;
+        assertEquals(3, cookies.size());
+        assertEquals("abc123", cookies.get("sessionId"));
+        assertEquals("dark", cookies.get("theme"));
+        assertEquals("42", cookies.get("userId"));
+    }
+
+    /**
+     * 无效cookie
+     */
+    @Test(expected = IllegalArgumentException.class)
+    public void testInvalidCookieParsing() throws IOException {
+        String rawRequest =
+                """
+                        GET / HTTP/1.1\r
+                        Host: localhost\r
+                        Cookie: invalidCookie\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        HttpProcessor processor = new HttpProcessor(mockRequest, mockResponse);
+
+        // 验证 Cookie 解析结果
+        Map<String, String> cookies = processor.cookies;
+        // 无效的 Cookie 不应被解析
+    }
+
+    @Test
+    public void testJSessionIdExtraction() throws IOException {
+        String rawRequest =
+                """
+                        GET / HTTP/1.1\r
+                        Host: localhost\r
+                        Cookie: JSESSIONID=abc123; theme=dark\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        HttpProcessor processor = new HttpProcessor(mockRequest, mockResponse);
+
+        // 验证 JSESSIONID 是否正确提取
+        verify(mockRequest).setRequestedSessionId("abc123");
+        verify(mockRequest).setRequestedSessionIdFromCookie(true);
+        verify(mockRequest).setRequestedSessionIdFromURL(false);
+    }
+
+
+
+    /**
+     * 测试组装完整的请求头
+     */
+    @Test
+    public void testHttpRequestAssembly() throws IOException {
+        String rawRequest =
+                """
+                        GET /resource?q=Java HTTP/1.1\r
+                        Host: localhost:8080\r
+                        Cookie: sessionId=abc123; theme=dark; userId=42\r
+                        Accept-Language: en-US,en;q=0.9\r
+                        \r
+                        """;
+
+        mockInputStream = createInputStreamFromString(rawRequest);
+        when(mockRequest.getInputStream()).thenReturn(mockInputStream);
+        when(mockRequest.getCharacterEncoding()).thenReturn("UTF-8");
+
+        HttpProcessor processor = new HttpProcessor(mockRequest, mockResponse);
+
+        // 验证组装后的 HttpRequest 内容
+        verify(mockRequest).setMethod("GET");
+        verify(mockRequest).setUri("/resource");
+        verify(mockRequest).setProtocol("HTTP/1.1");
+        verify(mockRequest).setServerName("localhost");
+        verify(mockRequest).setServerPort(8080);
+        verify(mockRequest).setLocale(Locale.forLanguageTag("en-US"));
+        verify(mockRequest).setParameters(argThat(params ->
+                params.get("q").contains("Java")
+        ));
+        verify(mockRequest).setCookies(argThat(cookies ->
+                cookies.size() == 3 &&
+                        cookies.stream().anyMatch(c -> c.getName().equals("sessionId") && c.getValue().equals("abc123"))
+        ));
+    }
+
+
     private ServletInputStream createInputStreamFromString(String data) {
         return createInputStreamFromByteArray(data.getBytes());
     }
@@ -392,12 +671,12 @@ public class HttpProcessorTest {
             }
 
             @Override
-            public int read() throws IOException {
+            public int read() {
                 return byteArrayInputStream.read();
             }
 
             @Override
-            public int read(byte[] b, int off, int len) throws IOException {
+            public int read(byte[] b, int off, int len) {
                 return byteArrayInputStream.read(b, off, len);
             }
         };

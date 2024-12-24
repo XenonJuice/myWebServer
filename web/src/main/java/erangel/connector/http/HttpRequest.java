@@ -36,7 +36,18 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private Locale locale;
     // 字符编码
     private String characterEncoding = "UTF-8";
-
+    // 存储请求的 Cookie
+    private ArrayList<Cookie> cookies = new ArrayList<>();
+    // 客户端在请求中携带的SessionID
+    private String requestedSessionId = null;
+    // sessionId是否来自cookie？
+    protected boolean isRequestedSessionIdFromCookie = false;
+    // sessionId是否来自URL？
+    protected boolean isRequestedSessionIdFromURL = false;
+    // 服务器名
+    protected String serverName = null;
+    // 服务器端口
+    protected int serverPort = -1;
     /**
      * 构造函数，初始化并解析HTTP请求。
      *
@@ -76,28 +87,33 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public Cookie[] getCookies() {
-        String cookieHeader = getHeader("Cookie");
-        if (cookieHeader == null || cookieHeader.trim().isEmpty()) {
-            logger.info("没有找到Cookie头部，返回空数组");
-            return new Cookie[0];
-        }
+//        String cookieHeader = getHeader("Cookie");
+//        if (cookieHeader == null || cookieHeader.trim().isEmpty()) {
+//            logger.info("没有找到Cookie头部，返回空数组");
+//            return new Cookie[0];
+//        }
+//
+//        String[] cookiePairs = cookieHeader.split(";");
+//        List<Cookie> cookieList = new ArrayList<>();
+//        for (String pair : cookiePairs) {
+//            String[] keyValue = pair.trim().split("=", 2);
+//            if (keyValue.length == 2) {
+//                String name = keyValue[0].trim();
+//                String value = keyValue[1].trim();
+//                Cookie cookie = new Cookie(name, value);
+//                cookieList.add(cookie);
+//                logger.info("解析到Cookie: {}={}", name, value);
+//            } else {
+//                logger.warn("无效的Cookie格式: {}", pair);
+//            }
+//        }
+//        logger.info("解析到的总Cookie数量: {}", cookieList.size());
+//        return cookieList.toArray(new Cookie[0]);
+        return cookies.toArray(new Cookie[0]);
+    }
 
-        String[] cookiePairs = cookieHeader.split(";");
-        List<Cookie> cookieList = new ArrayList<>();
-        for (String pair : cookiePairs) {
-            String[] keyValue = pair.trim().split("=", 2);
-            if (keyValue.length == 2) {
-                String name = keyValue[0].trim();
-                String value = keyValue[1].trim();
-                Cookie cookie = new Cookie(name, value);
-                cookieList.add(cookie);
-                logger.info("解析到Cookie: {}={}", name, value);
-            } else {
-                logger.warn("无效的Cookie格式: {}", pair);
-            }
-        }
-        logger.info("解析到的总Cookie数量: {}", cookieList.size());
-        return cookieList.toArray(new Cookie[0]);
+    public void setCookies(ArrayList<Cookie> cookies) {
+        this.cookies = cookies;
     }
 
     @Override
@@ -205,9 +221,13 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public String getRequestedSessionId() {
-        // 未实现会话管理
-        return null;
+        return requestedSessionId;
     }
+
+    public void setRequestedSessionId(String requestedSessionId) {
+        this.requestedSessionId = requestedSessionId;
+    }
+
 
     @Override
     public String getRequestURI() {
@@ -252,20 +272,17 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public boolean isRequestedSessionIdFromCookie() {
-        // 未实现会话管理
-        return false;
+        return isRequestedSessionIdFromCookie;
     }
 
     @Override
     public boolean isRequestedSessionIdFromURL() {
-        // 未实现会话管理
-        return false;
+        return isRequestedSessionIdFromURL;
     }
 
     @Override
     @Deprecated
     public boolean isRequestedSessionIdFromUrl() {
-        // 未实现会话管理
         return false;
     }
 
@@ -388,6 +405,18 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         this.protocol = protocol;
     }
 
+    public void setRequestedSessionIdFromCookie(boolean flag) {
+
+        this.isRequestedSessionIdFromCookie = flag;
+
+    }
+
+    public void setRequestedSessionIdFromURL(boolean flag) {
+
+        this.isRequestedSessionIdFromURL = flag;
+
+    }
+
     @Override
     public String getScheme() {
         // 简单实现，根据实际情况调整
@@ -396,14 +425,20 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public String getServerName() {
-        // 简单实现，根据实际情况调整
-        return "localhost";
+        return serverName;
+    }
+
+    public void setServerName(String name) {
+        this.serverName = name;
+
     }
 
     @Override
     public int getServerPort() {
-        // 简单实现，根据实际情况调整
-        return 80;
+        return serverPort;
+    }
+    public void setServerPort(int port) {
+        this.serverPort = port;
     }
 
     @Override
@@ -436,22 +471,13 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public Locale getLocale() {
-        if (locale != null) return locale;
-        String acceptLanguage = getHeader("Accept-Language");
-        if (acceptLanguage != null && !acceptLanguage.isEmpty()) {
-            String[] locales = acceptLanguage.split(",");
-            if (locales.length > 0) {
-                String[] parts = locales[0].trim().split(";");
-                try {
-                    locale = Locale.forLanguageTag(parts[0]);
-                } catch (Exception e) {
-                    locale = Locale.getDefault();
-                }
-                return locale;
-            }
-        }
-        return Locale.getDefault();
+        return locale;
     }
+
+    public void setLocale(Locale locale) {
+        this.locale = locale;
+    }
+
 
     @Override
     public Enumeration<Locale> getLocales() {
