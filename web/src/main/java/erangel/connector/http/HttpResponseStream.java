@@ -2,14 +2,14 @@ package erangel.connector.http;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
-import java.io.ByteArrayOutputStream;
+import java.io.BufferedOutputStream;
 import java.io.IOException;
 
 /**
- * 自定义的 ServletOutputStream 实现，直接写入 ByteArrayOutputStream。
+ * 自定义的 ServletOutputStream 实现，直接写入 BufferedOutputStream。
  */
 public class HttpResponseStream extends ServletOutputStream {
-    private final ByteArrayOutputStream outputStream;
+    private final BufferedOutputStream outputStream;
     private int byteCount;
 
     /**
@@ -17,7 +17,7 @@ public class HttpResponseStream extends ServletOutputStream {
      *
      * @param outputStream 用于实际数据写入的 ByteArrayOutputStream
      */
-    public HttpResponseStream(ByteArrayOutputStream outputStream) {
+    public HttpResponseStream(BufferedOutputStream outputStream) {
         this.outputStream = outputStream;
     }
 
