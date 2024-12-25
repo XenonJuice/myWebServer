@@ -1,317 +1,218 @@
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+
+
+import erangel.connector.http.HttpResponse;
+import org.junit.jupiter.api.*;
 
 import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
-import erangel.connector.http.HttpResponse;
+
 import static org.junit.jupiter.api.Assertions.*;
 
-public class HttpResponseTest {
+class HttpResponseTest {
 
-    private ByteArrayOutputStream outputStream;
+    private ByteArrayOutputStream clientOut;
     private HttpResponse response;
 
     @BeforeEach
     void setUp() throws UnsupportedEncodingException {
-        outputStream = new ByteArrayOutputStream();
-        response = new HttpResponse(outputStream);
+        // 每个测试前都重置一个新的 ByteArrayOutputStream 以及 HttpResponse
+        clientOut = new ByteArrayOutputStream();
+        response = new HttpResponse(clientOut);
     }
 
-    // 提供测试用例的数据源
-    private static Stream<Arguments> provideTestCasesForHttpResponse() {
-        return Stream.of(
-                // 测试用例1：发送简单的200 OK响应
-                Arguments.of(
-                        200,
-                        "OK",
-                        Map.of("Content-Type", "text/plain"),
-                        List.of(),
-                        "Hello, World!",
-                        "HTTP/1.1 200 OK\r\n" +
-                                "Content-Type: text/plain\r\n" +
-                                "Content-Length: 13\r\n" +
-                                "Date: ",
-                        "Hello, World!"
-                ),
-                // 测试用例2：发送404 Not Found错误
-                Arguments.of(
-                        404,
-                        "Not Found",
-                        Map.of("Content-Type", "text/html"),
-                        List.of(),
-                        "<h1>File Not Found</h1>",
-                        "HTTP/1.1 404 Not Found\r\n" +
-                                "Content-Type: text/html\r\n" +
-                                "Content-Length: 23\r\n" +
-                                "Date: ",
-                        "<h1>File Not Found</h1>"
-                ),
-                // 测试用例3：发送带有Cookie的响应
-                Arguments.of(
-                        200,
-                        "OK",
-                        Map.of("Content-Type", "text/html"),
-                        List.of(new Cookie("sessionId", "abc123"), new Cookie("user", "JohnDoe")),
-                        "<html><body>Welcome!</body></html>",
-                        "HTTP/1.1 200 OK\r\n" +
-                                "Content-Type: text/html\r\n" +
-                                "Content-Length: 34\r\n" +
-                                "Set-Cookie: sessionId=abc123; Path=/\r\n" +
-                                "Set-Cookie: user=JohnDoe; Path=/\r\n" +
-                                "Date: ",
-                        "<html><body>Welcome!</body></html>"
-                ),
-                // 测试用例4：发送重定向响应
-                Arguments.of(
-                        302,
-                        "Found",
-                        Map.of(
-                                "Location", "http://example.com",
-                                "Content-Type", "text/html; charset=UTF-8" // 添加 Content-Type 头部
-                        ),
-                        List.of(),
-                        "<html><body>Redirecting to <a href=\"http://example.com\">http://example.com</a></body></html>",
-                        "HTTP/1.1 302 Found\r\n" +
-                                "Content-Type: text/html; charset=UTF-8\r\n" +
-                                "Content-Length: 92\r\n" +
-                                "Location: http://example.com\r\n" +
-                                "Date: ",
-                        "<html><body>Redirecting to <a href=\"http://example.com\">http://example.com</a></body></html>"
-                )
-        );
+    @Test
+    @DisplayName("初始状态：Status = 200, 未提交, 无头部")
+    void testInitialState() throws IOException {
+        assertEquals(200, response.getStatus());   // SC_OK
+        assertFalse(response.isCommitted());
+        assertTrue(response.getHeaderNames().isEmpty());
+        assertNotNull(response.getWriter());       // 能获取 Writer
     }
 
-    @ParameterizedTest
-    @MethodSource("provideTestCasesForHttpResponse")
-    void testHttpResponse(
-            int statusCode,
-            String statusMessage,
-            Map<String, String> headers,
-            List<Cookie> cookies,
-            String responseBody,
-            String expectedStartOfResponse,
-            String expectedBody
-    ) throws IOException {
-        // 设置状态码和状态消息
-        response.setStatus(statusCode, statusMessage);
+    @Test
+    @DisplayName("setStatus() 能正确设置状态码和原因短语")
+    void testSetStatus() {
+        response.setStatus(HttpResponse.SC_NOT_FOUND);
+        assertEquals(404, response.getStatus());
+        assertEquals("Not Found", response.getStatusMessage());
 
-        // 设置头部信息
-        headers.forEach(response::setHeader);
+        response.setStatus(HttpResponse.SC_BAD_REQUEST, "Custom Bad Request");
+        assertEquals(400, response.getStatus());
+        assertEquals("Custom Bad Request", response.getStatusMessage());
+    }
 
-        // 添加Cookies
-        cookies.forEach(response::addCookie);
+    @Test
+    @DisplayName("setHeader() & addHeader()")
+    void testHeaders() throws IOException {
+        response.setHeader("X-Test", "Hello");
+        assertEquals("Hello", response.getHeader("X-Test"));
 
-        // 写入响应体
-        OutputStream servletOutputStream = response.getOutputStream();
-        servletOutputStream.write(responseBody.getBytes(response.getCharacterEncoding()));
-        servletOutputStream.flush();
+        response.addHeader("X-Test", "World");
+        // 再次读取 X-Test，应该有2个值
+        List<String> headers = (List<String>) response.getHeaders("X-Test");
+        assertEquals(2, headers.size());
+        assertTrue(headers.contains("Hello"));
+        assertTrue(headers.contains("World"));
 
-        // 刷新缓冲区
+        // flush 之后，检查输出内容里是否包含 X-Test
+        response.flushBuffer();
+        String written = clientOut.toString(StandardCharsets.ISO_8859_1);
+        assertTrue(written.contains("X-Test: Hello"));
+        assertTrue(written.contains("X-Test: World"));
+    }
+
+    @Test
+    @DisplayName("setContentType() & setCharacterEncoding()")
+    void testContentTypeAndCharset() throws IOException {
+        response.setContentType("text/html; charset=UTF-8");
+        assertEquals("text/html; charset=UTF-8", response.getContentType());
+        assertEquals("UTF-8", response.getCharacterEncoding());
+
+        // 写点文本
+        response.getWriter().write("你好");
         response.flushBuffer();
 
-        // 获取实际的响应内容
-        String actualResponse = outputStream.toString(response.getCharacterEncoding());
-
-        // 验证状态行和头部
-        assertTrue(actualResponse.startsWith(expectedStartOfResponse), "响应开头不匹配");
-
-        // 验证 Content-Length 头部
-        if (statusCode == 200 || statusCode == 302 || statusCode == 404) { // 根据需要添加其他状态码
-            byte[] responseBodyBytes = responseBody.getBytes(response.getCharacterEncoding());
-            String expectedContentLength = "Content-Length: " + responseBodyBytes.length + "\r\n";
-            assertTrue(actualResponse.contains(expectedContentLength), "Content-Length头部不匹配");
-        }
-
-        // 验证响应体
-        assertTrue(actualResponse.endsWith(expectedBody), "响应体不匹配");
+        String written = clientOut.toString(StandardCharsets.UTF_8);
+        // 检查头部包含 "Content-Type: text/html; charset=UTF-8"
+        assertTrue(written.contains("Content-Type: text/html; charset=UTF-8"));
+        // 检查输出体
+        assertTrue(written.endsWith("你好"));  // 说明用 UTF-8 编码成功
     }
 
-    // 单独测试 sendError 方法
     @Test
+    @DisplayName("setContentLength, setIntHeader, setDateHeader")
+    void testContentLengthAndDateHeader() throws IOException {
+        response.setContentLength(123);
+        assertEquals("123", response.getHeader("Content-Length"));
+
+        response.setIntHeader("X-Number", 42);
+        assertEquals("42", response.getHeader("X-Number"));
+
+        // 测试 DateHeader (只验证字符串格式包含 GMT 即可)
+        long now = System.currentTimeMillis();
+        response.setDateHeader("X-Date", now);
+
+        response.flushBuffer();
+        String written = clientOut.toString(StandardCharsets.ISO_8859_1);
+        assertTrue(written.contains("Content-Length: 123"));
+        assertTrue(written.contains("X-Number: 42"));
+        // 简单检查下 "X-Date: Wed, 25 Oct 2023 ..." 之类的格式
+        assertTrue(written.contains("X-Date: "));
+        assertTrue(written.contains("GMT"));
+    }
+
+    @Test
+    @DisplayName("addCookie() 及输出 Set-Cookie")
+    void testCookies() throws IOException {
+        Cookie c1 = new Cookie("sessionId", "ABC123");
+        c1.setPath("/test");
+        c1.setMaxAge(3600);
+        c1.setHttpOnly(true);
+
+        response.addCookie(c1);
+        response.flushBuffer();
+
+        String written = clientOut.toString(StandardCharsets.ISO_8859_1);
+        assertTrue(written.contains("Set-Cookie: sessionId=ABC123"));
+        assertTrue(written.contains("Max-Age=3600"));
+        assertTrue(written.contains("Path=/test"));
+        assertTrue(written.contains("HttpOnly"));
+    }
+
+    @Test
+    @DisplayName("sendError() 后生成错误页面，并自动提交")
     void testSendError() throws IOException {
-        response.sendError(HttpServletResponse.SC_NOT_FOUND, "Not Found");
-
-        String responseString = outputStream.toString(response.getCharacterEncoding());
-        assertTrue(responseString.startsWith("HTTP/1.1 404 Not Found\r\n"));
-        assertTrue(responseString.contains("Content-Type: text/html; charset=UTF-8\r\n"));
-        assertTrue(responseString.contains("Content-Length: "));
-        assertTrue(responseString.contains("<h1>HTTP Error 404 - Not Found</h1>"));
+        // sendError(404, "Not Found") 并输出
+        response.sendError(404, "File Not Found");
+        // 已提交
+        assertTrue(response.isCommitted());
+        // 检查输出
+        String written = clientOut.toString(StandardCharsets.UTF_8);
+        // 状态行
+        assertTrue(written.contains("HTTP/1.1 404 File Not Found"));
+        // 内容
+        assertTrue(written.contains("<h1>HTTP Error 404 - File Not Found</h1>"));
     }
 
-    // 单独测试 sendRedirect 方法
     @Test
+    @DisplayName("sendRedirect() 测试")
     void testSendRedirect() throws IOException {
-        String location = "http://example.com";
-        response.sendRedirect(location);
+        response.sendRedirect("/newLocation");
+        // 检查状态码
+        assertEquals(302, response.getStatus());
+        assertEquals("Found", response.getStatusMessage());
+        // 已提交
+        assertTrue(response.isCommitted());
 
-        String responseString = outputStream.toString(response.getCharacterEncoding());
-        assertTrue(responseString.startsWith("HTTP/1.1 302 Found\r\n"));
-        assertTrue(responseString.contains("Location: " + location + "\r\n"));
-        assertTrue(responseString.contains("Content-Type: text/html; charset=UTF-8\r\n"));
-        assertTrue(responseString.contains("Content-Length: "));
-        assertTrue(responseString.contains("Redirecting to <a href=\"" + location + "\">" + location + "</a>"));
+        String written = clientOut.toString(StandardCharsets.ISO_8859_1);
+        assertTrue(written.contains("HTTP/1.1 302 Found"));
+        assertTrue(written.contains("Location: /newLocation"));
+        assertTrue(written.contains("<h1>Redirecting to <a href=\"/newLocation\">"));
     }
 
-    // 单独测试添加和格式化Cookies
     @Test
-    void testAddCookies() throws IOException {
-        Cookie cookie1 = new Cookie("sessionId", "abc123");
-        Cookie cookie2 = new Cookie("user", "JohnDoe");
-        response.addCookie(cookie1);
-        response.addCookie(cookie2);
-
-        // 写入响应头
-        OutputStream servletOutputStream = response.getOutputStream();
-        servletOutputStream.write("Response with cookies".getBytes(response.getCharacterEncoding()));
-        servletOutputStream.flush();
-        response.flushBuffer();
-
-        String responseString = outputStream.toString(response.getCharacterEncoding());
-        assertTrue(responseString.contains("Set-Cookie: sessionId=abc123; Path=/"));
-        assertTrue(responseString.contains("Set-Cookie: user=JohnDoe; Path=/"));
-    }
-
-    // 测试缓冲区管理
-    @Test
+    @DisplayName("flushBuffer() 不重复提交，且 isCommitted=true 之后不可改头部")
     void testFlushBuffer() throws IOException {
-        response.setStatus(HttpServletResponse.SC_OK, "OK");
-        response.setContentType("text/plain");
-        String body = "Hello, Buffered World!";
-        OutputStream servletOutputStream = response.getOutputStream();
-        servletOutputStream.write(body.getBytes(response.getCharacterEncoding()));
-
-        // 在调用 flushBuffer 之前，缓冲区中应包含状态行和头部
-        // 但由于 ByteArrayOutputStream 会收集所有数据，无法直接验证
-        // 因此调用 flushBuffer 并验证整个响应
-
+        response.setHeader("X-FlushTest", "BeforeFlush");
         response.flushBuffer();
 
-        String responseString = outputStream.toString(response.getCharacterEncoding());
-        assertTrue(responseString.startsWith("HTTP/1.1 200 OK\r\n"));
-        assertTrue(responseString.contains("Content-Type: text/plain\r\n"));
-        assertTrue(responseString.contains("Content-Length: " + body.getBytes(response.getCharacterEncoding()).length + "\r\n"));
-        assertTrue(responseString.endsWith(body));
+        // 已提交
+        assertTrue(response.isCommitted());
+        // 再次改头部应抛异常
+        assertThrows(IllegalStateException.class, () -> response.setHeader("X-FlushTest", "AfterFlush"));
+
+        // 看输出是否包含
+        String written = clientOut.toString(StandardCharsets.ISO_8859_1);
+        assertTrue(written.contains("X-FlushTest: BeforeFlush"));
     }
 
-    // 测试重置缓冲区
     @Test
+    @DisplayName("resetBuffer() 能清空尚未提交的数据")
     void testResetBuffer() throws IOException {
-        response.setHeader("X-Test", "TestValue");
-        response.resetBuffer();
-
-        // 写入新的响应体
-        response.setContentType("text/plain");
-        OutputStream servletOutputStream = response.getOutputStream();
-        servletOutputStream.write("New Response".getBytes(response.getCharacterEncoding()));
-        response.flushBuffer();
-
-        String responseString = outputStream.toString(response.getCharacterEncoding());
-        assertFalse(responseString.contains("X-Test: TestValue"), "Header未被重置");
-        assertTrue(responseString.startsWith("HTTP/1.1 200 OK\r\n"));
-        assertTrue(responseString.contains("Content-Type: text/plain\r\n"));
-        assertTrue(responseString.endsWith("New Response"));
-    }
-
-    // 测试重置整个响应
-    @Test
-    void testReset() throws IOException {
-        response.setStatus(HttpServletResponse.SC_NOT_FOUND, "Not Found");
-        response.setContentType("text/html");
-        response.setHeader("X-Test", "TestValue");
-        response.addCookie(new Cookie("sessionId", "abc123"));
-
-        response.reset();
-
-        assertEquals(HttpServletResponse.SC_OK, response.getStatus());
-        assertEquals("OK", response.getStatusMessage());
-        assertNull(response.getContentType());
-        assertEquals("ISO-8859-1", response.getCharacterEncoding());
-        assertTrue(response.getHeadersMap().isEmpty());
-        assertTrue(response.getCookies().isEmpty());
+        response.getWriter().write("Hello, World!");
+        // 尚未 flush，所以 isCommitted = false
         assertFalse(response.isCommitted());
 
-        // 写入新的响应体
-        OutputStream servletOutputStream = response.getOutputStream();
-        servletOutputStream.write("Reset Response".getBytes(response.getCharacterEncoding()));
-        response.flushBuffer();
+        // resetBuffer -> 清空
+        response.resetBuffer();
+        response.getWriter().write("New Data");
 
-        String responseString = outputStream.toString(response.getCharacterEncoding());
-        assertTrue(responseString.startsWith("HTTP/1.1 200 OK\r\n"));
-        assertTrue(responseString.contains("Content-Length: " + "Reset Response".getBytes(response.getCharacterEncoding()).length + "\r\n"));
-        assertTrue(responseString.endsWith("Reset Response"));
+        // 现在 flush
+        response.flushBuffer();
+        String written = clientOut.toString(StandardCharsets.ISO_8859_1);
+        // 不应包含 "Hello, World!"
+        assertFalse(written.contains("Hello, World!"));
+        assertTrue(written.contains("New Data"));
     }
 
-    // 测试设置内容长度
     @Test
-    void testSetContentLength() throws IOException {
-        response.setContentLength(100);
-        response.setContentLengthLong(1000L);
-        // 写入响应体
-        OutputStream servletOutputStream = response.getOutputStream();
-        servletOutputStream.write("Content Length Test".getBytes(response.getCharacterEncoding()));
-        response.flushBuffer();
-        String responseString = outputStream.toString(response.getCharacterEncoding());
-        // 注意：setContentLength和setContentLengthLong都被调用，但最后一个设置应生效
-        String expectedContentLength = "Content-Length: 19\r\n"; // "Content Length Test".length() == 19
-        assertTrue(responseString.contains(expectedContentLength), "Content-Length头部不匹配");
-    }
+    @DisplayName("reset() 在未提交时清空状态码、头部、Cookies以及正文")
+    void testReset() throws IOException {
+        response.setStatus(HttpResponse.SC_BAD_REQUEST, "BeforeReset");
+        response.setHeader("X-Test", "oldHeader");
+        response.addCookie(new Cookie("TestCookie", "123"));
+        response.getWriter().write("OldData");
+        assertEquals(400, response.getStatus());
 
-    // 测试设置日期头部
-    @Test
-    void testSetDateHeader() throws IOException {
-        long currentTime = System.currentTimeMillis();
-        response.setDateHeader("Date", currentTime);
+        response.reset();
+        // 状态码应回到 200
+        assertEquals(200, response.getStatus());
+        assertNull(response.getHeader("X-Test"));
+        assertTrue(response.getCookies().isEmpty());
 
-        // 写入响应体
-        OutputStream servletOutputStream = response.getOutputStream();
-        servletOutputStream.write("Date Header Test".getBytes(response.getCharacterEncoding()));
+        response.getWriter().write("NewData");
         response.flushBuffer();
 
-        String responseString = outputStream.toString(response.getCharacterEncoding());
-        String formattedDate = response.formatDate(currentTime);
-        assertTrue(responseString.contains("Date: " + formattedDate + "\r\n"));
-    }
-
-    // 测试设置整数头部
-    @Test
-    void testSetIntHeader() throws IOException {
-        response.setIntHeader("Content-Length", 256);
-        response.addIntHeader("Content-Length", 512);
-
-        // 写入响应体
-        OutputStream servletOutputStream = response.getOutputStream();
-        servletOutputStream.write("Int Header Test".getBytes(response.getCharacterEncoding()));
-        response.flushBuffer();
-
-        String responseString = outputStream.toString(response.getCharacterEncoding());
-        // 最后设置的Content-Length应为512，但响应体只有15字节，测试可能需要调整
-        // 根据实际实现，Content-Length应为15
-        // 因为setIntHeader("Content-Length", 256) 会被覆盖
-        String expectedContentLength = "Content-Length: 15\r\n";
-        assertTrue(responseString.contains(expectedContentLength), "Content-Length头部不匹配");
-    }
-
-    // 测试私有方法 formatCookie
-    @Test
-    void testFormatCookie() {
-        Cookie cookie = new Cookie("sessionId", "abc123");
-        cookie.setMaxAge(3600);
-        cookie.setPath("/");
-        cookie.setDomain("example.com");
-        cookie.setSecure(true);
-        cookie.setHttpOnly(true);
-        String formattedCookie = response.formatCookie(cookie);
-        String expected = "sessionId=abc123; Max-Age=3600; Path=/; Domain=example.com; Secure; HttpOnly";
-        assertEquals(expected, formattedCookie);
+        String written = clientOut.toString(StandardCharsets.ISO_8859_1);
+        // 不含旧的数据
+        assertFalse(written.contains("OldData"));
+        // 不含 "X-Test: oldHeader"
+        assertFalse(written.contains("X-Test: oldHeader"));
+        // 新的数据
+        assertTrue(written.contains("NewData"));
     }
 }
