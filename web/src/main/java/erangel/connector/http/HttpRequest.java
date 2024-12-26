@@ -48,18 +48,11 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     protected String serverName = null;
     // 服务器端口
     protected int serverPort = -1;
+
     /**
-     * 构造函数，初始化并解析HTTP请求。
-     *
-     * @param inputStream 客户端发送的 InputStream
-     * @param remoteAddr  客户端的IP地址
-     * @param remoteHost  客户端的主机名
      */
-    public HttpRequest(InputStream inputStream, String remoteAddr, String remoteHost) {
-        this.remoteAddr = remoteAddr;
-        this.remoteHost = remoteHost;
-        this.servletInputStream = new HttpRequestStream(inputStream);
-        logger.info("收到来自 {} 的新请求", remoteAddr);
+    public HttpRequest() {
+
     }
 
     /**
@@ -80,35 +73,26 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         characterEncoding = "UTF-8";
     }
 
+    public void setRemoteAddr(String remoteAddr) {
+        this.remoteAddr = remoteAddr;
+    }
+
+    public void setRemoteHost(String remoteHost) {
+        this.remoteHost = remoteHost;
+    }
+
+    public void setStream(InputStream inputStream) {
+        this.servletInputStream = new HttpRequestStream(inputStream);
+    }
+
     @Override
     public String getAuthType() {
         return null;
     }
 
+
     @Override
     public Cookie[] getCookies() {
-//        String cookieHeader = getHeader("Cookie");
-//        if (cookieHeader == null || cookieHeader.trim().isEmpty()) {
-//            logger.info("没有找到Cookie头部，返回空数组");
-//            return new Cookie[0];
-//        }
-//
-//        String[] cookiePairs = cookieHeader.split(";");
-//        List<Cookie> cookieList = new ArrayList<>();
-//        for (String pair : cookiePairs) {
-//            String[] keyValue = pair.trim().split("=", 2);
-//            if (keyValue.length == 2) {
-//                String name = keyValue[0].trim();
-//                String value = keyValue[1].trim();
-//                Cookie cookie = new Cookie(name, value);
-//                cookieList.add(cookie);
-//                logger.info("解析到Cookie: {}={}", name, value);
-//            } else {
-//                logger.warn("无效的Cookie格式: {}", pair);
-//            }
-//        }
-//        logger.info("解析到的总Cookie数量: {}", cookieList.size());
-//        return cookieList.toArray(new Cookie[0]);
         return cookies.toArray(new Cookie[0]);
     }
 
@@ -437,6 +421,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     public int getServerPort() {
         return serverPort;
     }
+
     public void setServerPort(int port) {
         this.serverPort = port;
     }

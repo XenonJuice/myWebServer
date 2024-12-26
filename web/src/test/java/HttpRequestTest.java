@@ -94,7 +94,7 @@ public class HttpRequestTest {
             Map<String, String> expectedCookies
     ) throws IOException {
         InputStream inputStream = new ByteArrayInputStream(request.getBytes());
-        HttpRequest httpRequest = new HttpRequest(inputStream, null, null);
+        HttpRequest httpRequest = new HttpRequest();
         assertEquals(expectedMethod, httpRequest.getMethod());
         assertEquals(expectedUri, httpRequest.getRequestURI());
         assertEquals(expectedProtocol, httpRequest.getProtocol());

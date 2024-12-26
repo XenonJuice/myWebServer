@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-
+@Deprecated
 class HttpResponseTest {
 
     private ByteArrayOutputStream clientOut;
@@ -21,7 +21,7 @@ class HttpResponseTest {
     void setUp() throws UnsupportedEncodingException {
         // 每个测试前都重置一个新的 ByteArrayOutputStream 以及 HttpResponse
         clientOut = new ByteArrayOutputStream();
-        response = new HttpResponse(clientOut);
+        response = new HttpResponse();
     }
 
     @Test

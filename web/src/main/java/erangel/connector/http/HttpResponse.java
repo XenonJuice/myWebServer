@@ -29,47 +29,26 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     // ======== 缓冲区相关 ========
     private final int bufferSize = 8192;
-    /**
-     * internalBuffer：先将正文缓存在内存中，只有在真正 flush/commit 时才写给客户端
-     */
-    private final ByteArrayOutputStream internalBuffer;
-    /**
-     * 对 internalBuffer 再包一层 BufferedOutputStream
-     */
-    private final BufferedOutputStream bufferedOutputStream;
-    /**
-     * 自定义的 ServletOutputStream，写入 bufferedOutputStream
-     */
-    private final HttpResponseStream servletOutputStream;
-
+    private OutputStream clientOutputStream; // 最终输出到客户端的流
+    private BufferedOutputStream bufferedOutputStream; // 直接缓冲到clientOutputStream
+    private ServletOutputStream servletOutputStream; // 自定义流
     private PrintWriter writer;
-    private final OutputStream clientOutputStream; // 最终输出到客户端的流
-
     // ======== 提交状态 & 标志位 ========
     private boolean isCommitted = false;
     private boolean writerUsed = false;
     private boolean outputStreamUsed = false;
 
     /**
-     * 构造函数，初始化输出流和缓冲区。
-     * (PrintWriter)----(OutputStreamWriter)----
-     * (HttpResponseStream)----(BufferedOutputStream)----
-     * (ByteArrayOutputStream)----(最终一次性写入 clientOutputStream)
-     *
-     * @param outputStream 客户端的输出流
      */
-    public HttpResponse(OutputStream outputStream) throws UnsupportedEncodingException {
+    public HttpResponse()  {
+
+    }
+
+    // =================== 输出流相关 ===================
+    public void setStream(OutputStream outputStream){
         this.clientOutputStream = outputStream;
-
-        // 先把正文写到内存（ByteArrayOutputStream），并在其外包一层BufferedOutputStream
-        this.internalBuffer = new ByteArrayOutputStream(bufferSize);
-        this.bufferedOutputStream = new BufferedOutputStream(internalBuffer, bufferSize);
-
-        // 用自定义的 HttpResponseStream 来写 bufferedOutputStream
+        this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
         this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
-
-        // 创建 PrintWriter，默认编码
-        createWriter(this.characterEncoding);
     }
 
     /**
@@ -93,12 +72,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         this.isCommitted = false;
         this.writerUsed = false;
         this.outputStreamUsed = false;
-        this.internalBuffer.reset();
-        try {
-            createWriter(this.characterEncoding);
-        } catch (UnsupportedEncodingException e) {
-            // ignore
-        }
+        resetBuffer();
     }
 
     // =================== 状态码相关 ===================
@@ -126,9 +100,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     private String getReasonPhrase(int statusCode) {
         return switch (statusCode) {
             case SC_OK -> "OK";
+            // 404
             case SC_NOT_FOUND -> "Not Found";
+            // 500
             case SC_INTERNAL_SERVER_ERROR -> "Internal Server Error";
+            // 400
             case SC_BAD_REQUEST -> "Bad Request";
+            // 302
             case SC_FOUND -> "Found";
             default -> "Unknown Status";
         };
@@ -326,14 +304,10 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         writeStatusLineAndHeaders();
 
         // 2) 再将正文（内存缓冲）刷新到客户端
-        //    先flush Writer -> flush BufferedOutputStream -> data进入 ByteArrayOutputStream
+        //    先flush Writer -> flush BufferedOutputStream
         writer.flush();
         servletOutputStream.flush();
-
-        // 最后把 ByteArrayOutputStream 的内容写给客户端
-        internalBuffer.writeTo(clientOutputStream);
         clientOutputStream.flush();
-
         isCommitted = true;
     }
 
@@ -356,10 +330,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         // 其他头部
         for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
             String name = entry.getKey();
-            // 如果是 Content-Type，自然已写过，避免重复
-            if ("Content-Type".equalsIgnoreCase(name)) {
-                continue;
-            }
             for (String val : entry.getValue()) {
                 sb.append(name).append(": ").append(val).append("\r\n");
             }
@@ -377,9 +347,8 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         // 空行，结束头部
         sb.append("\r\n");
 
-        // 将头部写到客户端
-        clientOutputStream.write(sb.toString().getBytes(this.characterEncoding));
-        clientOutputStream.flush();
+        servletOutputStream.write(sb.toString().getBytes(this.characterEncoding));
+        servletOutputStream.flush();
     }
 
     private String formatCookie(Cookie cookie) {
@@ -433,7 +402,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         if (isCommitted) {
             throw new IllegalStateException("Cannot reset buffer after response has been committed.");
         }
-        internalBuffer.reset();
         try {
             // 必须重建 writer，否则已经写过的数据无法被重置
             createWriter(this.characterEncoding);
@@ -458,7 +426,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         characterEncoding = "ISO-8859-1";
         writerUsed = false;
         outputStreamUsed = false;
-        internalBuffer.reset();
+        // internalBuffer.reset();
         try {
             createWriter(this.characterEncoding);
         } catch (UnsupportedEncodingException e) {
