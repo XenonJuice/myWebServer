@@ -9,6 +9,8 @@ import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+import static erangel.connector.Utils.CookieUtils.formatCookie;
+
 /**
  * 自定义的 HttpServletResponse 实现，用于处理 HTTP 响应。
  * 使用自定义的 HttpResponseStream (基于 BufferedOutputStream) 作为输出流。
@@ -39,13 +41,14 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     private boolean outputStreamUsed = false;
 
     /**
+     *
      */
-    public HttpResponse()  {
+    public HttpResponse() {
 
     }
 
     // =================== 输出流相关 ===================
-    public void setStream(OutputStream outputStream){
+    public void setStream(OutputStream outputStream) {
         this.clientOutputStream = outputStream;
         this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
         this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
@@ -349,29 +352,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
         servletOutputStream.write(sb.toString().getBytes(this.characterEncoding));
         servletOutputStream.flush();
-    }
-
-    private String formatCookie(Cookie cookie) {
-        StringBuilder cookieBuilder = new StringBuilder();
-        cookieBuilder.append(cookie.getName()).append("=").append(cookie.getValue());
-        if (cookie.getMaxAge() >= 0) {
-            cookieBuilder.append("; Max-Age=").append(cookie.getMaxAge());
-        }
-        if (cookie.getPath() != null) {
-            cookieBuilder.append("; Path=").append(cookie.getPath());
-        } else {
-            cookieBuilder.append("; Path=/");
-        }
-        if (cookie.getDomain() != null) {
-            cookieBuilder.append("; Domain=").append(cookie.getDomain());
-        }
-        if (cookie.getSecure()) {
-            cookieBuilder.append("; Secure");
-        }
-        if (cookie.isHttpOnly()) {
-            cookieBuilder.append("; HttpOnly");
-        }
-        return cookieBuilder.toString();
     }
 
     // =================== 缓冲区相关 ===================

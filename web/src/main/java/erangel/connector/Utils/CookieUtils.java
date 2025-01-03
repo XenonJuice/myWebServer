@@ -35,4 +35,26 @@ public class CookieUtils {
         return cookies.toArray(new Cookie[0]);
     }
 
+    public static String formatCookie(Cookie cookie) {
+        StringBuilder cookieBuilder = new StringBuilder();
+        cookieBuilder.append(cookie.getName()).append("=").append(cookie.getValue());
+        if (cookie.getMaxAge() >= 0) {
+            cookieBuilder.append("; Max-Age=").append(cookie.getMaxAge());
+        }
+        if (cookie.getPath() != null) {
+            cookieBuilder.append("; Path=").append(cookie.getPath());
+        } else {
+            cookieBuilder.append("; Path=/");
+        }
+        if (cookie.getDomain() != null) {
+            cookieBuilder.append("; Domain=").append(cookie.getDomain());
+        }
+        if (cookie.getSecure()) {
+            cookieBuilder.append("; Secure");
+        }
+        if (cookie.isHttpOnly()) {
+            cookieBuilder.append("; HttpOnly");
+        }
+        return cookieBuilder.toString();
+    }
 }
