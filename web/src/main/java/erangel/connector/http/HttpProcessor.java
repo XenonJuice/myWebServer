@@ -19,7 +19,7 @@ import static erangel.connector.Utils.CookieUtils.convertToCookieList;
  * @author LILINJIAN
  * @version $Date: 2024/12/19 15:24
  */
-public class HttpProcessor extends BaseLogger {
+public class HttpProcessor extends BaseLogger implements Runnable {
     HttpRequest request;
     HttpResponse response;
 
@@ -329,4 +329,13 @@ public class HttpProcessor extends BaseLogger {
             }
         }
     }
+
+    @Override
+    public void run() {
+
+    }
+    void threadStart() {}
+    void threadStop() {}
+    void start() {}
+    void stop() {}
 }
