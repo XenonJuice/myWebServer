@@ -22,7 +22,10 @@ import static erangel.connector.Utils.CookieUtils.convertToCookieList;
 public class HttpProcessor extends BaseLogger implements Runnable {
     HttpRequest request;
     HttpResponse response;
-
+    // 解析器的ID
+    int id;
+    // 与此解析器绑定的连接器
+    HttpConnector connector;
     // 从请求中获得的 ServletInputStream
     public ServletInputStream servletInputStream;
     // 从请求中获得的字符编码
@@ -38,7 +41,9 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     public String protocol;
     public String uri;
 
-    public HttpProcessor(HttpRequest request, HttpResponse response) throws IOException {
+    public HttpProcessor(HttpConnector connector, HttpRequest request, HttpResponse response, int id) throws IOException {
+        this.connector = connector;
+        this.id = id;
         this.request = request;
         this.response = response;
         this.servletInputStream = request.getInputStream();
@@ -334,8 +339,16 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     public void run() {
 
     }
-    void threadStart() {}
-    void threadStop() {}
-    void start() {}
-    void stop() {}
+
+    void threadStart() {
+    }
+
+    void threadStop() {
+    }
+
+    void start() {
+    }
+
+    void stop() {
+    }
 }
