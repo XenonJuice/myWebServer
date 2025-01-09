@@ -4,11 +4,11 @@ import erangel.log.BaseLogger;
 
 import javax.servlet.ServletInputStream;
 import javax.servlet.http.Cookie;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
+import java.net.Socket;
 import java.net.URLDecoder;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static erangel.connector.Utils.CookieUtils.convertToCookieArray;
 import static erangel.connector.Utils.CookieUtils.convertToCookieList;
@@ -20,6 +20,8 @@ import static erangel.connector.Utils.CookieUtils.convertToCookieList;
  * @version $Date: 2024/12/19 15:24
  */
 public class HttpProcessor extends BaseLogger implements Runnable {
+    private final HttpRequest request;
+    private final HttpResponse response;
     // 从请求中获得的 ServletInputStream
     public ServletInputStream servletInputStream;
     // 从请求中获得的字符编码
@@ -34,23 +36,25 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     public String fullUri;
     public String protocol;
     public String uri;
-    HttpRequest request;
-    HttpResponse response;
     // 解析器的ID
-    int id;
+    private AtomicInteger id;
     // 与此解析器绑定的连接器
-    HttpConnector connector;
+    private HttpConnector connector;
     // 代理端口、名 (从绑定的连接器中获取)
     private String proxyName;
     private int proxyPort;
+    // 长连接标志位
+    private boolean keepAlive = false;
+    // 线程停止信号
+    private boolean stopped = false;
 
-    public HttpProcessor(HttpConnector connector, HttpRequest request, HttpResponse response, int id) throws IOException {
+    public HttpProcessor(HttpConnector connector, AtomicInteger id) throws IOException {
         this.connector = connector;
         this.proxyName = connector.getProxyName();
         this.proxyPort = connector.getProxyPort();
         this.id = id;
-        this.request = request;
-        this.response = response;
+        this.request = connector.createRequest();
+        this.response = connector.createResponse();
         this.servletInputStream = request.getInputStream();
         this.characterEncoding = request.getCharacterEncoding() != null ? request.getCharacterEncoding() : "UTF-8";
         parseRequest();
@@ -358,5 +362,28 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     }
 
     void stop() {
+    }
+
+    // =================== 解析请求，生成响应===================
+    private void process(Socket socket) {
+        boolean noProblem = true;
+        boolean finishResponse = true;
+        InputStream input = null;
+        OutputStream output = null;
+        try {
+            input = new HttpRequestStream(socket.getInputStream());
+        } catch (IOException e) {
+            noProblem = false;
+            logger.error("处理请求时发生错误", e);
+        }
+        // TODO 具体的处理逻辑
+        keepAlive = true;
+        while (!stopped && noProblem && keepAlive) {
+            request.setStream(input);
+            // request.setResponse(response);
+
+
+        }
+
     }
 }

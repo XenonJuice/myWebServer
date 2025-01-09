@@ -16,6 +16,7 @@ import java.util.Map;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+@Deprecated
 public class HttpProcessorTest {
 
     private HttpRequest mockRequest;

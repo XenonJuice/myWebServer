@@ -1,14 +1,16 @@
 package erangel.connector.http;
 
+import erangel.log.BaseLogger;
 import erangel.net.DefaultServerSocketFactory;
 import erangel.net.ServerSocketFactory;
 
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class HttpConnector implements Runnable {
+public class HttpConnector extends BaseLogger implements Runnable {
     // 描述信息
     private static final String info = "llj.erangel.connector.http.HttpConnector/1.0";
     // 线程容器
@@ -26,6 +28,8 @@ public class HttpConnector implements Runnable {
     // 代理端口、名
     private int proxyPort = 0;
     private String proxyName = null;
+    // 希望监听特定的网络接口或IP
+    private String address = null;
     // 最大解析器数量
     private int maxProcessors = 100;
     // 最小解析器数量
@@ -42,6 +46,21 @@ public class HttpConnector implements Runnable {
     private boolean stopped = false;
 
     // =================== getter & setter ===================
+
+    /**
+     * 获取监听HTTP请求的端口号
+     */
+    public int getPort() {
+        return port;
+    }
+
+    /**
+     * 设置监听HTTP请求的端口号
+     */
+    public void setPort(int port) {
+        this.port = port;
+    }
+
     public String getScheme() {
         return scheme;
     }
@@ -65,6 +84,14 @@ public class HttpConnector implements Runnable {
 
     public void setProxyName(String proxyName) {
         this.proxyName = proxyName;
+    }
+
+    public String getAddress() {
+        return address;
+    }
+
+    public void setAddress(String address) {
+        this.address = address;
     }
 
     public ServerSocketFactory getFactory() {
@@ -92,7 +119,7 @@ public class HttpConnector implements Runnable {
     void threadStop() {
     }
 
-    void initalize() {
+    void initialize() {
     }
 
     void start() {
@@ -101,8 +128,62 @@ public class HttpConnector implements Runnable {
     void stop() {
     }
 
+    // =================== 其他方法 ===================
     private ServerSocket openSocket() {
         return null;
     }
 
+    public HttpRequest createRequest() {
+        // TODO 将请求与连接器绑定
+        return new HttpRequest();
+    }
+
+    public HttpResponse createResponse() {
+        // TODO 将响应与连接器绑定
+        return new HttpResponse();
+    }
+
+    /**
+     * 创建解析器
+     **/
+    private HttpProcessor createProcessor() {
+        HttpProcessor processor = processors.poll();
+        if (processor != null) {
+            return processor;
+        }
+
+        // 创建新processor时检查数量限制
+        int current = currentProcessors.get();
+        if (maxProcessors > 0 && current >= maxProcessors) {
+            return null;
+        }
+
+        if (currentProcessors.compareAndSet(current, current + 1)) {
+            return newProcessor();
+        }
+
+        // 重试从队列获取
+        processor = processors.poll();
+        return processor;
+    }
+
+    private HttpProcessor newProcessor() {
+        HttpProcessor processor = null;
+        try {
+            processor = new HttpProcessor(this, currentProcessors);
+        } catch (IOException e) {
+            logger.error("解析器创建失败",e);
+            return null;
+        }
+        processor.start();
+        // 添加到已创建解析器的列表中
+        created.add(processor);
+        return processor;
+    }
+    /**
+     * 回收资源
+     */
+    void recycle(HttpProcessor processor) {
+        processors.offer(processor);
+    }
 }
