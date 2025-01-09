@@ -5,6 +5,7 @@ import erangel.log.BaseLogger;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
+import java.net.Socket;
 import java.security.Principal;
 import java.util.*;
 
@@ -13,6 +14,18 @@ import java.util.*;
  * 负责解析HTTP请求，并提供访问请求数据的方法。
  */
 public class HttpRequest extends BaseLogger implements HttpServletRequest {
+    // 存储请求属性
+    private final Map<String, Object> attributes = new HashMap<>();
+    // sessionId是否来自cookie？
+    protected boolean isRequestedSessionIdFromCookie = false;
+    // sessionId是否来自URL？
+    protected boolean isRequestedSessionIdFromURL = false;
+    // 服务器名
+    protected String serverName = null;
+    // 服务器端口
+    protected int serverPort = -1;
+    // socket
+    private Socket socket;
     // HTTP请求方法（例如：GET, POST）
     private String method;
     // 请求URI（例如：/index.html）
@@ -27,11 +40,11 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private byte[] body = null;
     // 封装后的 ServletInputStream
     private ServletInputStream servletInputStream;
-    // 存储请求属性
-    private final Map<String, Object> attributes = new HashMap<>();
     // 请求的远程地址和主机名
     private String remoteAddr;
     private String remoteHost;
+    // 策略
+    private String scheme;
     // 存储请求的 Locale
     private Locale locale;
     // 字符编码
@@ -40,16 +53,9 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private ArrayList<Cookie> cookies = new ArrayList<>();
     // 客户端在请求中携带的SessionID
     private String requestedSessionId = null;
-    // sessionId是否来自cookie？
-    protected boolean isRequestedSessionIdFromCookie = false;
-    // sessionId是否来自URL？
-    protected boolean isRequestedSessionIdFromURL = false;
-    // 服务器名
-    protected String serverName = null;
-    // 服务器端口
-    protected int serverPort = -1;
 
     /**
+     *
      */
     public HttpRequest() {
 
@@ -73,12 +79,14 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         characterEncoding = "UTF-8";
     }
 
-    public void setRemoteAddr(String remoteAddr) {
-        this.remoteAddr = remoteAddr;
+
+    public Socket getSocket() {
+        return socket;
     }
 
-    public void setRemoteHost(String remoteHost) {
-        this.remoteHost = remoteHost;
+    // =================== getter setter ===================
+    public void setSocket(Socket socket) {
+        this.socket = socket;
     }
 
     public void setStream(InputStream inputStream) {
@@ -89,7 +97,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     public String getAuthType() {
         return null;
     }
-
 
     @Override
     public Cookie[] getCookies() {
@@ -212,7 +219,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         this.requestedSessionId = requestedSessionId;
     }
 
-
     @Override
     public String getRequestURI() {
         return uri;
@@ -259,9 +265,21 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         return isRequestedSessionIdFromCookie;
     }
 
+    public void setRequestedSessionIdFromCookie(boolean flag) {
+
+        this.isRequestedSessionIdFromCookie = flag;
+
+    }
+
     @Override
     public boolean isRequestedSessionIdFromURL() {
         return isRequestedSessionIdFromURL;
+    }
+
+    public void setRequestedSessionIdFromURL(boolean flag) {
+
+        this.isRequestedSessionIdFromURL = flag;
+
     }
 
     @Override
@@ -389,22 +407,13 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         this.protocol = protocol;
     }
 
-    public void setRequestedSessionIdFromCookie(boolean flag) {
-
-        this.isRequestedSessionIdFromCookie = flag;
-
-    }
-
-    public void setRequestedSessionIdFromURL(boolean flag) {
-
-        this.isRequestedSessionIdFromURL = flag;
-
-    }
-
     @Override
     public String getScheme() {
-        // 简单实现，根据实际情况调整
-        return "http";
+        return this.scheme;
+    }
+
+    public void setScheme(String scheme) {
+        this.scheme = scheme;
     }
 
     @Override
@@ -439,9 +448,17 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         return remoteAddr;
     }
 
+    public void setRemoteAddr(String remoteAddr) {
+        this.remoteAddr = remoteAddr;
+    }
+
     @Override
     public String getRemoteHost() {
         return remoteHost;
+    }
+
+    public void setRemoteHost(String remoteHost) {
+        this.remoteHost = remoteHost;
     }
 
     @Override

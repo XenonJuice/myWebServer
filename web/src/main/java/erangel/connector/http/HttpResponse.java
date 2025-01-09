@@ -71,7 +71,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         this.headers.clear();
         this.cookies.clear();
         this.contentType = null;
-        this.characterEncoding = "ISO-8859-1";
+        this.characterEncoding = "UTF-8";
         this.isCommitted = false;
         this.writerUsed = false;
         this.outputStreamUsed = false;

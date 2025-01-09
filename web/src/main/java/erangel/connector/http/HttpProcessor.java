@@ -20,12 +20,6 @@ import static erangel.connector.Utils.CookieUtils.convertToCookieList;
  * @version $Date: 2024/12/19 15:24
  */
 public class HttpProcessor extends BaseLogger implements Runnable {
-    HttpRequest request;
-    HttpResponse response;
-    // 解析器的ID
-    int id;
-    // 与此解析器绑定的连接器
-    HttpConnector connector;
     // 从请求中获得的 ServletInputStream
     public ServletInputStream servletInputStream;
     // 从请求中获得的字符编码
@@ -40,9 +34,20 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     public String fullUri;
     public String protocol;
     public String uri;
+    HttpRequest request;
+    HttpResponse response;
+    // 解析器的ID
+    int id;
+    // 与此解析器绑定的连接器
+    HttpConnector connector;
+    // 代理端口、名 (从绑定的连接器中获取)
+    private String proxyName;
+    private int proxyPort;
 
     public HttpProcessor(HttpConnector connector, HttpRequest request, HttpResponse response, int id) throws IOException {
         this.connector = connector;
+        this.proxyName = connector.getProxyName();
+        this.proxyPort = connector.getProxyPort();
         this.id = id;
         this.request = request;
         this.response = response;
@@ -51,6 +56,8 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         parseRequest();
         assembleRequest(request, method, uri, protocol, headers, parameters);
     }
+
+    // ===================解析相关 ===================
 
     /**
      * 使用字节读取一行数据，直到遇到 \r\n 为止。
@@ -335,6 +342,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         }
     }
 
+    // =================== 线程相关 ===================
     @Override
     public void run() {
 
