@@ -3,6 +3,9 @@ package erangel.connector.http;
 import erangel.log.BaseLogger;
 
 import javax.servlet.ServletInputStream;
+
+import erangel.connector.http.Const.*;
+
 import javax.servlet.http.Cookie;
 import java.io.*;
 import java.net.Socket;
@@ -267,16 +270,16 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     private void parseHeaders(Map<String, List<String>> headers) {
         if (headers.isEmpty()) return;
         // 为request设置权限
-        if (headers.containsKey("authorization")) {
+        if (headers.containsKey(Header.AUTHORIZATION)) {
             //System.out.println("权限未实现");
             // request.setAuthorization();
         }
         // 为request设置语言
-        if (headers.containsKey("Accept-Language")) {
+        if (headers.containsKey(Header.ACCEPT_LANGUAGE)) {
             Locale highestPriorityLocale = null;
-            List<String> acceptLanguageHeaders = headers.get("Accept-Language");
+            List<String> acceptLanguageHeaders = headers.get(Header.ACCEPT_LANGUAGE);
             if (acceptLanguageHeaders != null && !acceptLanguageHeaders.isEmpty()) {
-                String acceptLanguage = acceptLanguageHeaders.get(0); // 假设只取第一个值
+                String acceptLanguage = acceptLanguageHeaders.get(0); // 只取第一个值
                 if (acceptLanguage != null && !acceptLanguage.isEmpty()) {
                     String[] locales = acceptLanguage.split(",");
                     double highestWeight = -1.0;
@@ -310,12 +313,12 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             }
         }
         // 为request设置sessionId使用来源
-        if (headers.containsKey("Cookie")) {
-            List<String> cookieHeaders = headers.get("Cookie");
+        if (headers.containsKey(Header.Cookie)) {
+            List<String> cookieHeaders = headers.get(Header.Cookie);
             if (cookieHeaders != null && !cookieHeaders.isEmpty()) {
                 Cookie[] cookies = convertToCookieArray(cookieHeaders);
                 for (Cookie cookie : cookies) {
-                    if (cookie.getName().equals("JSESSIONID")) {
+                    if (cookie.getName().equals(Header.SESSION_ID)) {
                         if (!request.isRequestedSessionIdFromCookie()) {
                             String value = cookie.getValue();
                             logger.info("设置sessionId: {}", value);
@@ -328,8 +331,8 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             }
         }
         // 为request设置host
-        if (headers.containsKey("Host")) {
-            List<String> hostHeaders = headers.get("Host");
+        if (headers.containsKey(Header.HOST)) {
+            List<String> hostHeaders = headers.get(Header.HOST);
             if (hostHeaders != null && !hostHeaders.isEmpty()) {
                 String host = hostHeaders.get(0);
                 if (host != null && !host.isEmpty()) {
