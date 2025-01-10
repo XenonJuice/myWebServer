@@ -20,6 +20,7 @@ import static erangel.connector.Utils.CookieUtils.convertToCookieList;
  * @version $Date: 2024/12/19 15:24
  */
 public class HttpProcessor extends BaseLogger implements Runnable {
+    //<editor-fold desc = "attr">
     private final HttpRequest request;
     private final HttpResponse response;
     // 从请求中获得的 ServletInputStream
@@ -43,11 +44,14 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     // 代理端口、名 (从绑定的连接器中获取)
     private String proxyName;
     private int proxyPort;
+    // 服务器实际端口
+    private int serverPort = 0;
     // 长连接标志位
     private boolean keepAlive = false;
     // 线程停止信号
     private boolean stopped = false;
 
+    //</editor-fold>
     public HttpProcessor(HttpConnector connector, AtomicInteger id) throws IOException {
         this.connector = connector;
         this.proxyName = connector.getProxyName();
@@ -62,6 +66,16 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     }
 
     // ===================解析相关 ===================
+
+    /**
+     * 解析连接
+     */
+    private void parseConnection(Socket socket) {
+        request.setInet(socket.getInetAddress());
+        if (proxyPort != 0) request.setServerPort(proxyPort);
+        else request.setServerPort(serverPort);
+        request.setSocket(socket);
+    }
 
     /**
      * 使用字节读取一行数据，直到遇到 \r\n 为止。
@@ -254,7 +268,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         if (headers.isEmpty()) return;
         // 为request设置权限
         if (headers.containsKey("authorization")) {
-            System.out.println("权限未实现");
+            //System.out.println("权限未实现");
             // request.setAuthorization();
         }
         // 为request设置语言
@@ -374,13 +388,20 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             input = new HttpRequestStream(socket.getInputStream());
         } catch (IOException e) {
             noProblem = false;
-            logger.error("处理请求时发生错误", e);
+            logger.error("处理请求时发生IO错误:input", e);
         }
         // TODO 具体的处理逻辑
         keepAlive = true;
         while (!stopped && noProblem && keepAlive) {
-            request.setStream(input);
-            // request.setResponse(response);
+            try {
+                request.setStream(input);
+                request.setResponse(response);
+                output = socket.getOutputStream();
+                response.setStream(output);
+            } catch (IOException e) {
+                noProblem = false;
+                logger.error("处理请求时发生IO错误:output", e);
+            }
 
 
         }

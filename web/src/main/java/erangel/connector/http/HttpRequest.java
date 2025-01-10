@@ -5,6 +5,7 @@ import erangel.log.BaseLogger;
 import javax.servlet.*;
 import javax.servlet.http.*;
 import java.io.*;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.security.Principal;
 import java.util.*;
@@ -14,6 +15,7 @@ import java.util.*;
  * 负责解析HTTP请求，并提供访问请求数据的方法。
  */
 public class HttpRequest extends BaseLogger implements HttpServletRequest {
+    //<editor-fold desc="attr">
     // 存储请求属性
     private final Map<String, Object> attributes = new HashMap<>();
     // sessionId是否来自cookie？
@@ -24,6 +26,8 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     protected String serverName = null;
     // 服务器端口
     protected int serverPort = -1;
+    // 与此request绑定的连接器
+    private HttpConnector connector;
     // socket
     private Socket socket;
     // HTTP请求方法（例如：GET, POST）
@@ -32,6 +36,8 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private String uri;
     // 协议版本（例如：HTTP/1.1）
     private String protocol;
+    // response;
+    private HttpResponse response;
     // 存储HTTP头的映射
     private Map<String, List<String>> headers;
     // 存储请求参数的映射
@@ -40,6 +46,8 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private byte[] body = null;
     // 封装后的 ServletInputStream
     private ServletInputStream servletInputStream;
+    //存储远程客户端的IP 地址
+    private InetAddress inet;
     // 请求的远程地址和主机名
     private String remoteAddr;
     private String remoteHost;
@@ -53,6 +61,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private ArrayList<Cookie> cookies = new ArrayList<>();
     // 客户端在请求中携带的SessionID
     private String requestedSessionId = null;
+    //</editor-fold>
 
     /**
      *
@@ -61,30 +70,27 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     }
 
-    /**
-     * 回收对象，清理资源
-     */
-    public void recycle() {
-        method = null;
-        uri = null;
-        protocol = null;
-        headers.clear();
-        parameters.clear();
-        body = null;
-        attributes.clear();
-        servletInputStream = null;
-        remoteAddr = null;
-        remoteHost = null;
-        locale = null;
-        characterEncoding = "UTF-8";
+    //<editor-fold desc="getter & setter">
+    public HttpConnector getConnector() {
+        return connector;
     }
 
+    public void setConnector(HttpConnector connector) {
+        this.connector = connector;
+    }
+
+    public InetAddress getInet() {
+        return inet;
+    }
+
+    public void setInet(InetAddress inet) {
+        this.inet = inet;
+    }
 
     public Socket getSocket() {
         return socket;
     }
 
-    // =================== getter setter ===================
     public void setSocket(Socket socket) {
         this.socket = socket;
     }
@@ -437,15 +443,13 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public BufferedReader getReader() throws IOException {
-        if (body == null) {
-            return new BufferedReader(new InputStreamReader(new ByteArrayInputStream(new byte[0]), characterEncoding));
-        }
-        return new BufferedReader(new InputStreamReader(new ByteArrayInputStream(body), characterEncoding));
+        return new BufferedReader(new InputStreamReader(new ByteArrayInputStream(Objects.requireNonNullElseGet(body, () -> new byte[0])), characterEncoding));
     }
 
     @Override
     public String getRemoteAddr() {
-        return remoteAddr;
+        // ip地址的字符串表示
+        return inet.getHostAddress();
     }
 
     public void setRemoteAddr(String remoteAddr) {
@@ -454,7 +458,8 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public String getRemoteHost() {
-        return remoteHost;
+        if (connector.isEnableLookups()) return inet.getHostName();
+        return getRemoteAddr();
     }
 
     public void setRemoteHost(String remoteHost) {
@@ -596,5 +601,30 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         this.uri = uri;
     }
 
+    public HttpResponse getResponse() {
+        return response;
+    }
 
+    public void setResponse(HttpResponse response) {
+        this.response = response;
+    }
+    //</editor-fold>
+
+    /**
+     * 回收对象，清理资源
+     */
+    public void recycle() {
+        method = null;
+        uri = null;
+        protocol = null;
+        headers.clear();
+        parameters.clear();
+        body = null;
+        attributes.clear();
+        servletInputStream = null;
+        remoteAddr = null;
+        remoteHost = null;
+        locale = null;
+        characterEncoding = "UTF-8";
+    }
 }

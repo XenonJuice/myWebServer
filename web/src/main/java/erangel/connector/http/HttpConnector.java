@@ -11,6 +11,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class HttpConnector extends BaseLogger implements Runnable {
+    //<editor-fold desc = "attr">
     // 描述信息
     private static final String info = "llj.erangel.connector.http.HttpConnector/1.0";
     // 线程容器
@@ -30,6 +31,8 @@ public class HttpConnector extends BaseLogger implements Runnable {
     private String proxyName = null;
     // 希望监听特定的网络接口或IP
     private String address = null;
+    // DNS反向查询标志位
+    private boolean enableLookups = false;
     // 最大解析器数量
     private int maxProcessors = 100;
     // 最小解析器数量
@@ -45,7 +48,31 @@ public class HttpConnector extends BaseLogger implements Runnable {
     // 线程停止标志位
     private boolean stopped = false;
 
-    // =================== getter & setter ===================
+    //</editor-fold>
+    //<editor-fold desc="getter & setter">
+    public int getAcceptCount() {
+        return acceptCount;
+    }
+
+    public void setAcceptCount(int acceptCount) {
+        this.acceptCount = acceptCount;
+    }
+
+    public int getMaxProcessors() {
+        return maxProcessors;
+    }
+
+    public void setMaxProcessors(int maxProcessors) {
+        this.maxProcessors = maxProcessors;
+    }
+
+    public int getMinProcessors() {
+        return minProcessors;
+    }
+
+    public void setMinProcessors(int minProcessors) {
+        this.minProcessors = minProcessors;
+    }
 
     /**
      * 获取监听HTTP请求的端口号
@@ -54,11 +81,19 @@ public class HttpConnector extends BaseLogger implements Runnable {
         return port;
     }
 
+    public void setPort(int port) {
+        this.port = port;
+    }
+
     /**
      * 设置监听HTTP请求的端口号
      */
-    public void setPort(int port) {
-        this.port = port;
+    public boolean isEnableLookups() {
+        return enableLookups;
+    }
+
+    public void setEnableLookups(boolean enableLookups) {
+        this.enableLookups = enableLookups;
     }
 
     public String getScheme() {
@@ -107,7 +142,8 @@ public class HttpConnector extends BaseLogger implements Runnable {
         this.factory = factory;
     }
 
-    // =================== 线程相关 ===================
+    //</editor-fold>
+    //<editor-fold desc="线程相关">
     @Override
     public void run() {
 
@@ -128,7 +164,8 @@ public class HttpConnector extends BaseLogger implements Runnable {
     void stop() {
     }
 
-    // =================== 其他方法 ===================
+    //</editor-fold>
+    //<editor-fold desc="其他方法">
     private ServerSocket openSocket() {
         return null;
     }
@@ -172,7 +209,7 @@ public class HttpConnector extends BaseLogger implements Runnable {
         try {
             processor = new HttpProcessor(this, currentProcessors);
         } catch (IOException e) {
-            logger.error("解析器创建失败",e);
+            logger.error("解析器创建失败", e);
             return null;
         }
         processor.start();
@@ -180,10 +217,12 @@ public class HttpConnector extends BaseLogger implements Runnable {
         created.add(processor);
         return processor;
     }
+
     /**
      * 回收资源
      */
     void recycle(HttpProcessor processor) {
         processors.offer(processor);
     }
+    //</editor-fold>
 }
