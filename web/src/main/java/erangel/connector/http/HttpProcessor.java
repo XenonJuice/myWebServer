@@ -2,11 +2,13 @@ package erangel.connector.http;
 
 import erangel.log.BaseLogger;
 
+import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
 
 import erangel.connector.http.Const.*;
 
 import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.Socket;
 import java.net.URLDecoder;
@@ -40,6 +42,8 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     public String fullUri;
     public String protocol;
     public String uri;
+    // 解析器状态
+    private int status = Processor.PROCESSOR_IDLE;
     // 解析器的ID
     private AtomicInteger id;
     // 与此解析器绑定的连接器
@@ -51,6 +55,10 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     private int serverPort = 0;
     // 长连接标志位
     private boolean keepAlive = false;
+    // http11标志位
+    private boolean http11 = false;
+    // 确认消息标志位
+    private boolean ack = false;
     // 线程停止信号
     private boolean stopped = false;
 
@@ -62,10 +70,9 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         this.id = id;
         this.request = connector.createRequest();
         this.response = connector.createResponse();
-        this.servletInputStream = request.getInputStream();
+        // this.servletInputStream = request.getInputStream();
         this.characterEncoding = request.getCharacterEncoding() != null ? request.getCharacterEncoding() : "UTF-8";
-        parseRequest();
-        assembleRequest(request, method, uri, protocol, headers, parameters);
+        // assembleRequest(request, method, uri, protocol, headers, parameters);
     }
 
     // ===================解析相关 ===================
@@ -74,6 +81,8 @@ public class HttpProcessor extends BaseLogger implements Runnable {
      * 解析连接
      */
     private void parseConnection(Socket socket) {
+        logger.info("解析连接: IP : {} port : {}",
+                socket.getInetAddress(), connector.getPort());
         request.setInet(socket.getInetAddress());
         if (proxyPort != 0) request.setServerPort(proxyPort);
         else request.setServerPort(serverPort);
@@ -114,20 +123,32 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     /**
      * 解析HTTP请求
      */
-    private void parseRequest() throws IOException {
+    private void parseRequest() throws  IOException,ServletException {
         // 1. 读取并解析请求行
         String requestLine = readLine(servletInputStream, characterEncoding);
+        status = Processor.PROCESSOR_ACTIVE;
         if (requestLine == null || requestLine.isEmpty()) {
-            throw new IOException("Empty request");
+            throw new ServletException("Empty request");
         }
 
         String[] requestLineParts = requestLine.split(" ", 3);
-        if (requestLineParts.length != 3) {
-            throw new IOException("Invalid request line: " + requestLine);
+        if (requestLineParts.length == 2) {
+            // HTTP/0.9
+            method = requestLineParts[0];
+            fullUri = requestLineParts[1];
+            protocol = HttpProtocol.HTTP_0_9;  // 设置默认协议版本
+        } else if (requestLineParts.length == 3) {
+            // HTTP/1.0
+            method = requestLineParts[0];
+            fullUri = requestLineParts[1];
+            protocol = requestLineParts[2];
+        } else {
+            throw new ServletException("Invalid request line: " + requestLine);
         }
-        method = requestLineParts[0];
-        fullUri = requestLineParts[1];
-        protocol = requestLineParts[2];
+        if(protocol.equals(HttpProtocol.HTTP_1_1)){
+            http11 = true;
+            ack = true;
+        }
 
         logger.info("请求方法: {}", method);
         logger.info("完整URI: {}", fullUri);
@@ -143,6 +164,8 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         } else {
             uri = fullUri;
         }
+
+        if(!this.protocol.startsWith(HttpProtocol.HTTP_0_9.substring(0,6))) {
 
         // 2. 解析请求头
         int contentLength = 0;
@@ -160,16 +183,16 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             headers.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
             logger.info("头部: {} = {}", key, value);
 
-            if ("Content-Length".equalsIgnoreCase(key)) {
+            if (Header.CONTENT_LENGTH.equalsIgnoreCase(key)) {
                 try {
                     contentLength = Integer.parseInt(value);
                     logger.info("Content-Length: {}", contentLength);
                 } catch (NumberFormatException e) {
-                    throw new IOException("Invalid Content-Length value: " + value);
+                    throw new ServletException("Invalid Content-Length value: " + value);
                 }
             }
 
-            if ("Content-Type".equalsIgnoreCase(key)) {
+            if (Header.CONTENT_TYPE.equalsIgnoreCase(key)) {
                 contentType = value;
                 String[] typeParts = value.split(";");
                 if (typeParts.length > 1) {
@@ -182,7 +205,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 }
             }
             // 解析Cookies
-            if ("Cookie".equalsIgnoreCase(key)) {
+            if (Header.COOKIE.equalsIgnoreCase(key)) {
                 parseCookies(value);
             }
         }
@@ -201,7 +224,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             }
             if (bytesRead != contentLength) {
                 logger.warn("请求体不完整: 已读 {} 字节, 期望 {} 字节", bytesRead, contentLength);
-                throw new IOException("Request body is incomplete");
+                throw new ServletException("Request body is incomplete");
             }
             logger.info("成功读取请求体");
 
@@ -212,7 +235,8 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 logger.info("解析后的请求体参数: {}", parameters);
             }
         }
-
+        }
+        assembleRequest(request, method, uri, protocol, headers, parameters);
         logger.info("HTTP请求解析完成");
     }
 
@@ -269,9 +293,29 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     //TODO
     private void parseHeaders(Map<String, List<String>> headers) {
         if (headers.isEmpty()) return;
+        // 设置确认反馈
+        if (headers.containsKey(Ack.EXCEPT_ACKNOWLEDGEMENT)) {
+            ack = true;
+        }
+        // 设置connection属性
+        if(headers.containsKey(Header.CONNECTION)){
+            List<String> connectionHeaders = headers.get(Header.CONNECTION);
+            if (connectionHeaders != null && !connectionHeaders.isEmpty()) {
+                String connection = connectionHeaders.get(0);
+                if (connection != null && !connection.isEmpty()) {
+                    if (connection.equalsIgnoreCase(Header.CLOSE)) {
+                        keepAlive = false;
+                    } else if (connection.equalsIgnoreCase(Header.KEEP_ALIVE)) {
+                        keepAlive = true;
+                    }
+                }
+            }
+        }
+
         // 为request设置权限
         if (headers.containsKey(Header.AUTHORIZATION)) {
-            //System.out.println("权限未实现");
+            //TODO
+            System.out.println("权限未实现");
             // request.setAuthorization();
         }
         // 为request设置语言
@@ -285,7 +329,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                     double highestWeight = -1.0;
 
                     for (String localeEntry : locales) {
-                        String[] parts = localeEntry.trim().split(";");
+                        String[] parts = localeEntry.trim().split(PunctuationMarks.COMMA);
                         String languageTag = parts[0].trim();
                         double weight = 1.0; // 默认权重
 
@@ -313,8 +357,8 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             }
         }
         // 为request设置sessionId使用来源
-        if (headers.containsKey(Header.Cookie)) {
-            List<String> cookieHeaders = headers.get(Header.Cookie);
+        if (headers.containsKey(Header.COOKIE)) {
+            List<String> cookieHeaders = headers.get(Header.COOKIE);
             if (cookieHeaders != null && !cookieHeaders.isEmpty()) {
                 Cookie[] cookies = convertToCookieArray(cookieHeaders);
                 for (Cookie cookie : cookies) {
@@ -338,9 +382,12 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 if (host != null && !host.isEmpty()) {
                     int colonIndex = host.indexOf(':'); // 检查是否包含冒号
                     if (colonIndex < 0) {
-                        // 没有冒号，只设置主机名
+                        if (connector.getScheme().equals("http")) {
+                                request.setServerPort(80);
+                            } else if (connector.getScheme().equals("https")) {
+                                request.setServerPort(443);
+                        }
                         request.setServerName(host.trim());
-                        request.setServerPort(80); // 默认端口
                     } else {
                         // 分离主机名和端口号
                         String serverName = host.substring(0, colonIndex).trim();
@@ -381,33 +428,104 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     void stop() {
     }
 
+    // 清理内存
+    void recycle (){
+        this.keepAlive = false;
+        this.ack = false;
+        this.http11 = false;
+        this.protocol = null;
+        this.headers = null;
+        this.method = null;
+        this.uri = null;
+        this.fullUri = null;
+        request.recycle();
+        response.recycle();
+    }
+
     // =================== 解析请求，生成响应===================
     private void process(Socket socket) {
         boolean noProblem = true;
         boolean finishResponse = true;
-        InputStream input = null;
+        // InputStream input = null;
         OutputStream output = null;
         try {
-            input = new HttpRequestStream(socket.getInputStream());
+            servletInputStream = new HttpRequestStream(socket.getInputStream());
         } catch (IOException e) {
             noProblem = false;
             logger.error("处理请求时发生IO错误:input", e);
         }
+
         // TODO 具体的处理逻辑
         keepAlive = true;
         while (!stopped && noProblem && keepAlive) {
+            finishResponse = true;
             try {
-                request.setStream(input);
+                request.setStream(servletInputStream);
                 request.setResponse(response);
                 output = socket.getOutputStream();
                 response.setStream(output);
+                response.setRequest(request);
             } catch (IOException e) {
                 noProblem = false;
                 logger.error("处理请求时发生IO错误:output", e);
             }
 
+            // IO无异常，继续解析
+            try {
+                if (noProblem) {
+                    parseConnection(socket);
+                    parseRequest();
+                    if(http11){
+                        if(ack) response.sendAck();
+                        if(connector.isAllowChunking()) response.setAllowChunking(true);
+                    }
+                }
+            } catch (EOFException e){
+                // 客户端或者服务器socket断开
+                logger.warn("client or server socket shutdown!");
+                noProblem = false;
+                finishResponse = false;
+            } catch (ServletException e){
+                // request内容不合法
+                logger.info("request内容不合法: {}",e.getMessage());
+                try {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                } catch (IOException ex) {
+                    logger.warn("发送错误响应时失败: {}", ex.getMessage());
+                }
+            } catch (InterruptedIOException e) {
+                // 请求超时
+                noProblem = false;
+                try {
+                    response.sendError(HttpServletResponse.SC_REQUEST_TIMEOUT);
+                } catch (IOException ee) {
+                    logger.warn("发送错误响应时失败: {}", ee.getMessage());
+                }
+            } catch (IOException e) {
+                // 服务器读取请求时发生异常
+                logger.error("处理请求时发生IO错误:parseRequest", e);
+                noProblem = false;
+                try {
+                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                } catch (IOException ee) {
+                    logger.warn("发送错误响应时失败: {}", ee.getMessage());
+                }
+
+            }  catch (Exception e) {
+                // 其他异常
+                logger.error("未知异常", e);
+                noProblem = false;
+                try {
+                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                } catch (IOException ee) {
+                    logger.warn("发送错误响应时失败: {}", ee.getMessage());
+                }
+            }
 
         }
+
+        // TODO servlet容器加载
+        // container.invoke(request,response)
 
     }
 }

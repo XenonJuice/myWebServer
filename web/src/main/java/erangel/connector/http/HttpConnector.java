@@ -33,6 +33,8 @@ public class HttpConnector extends BaseLogger implements Runnable {
     private String address = null;
     // DNS反向查询标志位
     private boolean enableLookups = false;
+    // 分块传输标识位
+    private boolean allowChunking = true;
     // 最大解析器数量
     private int maxProcessors = 100;
     // 最小解析器数量
@@ -74,6 +76,13 @@ public class HttpConnector extends BaseLogger implements Runnable {
         this.minProcessors = minProcessors;
     }
 
+    public boolean isAllowChunking() {
+        return allowChunking;
+    }
+
+    public void setAllowChunking(boolean allowChunking) {
+        this.allowChunking = allowChunking;
+    }
     /**
      * 获取监听HTTP请求的端口号
      */

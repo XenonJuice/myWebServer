@@ -1,5 +1,8 @@
 package erangel.connector.http;
 
+import erangel.connector.http.Const.Ack;
+import erangel.connector.http.Const.Header;
+import erangel.connector.http.Const.PunctuationMarks;
 import erangel.log.BaseLogger;
 
 import javax.servlet.ServletOutputStream;
@@ -27,7 +30,10 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     // ======== 内容类型和字符编码 ========
     private String contentType;
-    private String characterEncoding = "ISO-8859-1";
+    private String characterEncoding = "UTF-8";
+
+    // ======== response ========
+    private HttpRequest request;
 
     // ======== 缓冲区相关 ========
     private final int bufferSize = 8192;
@@ -39,6 +45,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     private boolean isCommitted = false;
     private boolean writerUsed = false;
     private boolean outputStreamUsed = false;
+    private boolean allowChunking = false;
 
     /**
      *
@@ -75,6 +82,8 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         this.isCommitted = false;
         this.writerUsed = false;
         this.outputStreamUsed = false;
+        this.allowChunking = false;
+        this.request = null;
         resetBuffer();
     }
 
@@ -111,6 +120,9 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
             case SC_BAD_REQUEST -> "Bad Request";
             // 302
             case SC_FOUND -> "Found";
+            // 408
+            case SC_REQUEST_TIMEOUT -> "TimeOut";
+
             default -> "Unknown Status";
         };
     }
@@ -161,13 +173,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         // 2. 如果传入 null，就相当于去掉 Content-Type 头
         if (type == null) {
             this.contentType = null;
-            setHeader("Content-Type", "");
+            setHeader(Header.CONTENT_TYPE, PunctuationMarks.EMPTY);
             return;
         }
 
         // 3. 设置 contentType 到本地字段，并更新到头部
         this.contentType = type;
-        setHeader("Content-Type", type);
+        setHeader(Header.CONTENT_TYPE, type);
 
         // 4. 自动解析 charset=
         //    例如 "text/html; charset=UTF-8; boundary=xxx"
@@ -179,7 +191,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
             String charsetPart = type.substring(idx + 8).trim();
 
             // 如果还有其他属性，比如 `; boundary=someBoundary`，就需要截掉
-            int semicolonIndex = charsetPart.indexOf(';');
+            int semicolonIndex = charsetPart.indexOf(PunctuationMarks.SEMICOLON);
             if (semicolonIndex != -1) {
                 charsetPart = charsetPart.substring(0, semicolonIndex).trim();
             }
@@ -254,6 +266,10 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         }
     }
 
+    // 确认消息
+    public void sendAck() throws IOException {
+        this.bufferedOutputStream.write((Ack.ACK +PunctuationMarks.CRLF+PunctuationMarks.CRLF).getBytes());
+    }
     // =================== 发送错误与重定向 ===================
 
     @Override
@@ -319,36 +335,36 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
      */
     private void writeStatusLineAndHeaders() throws IOException {
         StringBuilder sb = new StringBuilder();
-        sb.append("HTTP/1.1 ")
+        sb.append(Const.HttpProtocol.HTTP_1_1+ PunctuationMarks.SPACE)
                 .append(status)
-                .append(" ")
+                .append(PunctuationMarks.SPACE)
                 .append(statusMessage)
-                .append("\r\n");
+                .append(PunctuationMarks.CRLF);
 
         // Content-Type
         if (this.contentType != null) {
-            sb.append("Content-Type: ").append(this.contentType).append("\r\n");
+            sb.append(Header.CONTENT_TYPE+ PunctuationMarks.COLON_SPACE).append(this.contentType).append(PunctuationMarks.CRLF);
         }
 
         // 其他头部
         for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
             String name = entry.getKey();
             for (String val : entry.getValue()) {
-                sb.append(name).append(": ").append(val).append("\r\n");
+                sb.append(name).append(PunctuationMarks.COLON_SPACE).append(val).append(PunctuationMarks.CRLF);
             }
         }
 
         // 写入 Cookie
         for (Cookie cookie : cookies) {
-            sb.append("Set-Cookie: ").append(formatCookie(cookie)).append("\r\n");
+            sb.append(Header.SET_COOKIE+ PunctuationMarks.COLON_SPACE).append(formatCookie(cookie)).append(PunctuationMarks.CRLF);
         }
 
         // 常用的 Date 和 Server
-        sb.append("Date: ").append(formatDate(System.currentTimeMillis())).append("\r\n");
-        sb.append("Server: CustomJavaServer/1.0\r\n");
+        sb.append(Header.DATE+ PunctuationMarks.COLON_SPACE).append(formatDate(System.currentTimeMillis())).append(PunctuationMarks.CRLF);
 
+        sb.append(Header.SERVER+ PunctuationMarks.COLON_SPACE+"CustomJavaServer"+ PunctuationMarks.CRLF);
         // 空行，结束头部
-        sb.append("\r\n");
+        sb.append(PunctuationMarks.CRLF);
 
         servletOutputStream.write(sb.toString().getBytes(this.characterEncoding));
         servletOutputStream.flush();
@@ -403,7 +419,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         headers.clear();
         cookies.clear();
         contentType = null;
-        characterEncoding = "ISO-8859-1";
+        characterEncoding = "UTF-8";
         writerUsed = false;
         outputStreamUsed = false;
         // internalBuffer.reset();
@@ -418,12 +434,12 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     @Override
     public void setContentLength(int len) {
-        setIntHeader("Content-Length", len);
+        setIntHeader(Header.CONTENT_LENGTH, len);
     }
 
     @Override
     public void setContentLengthLong(long len) {
-        setHeader("Content-Length", Long.toString(len));
+        setHeader(Header.CONTENT_LENGTH, Long.toString(len));
     }
 
     @Override
@@ -502,5 +518,23 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     @Override
     public String encodeRedirectURL(String url) {
         return url;
+    }
+
+    //
+    public HttpRequest getRequest() {
+        return request;
+    }
+
+    public void setRequest(HttpRequest request) {
+        this.request = request;
+    }
+
+
+    public boolean isAllowChunking() {
+        return allowChunking;
+    }
+
+    public void setAllowChunking(boolean allowChunking) {
+        this.allowChunking = allowChunking;
     }
 }

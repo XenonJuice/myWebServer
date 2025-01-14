@@ -626,5 +626,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         remoteHost = null;
         locale = null;
         characterEncoding = "UTF-8";
+        scheme = null;
+        response = null;
     }
 }
