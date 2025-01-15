@@ -1,4 +1,5 @@
 package erangel.connector.http;
+
 import static erangel.connector.http.Const.PunctuationMarks.CRLF;
 
 public final class Const {
@@ -32,7 +33,7 @@ public final class Const {
      */
     public static class Ack {
         public static final String ACK = "HTTP/1.1 100 Continue" + CRLF + CRLF;
-        public static final String EXCEPT_ACKNOWLEDGEMENT  ="100-continue";
+        public static final String EXCEPT_ACKNOWLEDGEMENT = "100-continue";
     }
 
     public static class PunctuationMarks {
@@ -44,6 +45,7 @@ public final class Const {
         public static final String COMMA = ",";
         public static final String COLON_SPACE = ": ";
     }
+
     public static class Header {
         public static final String CLOSE = "close";
         public static final String SESSION_ID = "JSESSIONID";

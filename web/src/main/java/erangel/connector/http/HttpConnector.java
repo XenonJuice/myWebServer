@@ -83,6 +83,7 @@ public class HttpConnector extends BaseLogger implements Runnable {
     public void setAllowChunking(boolean allowChunking) {
         this.allowChunking = allowChunking;
     }
+
     /**
      * 获取监听HTTP请求的端口号
      */

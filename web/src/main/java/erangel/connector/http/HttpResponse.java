@@ -1,6 +1,5 @@
 package erangel.connector.http;
 
-import erangel.connector.http.Const.Ack;
 import erangel.connector.http.Const.Header;
 import erangel.connector.http.Const.PunctuationMarks;
 import erangel.log.BaseLogger;
@@ -20,23 +19,19 @@ import static erangel.connector.Utils.CookieUtils.formatCookie;
  */
 public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
-    // ======== 状态码和消息 ========
-    private int status = SC_OK;
-    private String statusMessage = "OK";
-
     // ======== 响应头部、Cookie ========
     private final Map<String, List<String>> headers = new LinkedHashMap<>();
     private final List<Cookie> cookies = new ArrayList<>();
-
+    // ======== 缓冲区相关 ========
+    private final int bufferSize = 8192;
+    // ======== 状态码和消息 ========
+    private int status = SC_OK;
+    private String statusMessage = "OK";
     // ======== 内容类型和字符编码 ========
     private String contentType;
     private String characterEncoding = "UTF-8";
-
     // ======== response ========
     private HttpRequest request;
-
-    // ======== 缓冲区相关 ========
-    private final int bufferSize = 8192;
     private OutputStream clientOutputStream; // 最终输出到客户端的流
     private BufferedOutputStream bufferedOutputStream; // 直接缓冲到clientOutputStream
     private ServletOutputStream servletOutputStream; // 自定义流
@@ -90,12 +85,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     // =================== 状态码相关 ===================
 
     @Override
-    public void setStatus(int sc) {
-        this.status = sc;
-        this.statusMessage = getReasonPhrase(sc);
-    }
-
-    @Override
     public void setStatus(int sc, String sm) {
         this.status = sc;
         this.statusMessage = (sm != null ? sm : getReasonPhrase(sc));
@@ -106,11 +95,20 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         return this.status;
     }
 
+    @Override
+    public void setStatus(int sc) {
+        this.status = sc;
+        this.statusMessage = getReasonPhrase(sc);
+    }
+
     /**
      * 获取状态码对应的原因短语，若未知则返回 "Unknown Status"
      */
     private String getReasonPhrase(int statusCode) {
         return switch (statusCode) {
+            // 100
+            case SC_CONTINUE -> "Continue";
+            // 200
             case SC_OK -> "OK";
             // 404
             case SC_NOT_FOUND -> "Not Found";
@@ -165,6 +163,11 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     // =================== 内容类型与编码 ===================
 
     @Override
+    public String getContentType() {
+        return this.contentType;
+    }
+
+    @Override
     public void setContentType(String type) {
         // 1. 如果已经提交响应，就按照 Servlet 规范的通常做法：禁止再修改内容类型
         if (isCommitted) {
@@ -209,10 +212,9 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         }
     }
 
-
     @Override
-    public String getContentType() {
-        return this.contentType;
+    public String getCharacterEncoding() {
+        return this.characterEncoding;
     }
 
     @Override
@@ -227,11 +229,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         } catch (UnsupportedEncodingException e) {
             // ignore or fallback
         }
-    }
-
-    @Override
-    public String getCharacterEncoding() {
-        return this.characterEncoding;
     }
 
     // =================== 输出流/Writer 获取 ===================
@@ -268,7 +265,12 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     // 确认消息
     public void sendAck() throws IOException {
-        this.bufferedOutputStream.write((Ack.ACK +PunctuationMarks.CRLF+PunctuationMarks.CRLF).getBytes());
+        if (isCommitted) {
+            throw new IllegalStateException("Cannot send error after response has been committed.");
+        }
+        setStatus(100, null);
+        flushBuffer();
+
     }
     // =================== 发送错误与重定向 ===================
 
@@ -335,7 +337,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
      */
     private void writeStatusLineAndHeaders() throws IOException {
         StringBuilder sb = new StringBuilder();
-        sb.append(Const.HttpProtocol.HTTP_1_1+ PunctuationMarks.SPACE)
+        sb.append(request.getProtocol()).append(PunctuationMarks.SPACE)
                 .append(status)
                 .append(PunctuationMarks.SPACE)
                 .append(statusMessage)
@@ -343,7 +345,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
         // Content-Type
         if (this.contentType != null) {
-            sb.append(Header.CONTENT_TYPE+ PunctuationMarks.COLON_SPACE).append(this.contentType).append(PunctuationMarks.CRLF);
+            sb.append(Header.CONTENT_TYPE + PunctuationMarks.COLON_SPACE).append(this.contentType).append(PunctuationMarks.CRLF);
         }
 
         // 其他头部
@@ -356,13 +358,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
         // 写入 Cookie
         for (Cookie cookie : cookies) {
-            sb.append(Header.SET_COOKIE+ PunctuationMarks.COLON_SPACE).append(formatCookie(cookie)).append(PunctuationMarks.CRLF);
+            sb.append(Header.SET_COOKIE + PunctuationMarks.COLON_SPACE).append(formatCookie(cookie)).append(PunctuationMarks.CRLF);
         }
 
         // 常用的 Date 和 Server
-        sb.append(Header.DATE+ PunctuationMarks.COLON_SPACE).append(formatDate(System.currentTimeMillis())).append(PunctuationMarks.CRLF);
+        sb.append(Header.DATE + PunctuationMarks.COLON_SPACE).append(formatDate(System.currentTimeMillis())).append(PunctuationMarks.CRLF);
 
-        sb.append(Header.SERVER+ PunctuationMarks.COLON_SPACE+"CustomJavaServer"+ PunctuationMarks.CRLF);
+        sb.append(Header.SERVER + PunctuationMarks.COLON_SPACE + "CustomJavaServer" + PunctuationMarks.CRLF);
         // 空行，结束头部
         sb.append(PunctuationMarks.CRLF);
 
@@ -473,13 +475,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     // =================== Locale 相关（示例） ===================
 
     @Override
-    public void setLocale(Locale loc) {
-
+    public Locale getLocale() {
+        return Locale.getDefault();
     }
 
     @Override
-    public Locale getLocale() {
-        return Locale.getDefault();
+    public void setLocale(Locale loc) {
+
     }
 
     // =================== 仅供调试/测试 ===================
