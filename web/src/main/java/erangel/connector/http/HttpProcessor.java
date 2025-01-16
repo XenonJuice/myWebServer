@@ -60,7 +60,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     private final int serverPort = 0;
     // 线程停止信号
     private final boolean stopped = false;
-    // 从请求中获得的 ServletInputStream
+    // 从请求中获得的 InputStream
     public ServletInputStream servletInputStream;
     // 从请求中获得的字符编码
     public String characterEncoding;
@@ -492,19 +492,25 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         this.ack = false;
         this.http11 = false;
         this.protocol = null;
-        this.headers = null;
+        this.headers.clear();
+        this.cookies.clear();
+        this.parameters.clear();
         this.method = null;
         this.uri = null;
         this.fullUri = null;
         this.noProblem = true;
         this.finishResponse = true;
+        this.characterEncoding = "UTF-8";
         request.recycle();
         response.recycle();
     }
 
     private void closeInputStream(InputStream input) {
         try {
-            if (input.available() > 0) input.skip(input.available());
+            if (input.available() > 0) {
+                long skip = input.skip(input.available());
+                logger.info("已跳过字节数 ：{}", skip);
+            }
         } catch (IOException e) {
             handleIOException(e);
         }
@@ -576,7 +582,12 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 noProblem = false;
             }
             if (finishResponse) {
-                // do something
+                try {
+                    response.finishResponse();
+                } catch (IOException e) {
+                    handleIOException(e);
+
+                }
             }
             // 检查是否维持链接
             if (Header.CLOSE.equals(response.getHeader(Header.CONNECTION))) {

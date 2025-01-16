@@ -19,42 +19,24 @@ import static erangel.connector.Utils.CookieUtils.formatCookie;
  */
 public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
-    // ======== 响应头部、Cookie ========
+    //<editor-fold desc="attr">
     private final Map<String, List<String>> headers = new LinkedHashMap<>();
     private final List<Cookie> cookies = new ArrayList<>();
-    // ======== 缓冲区相关 ========
     private final int bufferSize = 8192;
-    // ======== 状态码和消息 ========
     private int status = SC_OK;
     private String statusMessage = "OK";
-    // ======== 内容类型和字符编码 ========
     private String contentType;
+    private long contentLength = -1;
     private String characterEncoding = "UTF-8";
-    // ======== response ========
     private HttpRequest request;
     private OutputStream clientOutputStream; // 最终输出到客户端的流
     private BufferedOutputStream bufferedOutputStream; // 直接缓冲到clientOutputStream
-    private ServletOutputStream servletOutputStream; // 自定义流
+    private HttpResponseStream servletOutputStream; // 自定义流
     private PrintWriter writer;
-    // ======== 提交状态 & 标志位 ========
     private boolean isCommitted = false;
     private boolean writerUsed = false;
     private boolean outputStreamUsed = false;
     private boolean allowChunking = false;
-
-    /**
-     *
-     */
-    public HttpResponse() {
-
-    }
-
-    // =================== 输出流相关 ===================
-    public void setStream(OutputStream outputStream) {
-        this.clientOutputStream = outputStream;
-        this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
-        this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
-    }
 
     /**
      * 用指定的字符编码创建/重置 PrintWriter
@@ -64,31 +46,14 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
                 new OutputStreamWriter(this.bufferedOutputStream, encoding));
     }
 
-    /**
-     * 回收对象，清理资源
-     */
-    public void recycle() {
-        this.status = SC_OK;
-        this.statusMessage = "OK";
-        this.headers.clear();
-        this.cookies.clear();
-        this.contentType = null;
-        this.characterEncoding = "UTF-8";
-        this.isCommitted = false;
-        this.writerUsed = false;
-        this.outputStreamUsed = false;
-        this.allowChunking = false;
-        this.request = null;
-        resetBuffer();
-    }
-
-    // =================== 状态码相关 ===================
-
     @Override
     public void setStatus(int sc, String sm) {
         this.status = sc;
         this.statusMessage = (sm != null ? sm : getReasonPhrase(sc));
     }
+    //</editor-fold>
+    //<editor-fold desc="状态码相关">
+    // =================== 状态码相关 ===================
 
     @Override
     public int getStatus() {
@@ -125,14 +90,15 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         };
     }
 
-    // =================== 响应头相关 ===================
-
     @Override
     public void setHeader(String name, String value) {
         List<String> values = new ArrayList<>();
         values.add(value);
         headers.put(name, values);
     }
+
+    //</editor-fold>
+    //<editor-fold desc="响应头相关">
 
     @Override
     public void addHeader(String name, String value) {
@@ -160,12 +126,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         return headers.containsKey(name);
     }
 
-    // =================== 内容类型与编码 ===================
-
     @Override
     public String getContentType() {
         return this.contentType;
     }
+
+    //</editor-fold>
+    //<editor-fold desc="内容类型与编码">
 
     @Override
     public void setContentType(String type) {
@@ -231,8 +198,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         }
     }
 
-    // =================== 输出流/Writer 获取 ===================
-
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
         if (writerUsed) {
@@ -242,6 +207,9 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         return this.servletOutputStream;
     }
 
+    //</editor-fold>
+    //<editor-fold desc="输出流/Writer 获取">
+
     @Override
     public PrintWriter getWriter() throws IOException {
         if (outputStreamUsed) {
@@ -250,8 +218,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         writerUsed = true;
         return this.writer;
     }
-
-    // =================== Cookie 相关 ===================
 
     @Override
     public void addCookie(Cookie cookie) {
@@ -263,16 +229,15 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         }
     }
 
+    //</editor-fold>
+    //<editor-fold desc = "发送错误与重定向">
     // 确认消息
     public void sendAck() throws IOException {
         if (isCommitted) {
             throw new IllegalStateException("Cannot send error after response has been committed.");
         }
         setStatus(100, null);
-        flushBuffer();
-
     }
-    // =================== 发送错误与重定向 ===================
 
     @Override
     public void sendError(int sc) throws IOException {
@@ -287,13 +252,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         setStatus(sc, msg);
         // 清空已有的响应体
         resetBuffer();
-        setContentType("text/html; charset=UTF-8");
-
         String errorPage = "<html><head><title>Error</title></head><body>"
                 + "<h1>HTTP Error " + sc + " - " + msg + "</h1>"
                 + "</body></html>";
+        byte[] errorBytes = errorPage.getBytes(getCharacterEncoding());
+        setContentLength(errorBytes.length);
+        setContentType("text/html; charset=UTF-8");
         getWriter().write(errorPage);
-        flushBuffer(); // 提交
     }
 
     @Override
@@ -305,32 +270,27 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         setHeader("Location", location);
         // 清空已有的响应体
         resetBuffer();
-        setContentType("text/html; charset=UTF-8");
-
         String redirectPage = "<html><head><title>Redirect</title></head><body>"
                 + "<h1>Redirecting to <a href=\"" + location + "\">" + location + "</a></h1>"
                 + "</body></html>";
+        byte[] reBytes = redirectPage.getBytes(getCharacterEncoding());
+        setContentLength(reBytes.length);
+        setContentType("text/html; charset=UTF-8");
         getWriter().write(redirectPage);
-        flushBuffer(); // 提交
     }
-
-    // =================== 提交/刷新缓冲 ===================
 
     @Override
     public void flushBuffer() throws IOException {
         if (isCommitted) {
             return;
         }
-        // 1) 先把状态行和响应头发送到客户端
         writeStatusLineAndHeaders();
+        if (writerUsed) writer.flush();
+        if (outputStreamUsed) servletOutputStream.flush();
 
-        // 2) 再将正文（内存缓冲）刷新到客户端
-        //    先flush Writer -> flush BufferedOutputStream
-        writer.flush();
-        servletOutputStream.flush();
-        clientOutputStream.flush();
-        isCommitted = true;
     }
+    //</editor-fold>
+    //<editor-fold desc="提交/刷新缓冲">
 
     /**
      * 写出状态行、响应头和 Cookie；必须保证先于响应正文
@@ -347,7 +307,10 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         if (this.contentType != null) {
             sb.append(Header.CONTENT_TYPE + PunctuationMarks.COLON_SPACE).append(this.contentType).append(PunctuationMarks.CRLF);
         }
-
+        // Content_length
+        if (contentLength >= 0) {
+            sb.append(Header.CONTENT_LENGTH + PunctuationMarks.COLON_SPACE).append(contentLength).append(PunctuationMarks.CRLF);
+        }
         // 其他头部
         for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
             String name = entry.getKey();
@@ -367,17 +330,26 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         sb.append(Header.SERVER + PunctuationMarks.COLON_SPACE + "CustomJavaServer" + PunctuationMarks.CRLF);
         // 空行，结束头部
         sb.append(PunctuationMarks.CRLF);
-
-        servletOutputStream.write(sb.toString().getBytes(this.characterEncoding));
-        servletOutputStream.flush();
+        // 单独声明一个writer防止与响应体正文用的writer冲突
+        OutputStreamWriter out;
+        try {
+            out = new OutputStreamWriter(getStream(), getCharacterEncoding());
+        } catch (UnsupportedEncodingException e) {
+            out = new OutputStreamWriter(getStream());
+        }
+        PrintWriter outputWriter = new PrintWriter(out);
+        outputWriter.write(sb.toString());
+        outputWriter.flush();
+        isCommitted = true;
     }
-
-    // =================== 缓冲区相关 ===================
 
     @Override
     public int getBufferSize() {
         return bufferSize;
     }
+
+    //</editor-fold>
+    //<editor-fold desc="缓冲区相关">
 
     @Override
     public void setBufferSize(int size) {
@@ -421,10 +393,10 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         headers.clear();
         cookies.clear();
         contentType = null;
+        contentLength = -1;
         characterEncoding = "UTF-8";
         writerUsed = false;
         outputStreamUsed = false;
-        // internalBuffer.reset();
         try {
             createWriter(this.characterEncoding);
         } catch (UnsupportedEncodingException e) {
@@ -432,16 +404,23 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         }
     }
 
-    // =================== 其他头部设置 ===================
+    public long getContentLength() {
+        return contentLength;
+    }
+
+    //</editor-fold>
+    //<editor-fold desc="其他头部设置">
 
     @Override
     public void setContentLength(int len) {
         setIntHeader(Header.CONTENT_LENGTH, len);
+        this.contentLength = Long.parseLong(Integer.toString(len));
     }
 
     @Override
     public void setContentLengthLong(long len) {
         setHeader(Header.CONTENT_LENGTH, Long.toString(len));
+        this.contentLength = Long.parseLong(Long.toString(len));
     }
 
     @Override
@@ -472,23 +451,25 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         return dateFormat.format(new Date(date));
     }
 
-    // =================== Locale 相关（示例） ===================
-
     @Override
     public Locale getLocale() {
         return Locale.getDefault();
     }
+    //</editor-fold>
+    //<editor-fold desc="Locale 相关（示例）">
+    // =================== Locale 相关（示例） ===================
 
     @Override
     public void setLocale(Locale loc) {
 
     }
 
-    // =================== 仅供调试/测试 ===================
-
     public List<Cookie> getCookies() {
         return this.cookies;
     }
+
+    //</editor-fold>
+    //<editor-fold desc="仅供调试/测试">
 
     public Map<String, List<String>> getHeadersMap() {
         return this.headers;
@@ -498,13 +479,14 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         return this.statusMessage;
     }
 
-    // =================== URL 编码相关（简单实现） ===================
-
     @Deprecated
     @Override
     public String encodeUrl(String url) {
         return encodeURL(url);
     }
+
+    //</editor-fold>
+    //<editor-fold desc="URL 编码相关（简单实现）">
 
     @Deprecated
     @Override
@@ -522,7 +504,27 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         return url;
     }
 
-    //
+    //</editor-fold>
+    //<editor-fold desc="其他方法">
+
+    /**
+     * 回收对象，清理资源
+     */
+    public void recycle() {
+        this.status = SC_OK;
+        this.statusMessage = "OK";
+        this.headers.clear();
+        this.cookies.clear();
+        this.contentType = null;
+        this.characterEncoding = "UTF-8";
+        this.isCommitted = false;
+        this.writerUsed = false;
+        this.outputStreamUsed = false;
+        this.allowChunking = false;
+        this.request = null;
+        resetBuffer();
+    }
+
     public HttpRequest getRequest() {
         return request;
     }
@@ -531,7 +533,51 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         this.request = request;
     }
 
+    public void finishResponse() throws IOException {
+        if (getStatus() < SC_BAD_REQUEST) {
+            if ((getContentLength() == -1)
+                    && getStatus() >= 200
+                    && getStatus() != SC_NO_CONTENT
+                    && getStatus() != SC_NOT_MODIFIED) {
+                setContentLength(0);
+            }
+        } else {
+            setHeader(Header.CONNECTION, Header.CLOSE);
+        }
 
+        if (!isCommitted && (bufferedOutputStream == null || clientOutputStream == null)
+                && writer == null && getStatus() >= SC_BAD_REQUEST
+                && contentType == null && !(servletOutputStream.getByteCount() > 0)) {
+            setContentType("text/html; charset=UTF-8");
+            String errorPage = "<html><head><title>Error</title></head><body>"
+                    + "<h1>HTTP Error " + " - " + getStatusMessage() + "</h1>"
+                    + "</body></html>";
+            byte[] errorBytes = errorPage.getBytes(getCharacterEncoding());
+            setContentLength(errorBytes.length);
+            getWriter().write(errorPage);
+        }
+
+        flushBuffer();
+        if (servletOutputStream != null) servletOutputStream.close();
+        if (writer != null) writer.close();
+        if (bufferedOutputStream != null) bufferedOutputStream.close();
+    }
+
+
+    //</editor-fold>
+    //<editor-fold desc="输出流相关">
+    public OutputStream getStream() {
+        return bufferedOutputStream;
+    }
+
+    public void setStream(OutputStream outputStream) {
+        this.clientOutputStream = outputStream;
+        this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
+        this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
+    }
+
+    //</editor-fold>
+    //<editor-fold desc="chunk?">
     public boolean isAllowChunking() {
         return allowChunking;
     }
@@ -539,4 +585,5 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     public void setAllowChunking(boolean allowChunking) {
         this.allowChunking = allowChunking;
     }
+    //</editor-fold>
 }
