@@ -129,30 +129,40 @@ public class HttpProcessor extends BaseLogger implements Runnable {
      * 如果到达流的末尾返回 null。
      */
     private String readLine(ServletInputStream in, String charset) throws IOException {
-        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        int c;
-        boolean lastWasCR = false;
-        while ((c = in.read()) != -1) {
-            if (c == '\r') {
-                lastWasCR = true;
-            } else if (c == '\n' && lastWasCR) {
-                break; // 读取到完整行
-            } else {
-                if (lastWasCR) {
-                    // \r 后没有紧跟 \n，将 \r 也写入缓冲
-                    buffer.write('\r');
-                    lastWasCR = false;
+        byte[] buffer = new byte[1024]; // 每次最多读取1024字节
+        StringBuilder lineBuilder = new StringBuilder(); // 用于存储结果
+        boolean lastWasCR = false; // 标识上一字节是否是 CR
+
+        int bytesRead;
+        while ((bytesRead = in.read(buffer)) != -1) {
+            for (int i = 0; i < bytesRead; i++) {
+                byte b = buffer[i];
+                if (b == CharPunctuationMarks.CR) { // 检测到 CR
+                    lastWasCR = true;
+                } else if (b == CharPunctuationMarks.LF) { // 检测到 LF
+                    if (lastWasCR) {
+                        // 如果前一个是 CR，现在是 LF，说明一行结束
+                        return lineBuilder.toString(); // 返回当前行
+                    }
+                } else {
+                    // 如果前一位是CR，但现在不是LF，则将CR加入结果
+                    if (lastWasCR) {
+                        lineBuilder.append((char) CharPunctuationMarks.CR);
+                        lastWasCR = false; // 重置状态
+                    }
+                    // 将当前字节加入结果
+                    lineBuilder.append((char) b);
                 }
-                buffer.write(c);
             }
         }
 
-        // 如果没读到任何数据且已到流末尾，返回null表示无更多行可读
-        if (c == -1 && buffer.size() == 0 && !lastWasCR) {
-            return null;
+        // 流结束，处理最后一行
+        if (!lineBuilder.isEmpty() || lastWasCR) {
+            return lineBuilder.toString();
         }
 
-        return buffer.toString(charset);
+        // 没有读取到任何数据时，返回 null 表示流结束
+        return null;
     }
 
     /**
@@ -166,7 +176,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             throw new ServletException("Empty request");
         }
 
-        String[] requestLineParts = requestLine.split(" ", 3);
+        String[] requestLineParts = requestLine.split(PunctuationMarks.SPACE, 3);
         if (requestLineParts.length == 2) {
             // HTTP/0.9
             method = requestLineParts[0];
@@ -207,7 +217,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
 
             String headerLine;
             while ((headerLine = readLine(servletInputStream, characterEncoding)) != null && !headerLine.isEmpty()) {
-                int separatorIndex = headerLine.indexOf(": ");
+                int separatorIndex = headerLine.indexOf(PunctuationMarks.COLON_SPACE);
                 if (separatorIndex == -1) {
                     logger.info("格式错误的头部: {}", headerLine);
                     continue;
@@ -228,7 +238,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
 
                 if (Header.CONTENT_TYPE.equalsIgnoreCase(key)) {
                     contentType = value;
-                    String[] typeParts = value.split(";");
+                    String[] typeParts = value.split(PunctuationMarks.SEMICOLON);
                     if (typeParts.length > 1) {
                         String charsetPart = typeParts[1].trim();
                         if (charsetPart.startsWith("charset=")) {
@@ -359,7 +369,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             if (acceptLanguageHeaders != null && !acceptLanguageHeaders.isEmpty()) {
                 String acceptLanguage = acceptLanguageHeaders.get(0); // 只取第一个值
                 if (acceptLanguage != null && !acceptLanguage.isEmpty()) {
-                    String[] locales = acceptLanguage.split(",");
+                    String[] locales = acceptLanguage.split(PunctuationMarks.COMMA);
                     double highestWeight = -1.0;
 
                     for (String localeEntry : locales) {
@@ -577,16 +587,33 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 System.out.println("假装已经通过了servlet");
                 // ---------------------------------------
             } catch (RuntimeException e) {
-                logger.warn("servlet error : ", e);
                 handleUnknownException(e);
-                noProblem = false;
+            } catch (Throwable e) {
+                handleTerribleException(e);
             }
             if (finishResponse) {
                 try {
                     response.finishResponse();
                 } catch (IOException e) {
                     handleIOException(e);
+                } catch (Throwable e) {
+                    handleTerribleException(e);
+                }
 
+                try {
+                    // request.finishRequest();
+                } catch (IOException e) {
+                    handleIOException(e);
+                } catch (Throwable e) {
+                    handleTerribleException(e);
+                }
+
+                try {
+                    socket.getOutputStream().close();
+                } catch (IOException e) {
+                    handleIOException(e);
+                } catch (Throwable e) {
+                    handleTerribleException(e);
                 }
             }
             // 检查是否维持链接
@@ -598,12 +625,13 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             recycle();
         }
 
-        closeInputStream(servletInputStream);
         try {
+            closeInputStream(servletInputStream);
             socket.close();
         } catch (IOException e) {
             handleIOException(e);
         }
+
         socket = null;
     }
 
@@ -626,13 +654,19 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     }
 
     private void handleIOException(IOException e) {
-        logger.error("处理请求时发生IO错误: {}", "parseRequest", e);
+        logger.error("处理请求时发生IO异常: {}", "parseRequest", e);
         noProblem = false;
         sendErrorResponse(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }
 
     private void handleUnknownException(Exception e) {
         logger.error("未知异常", e);
+        noProblem = false;
+        sendErrorResponse(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    }
+
+    private void handleTerribleException(Throwable e) {
+        logger.error("未知的严重错误", e);
         noProblem = false;
         sendErrorResponse(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
     }

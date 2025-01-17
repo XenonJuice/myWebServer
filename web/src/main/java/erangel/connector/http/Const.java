@@ -38,12 +38,23 @@ public final class Const {
 
     public static class PunctuationMarks {
         public static final String CRLF = "\r\n";
+        public static final String CR = "\r";
+        public static final String LF = "\n";
         public static final String EMPTY = "";
         public static final String SPACE = " ";
         public static final String COLON = ":";
         public static final String SEMICOLON = ";";
         public static final String COMMA = ",";
         public static final String COLON_SPACE = ": ";
+    }
+
+    public static class CharPunctuationMarks {
+        public static final char CR = '\r';
+        public static final char LF = '\n';
+        public static final char SPACE = ' ';
+        public static final char COLON = ':';
+        public static final char SEMICOLON = ';';
+        public static final char COMMA = ',';
     }
 
     public static class Header {

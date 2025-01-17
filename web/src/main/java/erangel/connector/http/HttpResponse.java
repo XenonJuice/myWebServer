@@ -216,6 +216,8 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
             throw new IllegalStateException("getOutputStream() has already been called on this response.");
         }
         writerUsed = true;
+        if (writer != null) return this.writer;
+        createWriter(this.characterEncoding);
         return this.writer;
     }
 
@@ -256,8 +258,8 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
                 + "<h1>HTTP Error " + sc + " - " + msg + "</h1>"
                 + "</body></html>";
         byte[] errorBytes = errorPage.getBytes(getCharacterEncoding());
-        setContentLength(errorBytes.length);
         setContentType("text/html; charset=UTF-8");
+        setContentLength(errorBytes.length);
         getWriter().write(errorPage);
     }
 
@@ -302,15 +304,11 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
                 .append(PunctuationMarks.SPACE)
                 .append(statusMessage)
                 .append(PunctuationMarks.CRLF);
-
-        // Content-Type
-        if (this.contentType != null) {
-            sb.append(Header.CONTENT_TYPE + PunctuationMarks.COLON_SPACE).append(this.contentType).append(PunctuationMarks.CRLF);
-        }
-        // Content_length
-        if (contentLength >= 0) {
-            sb.append(Header.CONTENT_LENGTH + PunctuationMarks.COLON_SPACE).append(contentLength).append(PunctuationMarks.CRLF);
-        }
+        // 常用的 Date 和 Server
+        // sb.append(Header.DATE + PunctuationMarks.COLON_SPACE).append(formatDate(System.currentTimeMillis())).append(PunctuationMarks.CRLF);
+        // TODO 改为固定时间便与测试
+        sb.append(Header.DATE + PunctuationMarks.COLON_SPACE).append("Fri, 17 Jan 2025 07:06:03 GMT").append(PunctuationMarks.CRLF);
+        sb.append(Header.SERVER + PunctuationMarks.COLON_SPACE + "CustomJavaServer" + PunctuationMarks.CRLF);
         // 其他头部
         for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
             String name = entry.getKey();
@@ -323,11 +321,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         for (Cookie cookie : cookies) {
             sb.append(Header.SET_COOKIE + PunctuationMarks.COLON_SPACE).append(formatCookie(cookie)).append(PunctuationMarks.CRLF);
         }
-
-        // 常用的 Date 和 Server
-        sb.append(Header.DATE + PunctuationMarks.COLON_SPACE).append(formatDate(System.currentTimeMillis())).append(PunctuationMarks.CRLF);
-
-        sb.append(Header.SERVER + PunctuationMarks.COLON_SPACE + "CustomJavaServer" + PunctuationMarks.CRLF);
         // 空行，结束头部
         sb.append(PunctuationMarks.CRLF);
         // 单独声明一个writer防止与响应体正文用的writer冲突
@@ -554,9 +547,9 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
                     + "</body></html>";
             byte[] errorBytes = errorPage.getBytes(getCharacterEncoding());
             setContentLength(errorBytes.length);
+            resetBuffer();
             getWriter().write(errorPage);
         }
-
         flushBuffer();
         if (servletOutputStream != null) servletOutputStream.close();
         if (writer != null) writer.close();

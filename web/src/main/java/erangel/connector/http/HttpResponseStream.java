@@ -11,6 +11,7 @@ import java.io.IOException;
 public class HttpResponseStream extends ServletOutputStream {
     private final BufferedOutputStream outputStream;
     private int byteCount;
+    private boolean closed = false;
 
     /**
      * 构造函数，初始化 ByteArrayOutputStream。
@@ -75,5 +76,13 @@ public class HttpResponseStream extends ServletOutputStream {
      */
     public int getByteCount() {
         return byteCount;
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (!closed) {
+            flush();
+            closed = true;
+        }
     }
 }
