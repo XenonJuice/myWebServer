@@ -601,7 +601,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 }
 
                 try {
-                    // request.finishRequest();
+                    request.finishRequest();
                 } catch (IOException e) {
                     handleIOException(e);
                 } catch (Throwable e) {
@@ -626,7 +626,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         }
 
         try {
-            closeInputStream(servletInputStream);
+            closeInputStream(socket.getInputStream());
             socket.close();
         } catch (IOException e) {
             handleIOException(e);

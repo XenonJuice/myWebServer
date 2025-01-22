@@ -45,7 +45,11 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     // 请求体内容（字节数组形式）
     private byte[] body = null;
     // 封装后的 ServletInputStream
-    private ServletInputStream servletInputStream;
+    private HttpRequestStream servletInputStream;
+    private InputStream clientInputStream;
+    private BufferedInputStream bufferedInputStream;
+    // reader
+    private BufferedReader reader;
     //存储远程客户端的IP 地址
     private InetAddress inet;
     // 请求的远程地址和主机名
@@ -61,15 +65,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private ArrayList<Cookie> cookies = new ArrayList<>();
     // 客户端在请求中携带的SessionID
     private String requestedSessionId = null;
+    // 缓冲区大小
+    private final int bufferSize = 8192;
+
     //</editor-fold>
-
-    /**
-     *
-     */
-    public HttpRequest() {
-
-    }
-
     //<editor-fold desc="getter & setter">
     public HttpConnector getConnector() {
         return connector;
@@ -96,7 +95,9 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     }
 
     public void setStream(InputStream inputStream) {
-        this.servletInputStream = new HttpRequestStream(inputStream);
+        this.clientInputStream = inputStream;
+        this.bufferedInputStream = new BufferedInputStream(inputStream, bufferSize);
+        this.servletInputStream = new HttpRequestStream(this.bufferedInputStream);
     }
 
     @Override
@@ -357,6 +358,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         return contentLength != null ? Integer.parseInt(contentLength) : -1;
     }
 
+    public void setContentLength(int len) {
+        headers.put("Content-Length", Collections.singletonList(String.valueOf(len)));
+    }
+
     @Override
     public long getContentLengthLong() {
         String contentLength = getHeader("Content-Length");
@@ -443,7 +448,11 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public BufferedReader getReader() throws IOException {
-        return new BufferedReader(new InputStreamReader(new ByteArrayInputStream(Objects.requireNonNullElseGet(body, () -> new byte[0])), characterEncoding));
+        this.reader =
+                new BufferedReader
+                        (new InputStreamReader(
+                                new ByteArrayInputStream(Objects.requireNonNullElseGet(body, () -> new byte[0])), characterEncoding));
+        return this.reader;
     }
 
     @Override
@@ -610,6 +619,8 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     }
     //</editor-fold>
 
+    //<editor-fold desc="其他方法">
+
     /**
      * 回收对象，清理资源
      */
@@ -629,4 +640,11 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         scheme = null;
         response = null;
     }
+
+    public void finishRequest() throws IOException {
+        if (this.servletInputStream != null) this.servletInputStream.close();
+        if (this.reader != null) reader.close();
+        if (this.bufferedInputStream != null) bufferedInputStream.close();
+    }
+    //</editor-fold>
 }

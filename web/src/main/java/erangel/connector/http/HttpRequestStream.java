@@ -22,7 +22,6 @@ public class HttpRequestStream extends ServletInputStream {
      * @param inputStream 客户端发送的 InputStream
      */
     public HttpRequestStream(InputStream inputStream) {
-        // 使用 BufferedInputStream 以提高读取效率
         this.bufferedInputStream = new BufferedInputStream(inputStream, 8192);
     }
 
