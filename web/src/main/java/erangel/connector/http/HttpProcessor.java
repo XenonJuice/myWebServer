@@ -349,7 +349,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         if (headers.containsKey(Header.CONNECTION)) {
             List<String> connectionHeaders = headers.get(Header.CONNECTION);
             if (connectionHeaders != null && !connectionHeaders.isEmpty()) {
-                String connection = connectionHeaders.get(0);
+                String connection = connectionHeaders.getFirst();
                 if (connection != null && !connection.isEmpty()) {
                     if (connection.equalsIgnoreCase(Header.CLOSE)) {
                         keepAlive = false;

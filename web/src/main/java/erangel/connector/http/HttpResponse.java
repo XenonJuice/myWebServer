@@ -365,6 +365,8 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         if (isCommitted) {
             throw new IllegalStateException("Cannot reset buffer after response has been committed.");
         }
+        this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
+        this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
         try {
             // 必须重建 writer，否则已经写过的数据无法被重置
             createWriter(this.characterEncoding);
@@ -383,6 +385,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         }
         status = SC_OK;
         statusMessage = "OK";
+        // 保存重要值
+        for (String header : new String[]{Header.CONNECTION, Header.TRANSFER_ENCODING}) {
+            String value = getHeader(header);
+            if (value != null) addHeader(header, value);
+        }
+        this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
+        this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
         headers.clear();
         cookies.clear();
         contentType = null;
@@ -395,6 +404,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         } catch (UnsupportedEncodingException e) {
             // ignore
         }
+
     }
 
     public long getContentLength() {

@@ -78,6 +78,10 @@ public class HttpResponseStream extends ServletOutputStream {
         return byteCount;
     }
 
+    public void setByteCount(int byteCount) {
+        this.byteCount = byteCount;
+    }
+
     @Override
     public void close() throws IOException {
         if (!closed) {
