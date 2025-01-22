@@ -18,6 +18,8 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     //<editor-fold desc="attr">
     // 存储请求属性
     private final Map<String, Object> attributes = new HashMap<>();
+    // 缓冲区大小
+    private final int bufferSize = 8192;
     // sessionId是否来自cookie？
     protected boolean isRequestedSessionIdFromCookie = false;
     // sessionId是否来自URL？
@@ -65,8 +67,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private ArrayList<Cookie> cookies = new ArrayList<>();
     // 客户端在请求中携带的SessionID
     private String requestedSessionId = null;
-    // 缓冲区大小
-    private final int bufferSize = 8192;
 
     //</editor-fold>
     //<editor-fold desc="getter & setter">
@@ -96,10 +96,13 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     public void setStream(InputStream inputStream) {
         this.clientInputStream = inputStream;
-        this.bufferedInputStream = new BufferedInputStream(inputStream, bufferSize);
+        this.bufferedInputStream = new BufferedInputStream(clientInputStream, bufferSize);
         this.servletInputStream = new HttpRequestStream(this.bufferedInputStream);
     }
 
+    public InputStream getStream() {
+        return bufferedInputStream;
+    }
     @Override
     public String getAuthType() {
         return null;
@@ -125,10 +128,18 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         }
     }
 
+    public byte[] getBody() {
+        return body;
+    }
+
+    public void setBody(byte[] body) {
+        this.body = body;
+    }
+
     @Override
     public String getHeader(String name) {
         List<String> values = headers.get(name);
-        return (values != null && !values.isEmpty()) ? values.get(0) : null;
+        return (values != null && !values.isEmpty()) ? values.getFirst() : null;
     }
 
     @Override
@@ -381,7 +392,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     @Override
     public String getParameter(String name) {
         List<String> values = parameters.get(name);
-        return (values != null && !values.isEmpty()) ? values.get(0) : null;
+        return (values != null && !values.isEmpty()) ? values.getFirst() : null;
     }
 
     public void setParameters(Map<String, List<String>> parameters) {
@@ -628,8 +639,8 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         method = null;
         uri = null;
         protocol = null;
-        headers.clear();
-        parameters.clear();
+        if (headers!=null)headers.clear();
+        if (parameters!=null)parameters.clear();
         body = null;
         attributes.clear();
         servletInputStream = null;
@@ -642,9 +653,12 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     }
 
     public void finishRequest() throws IOException {
-        if (this.servletInputStream != null) this.servletInputStream.close();
-        if (this.reader != null) reader.close();
-        if (this.bufferedInputStream != null) bufferedInputStream.close();
+        if (clientInputStream != null) {
+            if (this.servletInputStream != null) this.servletInputStream.close();
+            if (this.reader != null) reader.close();
+        } else {
+            logger.warn("finishRequest失败，socket的输出流为null");
+        }
     }
     //</editor-fold>
 }

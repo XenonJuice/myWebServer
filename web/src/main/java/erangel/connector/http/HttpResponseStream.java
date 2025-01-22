@@ -81,7 +81,7 @@ public class HttpResponseStream extends ServletOutputStream {
     @Override
     public void close() throws IOException {
         if (!closed) {
-            flush();
+            outputStream.flush();
             closed = true;
         }
     }

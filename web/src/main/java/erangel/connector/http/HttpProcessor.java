@@ -2,6 +2,8 @@ package erangel.connector.http;
 
 import erangel.connector.http.Const.*;
 import erangel.log.BaseLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
@@ -46,6 +48,7 @@ import static erangel.connector.Utils.CookieUtils.convertToCookieList;
  * @version 2024/12/19
  */
 public class HttpProcessor extends BaseLogger implements Runnable {
+    private static final Logger logger = LoggerFactory.getLogger(HttpProcessor.class);
     //<editor-fold desc = "attr">
     private final HttpRequest request;
     private final HttpResponse response;
@@ -270,6 +273,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                     logger.warn("请求体不完整: 已读 {} 字节, 期望 {} 字节", bytesRead, contentLength);
                     throw new ServletException("Request body is incomplete");
                 }
+                request.setBody(body);
                 logger.info("成功读取请求体");
 
                 // 如果Content-Type是application/x-www-form-urlencoded，则对body进行解码并解析参数
@@ -547,7 +551,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
 
     //</editor-fold>
     //<editor-fold desc = "process">
-    private void process(Socket socket) {
+    public void process(Socket socket) {
         try {
             servletInputStream = new HttpRequestStream(socket.getInputStream());
         } catch (IOException e) {
@@ -609,7 +613,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 }
 
                 try {
-                    socket.getOutputStream().close();
+                    socket.getOutputStream().flush();
                 } catch (IOException e) {
                     handleIOException(e);
                 } catch (Throwable e) {
@@ -680,6 +684,11 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     }
     //</editor-fold>
 
+    //<editor-fold desc = "just for test">
+    public void setNoProblem(boolean noProblem) {
+        this.noProblem = noProblem;
+    }
+    //</editor-fold>
 
 }
 

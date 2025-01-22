@@ -553,7 +553,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         flushBuffer();
         if (servletOutputStream != null) servletOutputStream.close();
         if (writer != null) writer.close();
-        if (bufferedOutputStream != null) bufferedOutputStream.close();
     }
 
 

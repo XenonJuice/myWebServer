@@ -15,6 +15,7 @@ public class HttpRequestStream extends ServletInputStream {
     private boolean isFinished = false;
     private boolean isReady = true; // 始终返回 true
     private ReadListener readListener;
+    private boolean closed = false;
 
     /**
      * 构造函数，初始化 BufferedInputStream。
@@ -96,7 +97,9 @@ public class HttpRequestStream extends ServletInputStream {
      */
     @Override
     public void close() throws IOException {
-        bufferedInputStream.close();
-        super.close();
+        if (closed) {
+            throw new IOException("Stream already closed!");
+        }
+        closed = true;
     }
 }
