@@ -258,6 +258,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             }
 
             // 3. 根据Content-Length从流中按字节读取请求体
+            // TODO 处理chunked的情况，为inputstream和outputstream的chunked？添加赋值操作
             if (contentLength > 0) {
                 logger.info("开始读取请求体, 长度: {}", contentLength);
                 byte[] body = new byte[contentLength];
