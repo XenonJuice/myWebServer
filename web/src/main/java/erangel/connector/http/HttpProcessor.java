@@ -132,9 +132,9 @@ public class HttpProcessor extends BaseLogger implements Runnable {
      * 如果到达流的末尾返回 null。
      */
     private String readLine(ServletInputStream in, String charset) throws IOException {
-        byte[] buffer = new byte[1024]; // 每次最多读取1024字节
+        byte[] buffer = new byte[1024]; // 每次最多读取1024个字节
         StringBuilder lineBuilder = new StringBuilder(); // 用于存储结果
-        boolean lastWasCR = false; // 标识上一字节是否是 CR
+        boolean lastWasCR = false; // 标识上一个字节是否是 CR
 
         int bytesRead;
         while ((bytesRead = in.read(buffer)) != -1) {
@@ -150,7 +150,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 } else {
                     // 如果前一位是CR，但现在不是LF，则将CR加入结果
                     if (lastWasCR) {
-                        lineBuilder.append((char) CharPunctuationMarks.CR);
+                        lineBuilder.append(CharPunctuationMarks.CR);
                         lastWasCR = false; // 重置状态
                     }
                     // 将当前字节加入结果
@@ -353,8 +353,10 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 if (connection != null && !connection.isEmpty()) {
                     if (connection.equalsIgnoreCase(Header.CLOSE)) {
                         keepAlive = false;
+                        response.addHeader(Header.CONNECTION, Header.CLOSE); // FIXME may cause conflict
                     } else if (connection.equalsIgnoreCase(Header.KEEP_ALIVE)) {
                         keepAlive = true;
+                        response.addHeader(Header.CONNECTION, Header.KEEP_ALIVE);// FIXME may cause conflict
                     }
                 }
             }
@@ -371,7 +373,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             Locale highestPriorityLocale = null;
             List<String> acceptLanguageHeaders = headers.get(Header.ACCEPT_LANGUAGE);
             if (acceptLanguageHeaders != null && !acceptLanguageHeaders.isEmpty()) {
-                String acceptLanguage = acceptLanguageHeaders.get(0); // 只取第一个值
+                String acceptLanguage = acceptLanguageHeaders.getFirst(); // 只取第一个值
                 if (acceptLanguage != null && !acceptLanguage.isEmpty()) {
                     String[] locales = acceptLanguage.split(PunctuationMarks.COMMA);
                     double highestWeight = -1.0;
@@ -426,7 +428,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         if (headers.containsKey(Header.HOST)) {
             List<String> hostHeaders = headers.get(Header.HOST);
             if (hostHeaders != null && !hostHeaders.isEmpty()) {
-                String host = hostHeaders.get(0);
+                String host = hostHeaders.getFirst();
                 if (host != null && !host.isEmpty()) {
                     if (host.startsWith("[")) { // 针对IPv6处理
                         // 检查是否是IPv6格式 [地址]:端口
@@ -436,19 +438,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                         }
 
                         String serverName = host.substring(1, closingBracketIndex).trim(); // 提取IPv6地址
-                        String portString = null;
-                        if (closingBracketIndex + 1 < host.length() && host.charAt(closingBracketIndex + 1) == ':') {
-                            portString = host.substring(closingBracketIndex + 2).trim(); // 提取端口号
-                        }
-
-                        int port = getDefaultPort(connector.getScheme()); // 默认端口
-                        if (portString != null) {
-                            try {
-                                port = Integer.parseInt(portString); // 尝试解析端口号
-                            } catch (NumberFormatException e) {
-                                throw new IllegalArgumentException("Invalid port number in Host header: " + host);
-                            }
-                        }
+                        int port = getPort(closingBracketIndex, host);
 
                         // 设置主机名和端口号
                         request.setServerName(serverName);
@@ -478,6 +468,23 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 }
             }
         }
+    }
+
+    private int getPort(int closingBracketIndex, String host) {
+        String portString = null;
+        if (closingBracketIndex + 1 < host.length() && host.charAt(closingBracketIndex + 1) == ':') {
+            portString = host.substring(closingBracketIndex + 2).trim(); // 提取端口号
+        }
+
+        int port = getDefaultPort(connector.getScheme()); // 默认端口
+        if (portString != null) {
+            try {
+                port = Integer.parseInt(portString); // 尝试解析端口号
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid port number in Host header: " + host);
+            }
+        }
+        return port;
     }
 
     //</editor-fold>

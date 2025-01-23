@@ -9,14 +9,19 @@ import java.io.IOException;
  * 自定义的 ServletOutputStream 实现，直接写入 BufferedOutputStream。
  */
 public class HttpResponseStream extends ServletOutputStream {
+    private static final int CHUNK_BUFFER_SIZE = 8192;
     private final BufferedOutputStream outputStream;
+    private boolean useChunkedEncoding = false;
+    private final byte[] buffer = new byte[CHUNK_BUFFER_SIZE];
     private int byteCount;
     private boolean closed = false;
+    private int bufferIndex = 0;// 缓冲区中当前写入的位置
+
 
     /**
-     * 构造函数，初始化 ByteArrayOutputStream。
+     * 构造函数，初始化 BufferedOutputStream。
      *
-     * @param outputStream 用于实际数据写入的 ByteArrayOutputStream
+     * @param outputStream 用于实际数据写入的 BufferedOutputStream
      */
     public HttpResponseStream(BufferedOutputStream outputStream) {
         this.outputStream = outputStream;
@@ -51,9 +56,19 @@ public class HttpResponseStream extends ServletOutputStream {
      */
     @Override
     public void write(int b) throws IOException {
-        outputStream.write(b);
+        if (closed) {
+            throw new IOException("Stream is closed.");
+        }
+        // 将字节写入到缓冲区
+        buffer[bufferIndex++] = (byte) b;
         byteCount++;
+        // 如果缓冲区已经满了，刷新缓冲区到输出流
+        if (bufferIndex == CHUNK_BUFFER_SIZE) {
+            writeChunkBufferToStream();
+        }
+
     }
+
 
     /**
      * 写入字节数组的一部分到缓冲区。
@@ -65,9 +80,87 @@ public class HttpResponseStream extends ServletOutputStream {
      */
     @Override
     public void write(byte[] b, int off, int len) throws IOException {
-        outputStream.write(b, off, len);
-        byteCount += len;
+        if (closed) {
+            throw new IOException("Stream is closed.");
+        }
+        if (!useChunkedEncoding) {
+            while (len > 0) {
+                int spaceLeft = CHUNK_BUFFER_SIZE - bufferIndex;
+                if (len <= spaceLeft) {
+                    System.arraycopy(b, off, buffer, bufferIndex, len);
+                    bufferIndex += len;
+                    break;
+                } else {
+                    System.arraycopy(b, off, buffer, bufferIndex, spaceLeft);
+                    bufferIndex += spaceLeft;
+                    writeChunkBufferToStream();
+                    off += spaceLeft;
+                    len -= spaceLeft;
+                }
+            }
+            return;
+        }
+
+        if (len == 0) {
+            return; // 无数据时什么也不做
+        }
+
+        // 如果数据长度超过缓冲区剩余空间，分批写入
+        while (len > 0) {
+            int spaceLeft = CHUNK_BUFFER_SIZE - bufferIndex; // 缓冲区剩余空间
+            if (len <= spaceLeft) {
+                // 如果剩余空间足够容纳本次写入，则写入缓冲区
+                System.arraycopy(b, off, buffer, bufferIndex, len);
+                bufferIndex += len;
+                byteCount += len;
+                break;
+            } else {
+                // 如果数据超过剩余空间，填满缓冲区并刷新
+                System.arraycopy(b, off, buffer, bufferIndex, spaceLeft);
+                bufferIndex += spaceLeft;
+                byteCount += spaceLeft;
+                writeChunkBufferToStream(); // 刷新到输出流
+                off += spaceLeft;
+                len -= spaceLeft;
+            }
+        }
+
     }
+
+    /**
+     * 将缓存区中的数据刷新到底层输出流。
+     *
+     * @throws IOException 如果发生 I/O 错误
+     */
+    private void writeChunkBufferToStream() throws IOException {
+        if (bufferIndex > 0) {
+            if (useChunkedEncoding) {
+                writeChunk(buffer, 0, bufferIndex); // 如果启用了 Chunked Encoding，写入 Chunk
+            } else {
+                outputStream.write(buffer, 0, bufferIndex); // 普通模式写入缓冲区
+            }
+            bufferIndex = 0; // 清空缓冲区
+        }
+    }
+
+    /**
+     * 按 Chunked Encoding 写入数据。
+     *
+     * @param b   数据
+     * @param off 偏移
+     * @param len 长度
+     * @throws IOException 如果发生 I/O 错误
+     */
+    private void writeChunk(byte[] b, int off, int len) throws IOException {
+        // 写入 Chunk 大小（十六进制） + CRLF
+        String chunkSize = Integer.toHexString(len) + Const.PunctuationMarks.CRLF;
+        outputStream.write(chunkSize.getBytes());
+        // 写入实际数据
+        outputStream.write(b, off, len);
+        // 写入 Chunk 结束符 CRLF
+        outputStream.write(Const.PunctuationMarks.CRLF.getBytes());
+    }
+
 
     /**
      * 获取已写入的字节数。
@@ -85,8 +178,20 @@ public class HttpResponseStream extends ServletOutputStream {
     @Override
     public void close() throws IOException {
         if (!closed) {
-            outputStream.flush();
-            closed = true;
+            try {
+                writeChunkBufferToStream(); // 关闭前刷新缓冲区
+                if (useChunkedEncoding) {
+                    // 如果启用了 Chunked ，写入终止块
+                    outputStream.write(("0"
+                            + Const.PunctuationMarks.CRLF
+                            + Const.PunctuationMarks.CRLF)
+                            .getBytes());
+                }
+            } finally {
+                closed = true;
+                outputStream.flush();
+            }
         }
     }
+
 }
