@@ -561,7 +561,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     //<editor-fold desc = "process">
     public void process(Socket socket) {
         try {
-            servletInputStream = new HttpRequestStream(socket.getInputStream());
+            servletInputStream = new HttpRequestStream(socket.getInputStream(), response, request);
         } catch (IOException e) {
             noProblem = false;
             logger.error("处理请求时发生IO错误:input", e);

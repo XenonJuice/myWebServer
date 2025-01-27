@@ -1,25 +1,57 @@
+import erangel.connector.http.HttpConnector;
 import erangel.connector.http.HttpRequest;
 import erangel.connector.http.HttpProcessor;
-import org.junit.Test;
+import erangel.connector.http.HttpResponse;
+import org.junit.jupiter.api.Test;
+
+import org.junit.jupiter.api.BeforeEach;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.*;
 import static org.junit.Assert.*;
-
+@Deprecated
 public class HttpRequestFinishRequestTest {
+    private MockClientOutputStream clientStream;
+    private HttpResponse httpResponse;
+    private HttpRequest httpRequest ;
 
+
+    @BeforeEach
+    public void setUp() {
+        // 初始化模拟输出流
+        clientStream = new MockClientOutputStream();
+
+        // 初始化 HttpResponse 并设置流
+        httpResponse = new HttpResponse();
+        httpResponse.setStream(clientStream);
+
+        // 初始化 HttpRequest 并配置必要信息
+        httpRequest = new HttpRequest();
+        httpRequest.setProtocol("HTTP/1.1");
+        httpRequest.setUri("/test/resource");
+        httpRequest.setMethod("GET");
+        httpRequest.setHeaders(createMockHeaders());
+        httpRequest.setResponse(httpResponse);
+        httpResponse.setRequest(httpRequest);
+    }
     @Test
     public void testFinishRequestClosesStreams() throws IOException {
         // 模拟 Socket 和输入流
         Socket mockSocket = mock(Socket.class);
         InputStream mockClientInputStream = mock(InputStream.class);
         OutputStream mockOutputStream = mock(OutputStream.class);
+        HttpConnector connector = mock(HttpConnector.class);
 
         when(mockSocket.getInputStream()).thenReturn(mockClientInputStream);
         when(mockSocket.getOutputStream()).thenReturn(mockOutputStream);
-
+        when(connector.createRequest()).thenReturn(this.httpRequest);
+        when(connector.createResponse()).thenReturn(this.httpResponse);
         HttpProcessor processor = mock(HttpProcessor.class);
         doCallRealMethod().when(processor).process(mockSocket);
 
@@ -85,5 +117,12 @@ public class HttpRequestFinishRequestTest {
         } catch (IOException e) {
             fail("重复关闭流时不应抛出异常：" + e.getMessage());
         }
+    }
+
+    private Map<String, List<String>> createMockHeaders() {
+        Map<String, List<String>> headers = new HashMap<>();
+        headers.put("Content-Type", Collections.singletonList("text/plain"));
+        headers.put("User-Agent", Collections.singletonList("MockTestClient/1.0"));
+        return headers;
     }
 }

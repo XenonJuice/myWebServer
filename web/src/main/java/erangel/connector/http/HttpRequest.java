@@ -97,12 +97,13 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     public void setStream(InputStream inputStream) {
         this.clientInputStream = inputStream;
         this.bufferedInputStream = new BufferedInputStream(clientInputStream, bufferSize);
-        this.servletInputStream = new HttpRequestStream(this.bufferedInputStream);
+        this.servletInputStream = new HttpRequestStream(this.bufferedInputStream, response, this);
     }
 
     public InputStream getStream() {
         return bufferedInputStream;
     }
+
     @Override
     public String getAuthType() {
         return null;
@@ -639,8 +640,8 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         method = null;
         uri = null;
         protocol = null;
-        if (headers!=null)headers.clear();
-        if (parameters!=null)parameters.clear();
+        if (headers != null) headers.clear();
+        if (parameters != null) parameters.clear();
         body = null;
         attributes.clear();
         servletInputStream = null;

@@ -40,33 +40,18 @@ public class HttpResponseTest {
     @Test
     public void testNormalResponseFlow() throws IOException {
         // 设置响应内容
-        writeToResponse(
-        );
+        writeToResponse();
 
         // 验证输出内容和流关闭
         verifyResponse("HTTP/1.1 200 OK\r\n" +
                 "Date: Fri, 17 Jan 2025 07:06:03 GMT\r\n" +
                 "Server: CustomJavaServer\r\n" +
+                "Connection: close\r\n" +
                 "Content-Type: text/plain; charset=UTF-8\r\n" +
                 "Content-Length: 11\r\n" +
                 "\r\n" + // 响应头和正文的分隔符
                 "Hello World");
     }
-
-//    @Test
-//    public void testEmptyResponse() throws IOException {
-//        // 直接调用 finishResponse，不写入任何数据
-//        httpResponse.finishResponse();
-//
-//        // 验证输出为空和流关闭
-//        verifyResponse("""
-//                HTTP/1.1 200 OK\r
-//                Date: Fri, 17 Jan 2025 07:06:03 GMT\r
-//                Server: CustomJavaServer\r
-//                Content-Length: 0\r
-//                \r
-//                """);
-//    }
 
     @Test
     public void testErrorResponse() throws IOException {
@@ -81,9 +66,10 @@ public class HttpResponseTest {
         String expectedOutput = "HTTP/1.1 404 Not Found\r\n" +
                 "Date: Fri, 17 Jan 2025 07:06:03 GMT\r\n" +
                 "Server: CustomJavaServer\r\n" +
+                "Connection: close\r\n" +
                 "Content-Type: text/html; charset=UTF-8\r\n" +
                 "Content-Length: 94\r\n" +
-                "Connection: close\r\n" +
+
                 "\r\n" + errorPage;
         verifyResponse(expectedOutput);
     }
@@ -105,9 +91,10 @@ public class HttpResponseTest {
 
         // 调用 flushBuffer 方法，将缓冲区内容写入流
         httpResponse.flushBuffer();
+        httpResponse.finishResponse();
         StreamAssertUtil.assertOutputData(clientStream, "HTTP/1.1 200 OK\r\n" +
                 "Date: Fri, 17 Jan 2025 07:06:03 GMT\r\n" +
-                "Server: CustomJavaServer\r\n" + Const.PunctuationMarks.CRLF + "Partial Data");
+                "Server: CustomJavaServer\r\n" + "Connection: close\r\n"+Const.PunctuationMarks.CRLF + "Partial Data");
 
         // 完成响应并验证流关闭
         httpResponse.finishResponse();

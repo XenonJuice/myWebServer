@@ -1,5 +1,8 @@
 package erangel.connector.http;
 
+import erangel.connector.http.Const.Header;
+import erangel.connector.http.Const.HttpProtocol;
+
 import javax.servlet.ReadListener;
 import javax.servlet.ServletInputStream;
 import java.io.BufferedInputStream;
@@ -13,8 +16,10 @@ import java.io.InputStream;
 public class HttpRequestStream extends ServletInputStream {
     private final BufferedInputStream bufferedInputStream;
     private boolean isFinished = false;
-    private boolean isReady = true; // 始终返回 true
+    private final boolean isReady = true; // 始终返回 true
     private ReadListener readListener;
+    private final Boolean http11;
+    private int bufferSize;
     private boolean closed = false;
     private boolean useChunkedEncoding = false;
     private int chunkSize = 0; // 当前chunk的剩余大小
@@ -24,8 +29,15 @@ public class HttpRequestStream extends ServletInputStream {
      *
      * @param inputStream 客户端发送的 InputStream
      */
-    public HttpRequestStream(InputStream inputStream) {
-        this.bufferedInputStream = new BufferedInputStream(inputStream, 8192);
+    public HttpRequestStream(InputStream inputStream, HttpResponse response, HttpRequest request) {
+        String transferEncoding = request.getHeader(Header.TRANSFER_ENCODING);
+        http11 = request.getProtocol().equals(HttpProtocol.HTTP_1_1);
+        useChunkedEncoding = ((transferEncoding != null)
+                && (transferEncoding.contains(Header.CHUNKED)));
+        if (!useChunkedEncoding) {
+            response.addHeader(Header.CONNECTION, Header.CLOSE);
+        }
+        this.bufferedInputStream = new BufferedInputStream(inputStream, bufferSize);
     }
 
     /**
@@ -193,6 +205,19 @@ public class HttpRequestStream extends ServletInputStream {
     public void close() throws IOException {
         if (closed) {
             throw new IOException("Stream already closed!");
+        }
+        if (useChunkedEncoding) {
+            while (chunkSize > 0) {
+                int a = read();
+                if (a < 0) break;
+            }
+        } else {
+            if (http11) {
+                int a = read();
+                while (a != -1) {
+                    a = read();
+                }
+            }
         }
         closed = true;
     }

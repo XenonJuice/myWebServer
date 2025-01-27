@@ -30,7 +30,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     private String characterEncoding = "UTF-8";
     private HttpRequest request;
     private OutputStream clientOutputStream; // 最终输出到客户端的流
-    private BufferedOutputStream bufferedOutputStream; // 直接缓冲到clientOutputStream
+    // private BufferedOutputStream bufferedOutputStream; // 直接缓冲到clientOutputStream
     private HttpResponseStream servletOutputStream; // 自定义流
     private PrintWriter writer;
     private boolean isCommitted = false;
@@ -43,7 +43,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
      */
     private void createWriter(String encoding) throws UnsupportedEncodingException {
         this.writer = new PrintWriter(
-                new OutputStreamWriter(this.bufferedOutputStream, encoding));
+                new OutputStreamWriter(this.servletOutputStream, encoding));
     }
 
     @Override
@@ -90,6 +90,10 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         };
     }
 
+
+    //</editor-fold>
+    //<editor-fold desc="响应头相关">
+
     @Override
     public void setHeader(String name, String value) {
         List<String> values = new ArrayList<>();
@@ -97,13 +101,37 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         headers.put(name, values);
     }
 
-    //</editor-fold>
-    //<editor-fold desc="响应头相关">
-
     @Override
     public void addHeader(String name, String value) {
         headers.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
     }
+
+    /**
+     * 从 headers 中移除整个 key（以及它对应的所有值）。
+     *
+     * @param key 要移除的 key
+     */
+    public void removeHeader(String key) {
+        headers.remove(key);
+    }
+
+    /**
+     * 从 headers 中移除指定 key 的某个 value。
+     * 如果移除该 value 后对应的 List 为空，则移除整个 key。
+     *
+     * @param key   要操作的 key
+     * @param value 要移除的 value
+     */
+    public void removeHeader(String key, String value) {
+        if (headers.containsKey(key)) {
+            List<String> values = headers.get(key);
+            values.remove(value); // 尝试移除该值
+            if (values.isEmpty()) { // 如果对应的值列表为空，则移除整个 key
+                headers.remove(key);
+            }
+        }
+    }
+
 
     @Override
     public String getHeader(String name) {
@@ -269,7 +297,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
             throw new IllegalStateException("Cannot send redirect after response has been committed.");
         }
         setStatus(SC_FOUND, getReasonPhrase(SC_FOUND));
-        setHeader("Location", location);
+        setHeader(Header.LOCATION, location);
         // 清空已有的响应体
         resetBuffer();
         String redirectPage = "<html><head><title>Redirect</title></head><body>"
@@ -365,8 +393,8 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         if (isCommitted) {
             throw new IllegalStateException("Cannot reset buffer after response has been committed.");
         }
-        this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
-        this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
+        // this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
+        this.servletOutputStream = new HttpResponseStream(this.clientOutputStream, this);
         try {
             // 必须重建 writer，否则已经写过的数据无法被重置
             createWriter(this.characterEncoding);
@@ -385,13 +413,8 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         }
         status = SC_OK;
         statusMessage = "OK";
-        // 保存重要值
-        for (String header : new String[]{Header.CONNECTION, Header.TRANSFER_ENCODING}) {
-            String value = getHeader(header);
-            if (value != null) addHeader(header, value);
-        }
-        this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
-        this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
+        // this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
+        this.servletOutputStream = new HttpResponseStream(this.clientOutputStream, this);
         headers.clear();
         cookies.clear();
         contentType = null;
@@ -548,7 +571,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
             setHeader(Header.CONNECTION, Header.CLOSE);
         }
 
-        if (!isCommitted && (bufferedOutputStream == null || clientOutputStream == null)
+        if (!isCommitted && clientOutputStream == null
                 && writer == null && getStatus() >= SC_BAD_REQUEST
                 && contentType == null && !(servletOutputStream.getByteCount() > 0)) {
             setContentType("text/html; charset=UTF-8");
@@ -569,13 +592,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     //</editor-fold>
     //<editor-fold desc="输出流相关">
     public OutputStream getStream() {
-        return bufferedOutputStream;
+        return clientOutputStream;
     }
 
     public void setStream(OutputStream outputStream) {
         this.clientOutputStream = outputStream;
-        this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
-        this.servletOutputStream = new HttpResponseStream(this.bufferedOutputStream);
+        // this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
+        this.servletOutputStream = new HttpResponseStream(this.clientOutputStream, this);
     }
 
     //</editor-fold>
@@ -586,6 +609,11 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     public void setAllowChunking(boolean allowChunking) {
         this.allowChunking = allowChunking;
+    }
+
+    public boolean isCloseConnection() {
+        String connectionValue = getHeader(Header.CONNECTION);
+        return (connectionValue != null && connectionValue.equals(Header.CLOSE));
     }
     //</editor-fold>
 }

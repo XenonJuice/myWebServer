@@ -73,5 +73,7 @@ public final class Const {
         public static final String SET_COOKIE = "Set-Cookie";
         public static final String CONTENT_ENCODING = "Content-Encoding";
         public static final String TRANSFER_ENCODING = "Transfer-Encoding";
+        public static final String CHUNKED = "chunked";
+        public static final String LOCATION = "Location";
     }
 }

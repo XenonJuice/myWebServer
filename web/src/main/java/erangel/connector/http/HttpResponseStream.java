@@ -1,30 +1,34 @@
 package erangel.connector.http;
 
+import erangel.connector.http.Const.Header;
+
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
-import java.io.BufferedOutputStream;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * 自定义的 ServletOutputStream 实现，直接写入 BufferedOutputStream。
  */
 public class HttpResponseStream extends ServletOutputStream {
     private static final int CHUNK_BUFFER_SIZE = 8192;
-    private final BufferedOutputStream outputStream;
-    private boolean useChunkedEncoding = false;
+    private final OutputStream outputStream;
     private final byte[] buffer = new byte[CHUNK_BUFFER_SIZE];
+    private boolean useChunkedEncoding = false;
     private int byteCount;
     private boolean closed = false;
     private int bufferIndex = 0;// 缓冲区中当前写入的位置
 
 
     /**
-     * 构造函数，初始化 BufferedOutputStream。
+     * 构造函数，初始化 socketOutputStream。
      *
-     * @param outputStream 用于实际数据写入的 BufferedOutputStream
+     * @param outputStream 用于实际数据写入的 socketOutputStream
      */
-    public HttpResponseStream(BufferedOutputStream outputStream) {
+    public HttpResponseStream(OutputStream outputStream, HttpResponse r) {
         this.outputStream = outputStream;
+        checkChunking(r);
     }
 
     /**
@@ -191,6 +195,23 @@ public class HttpResponseStream extends ServletOutputStream {
                 closed = true;
                 outputStream.flush();
             }
+        }
+    }
+
+    private void checkChunking(HttpResponse response) {
+        // 当流中已有数据时，不处理
+        if (getByteCount() != 0) return;
+        useChunkedEncoding = (!response.isCommitted()
+                && response.getContentLength() == -1
+                && response.getStatus() != HttpServletResponse.SC_NOT_MODIFIED);
+        // 连接器不允许chunk时，关闭连接
+        if (!response.isAllowChunking() && useChunkedEncoding) response.setHeader(Header.CONNECTION, Header.CLOSE);
+        useChunkedEncoding = (useChunkedEncoding && !response.isCloseConnection());
+        if (useChunkedEncoding) {
+            response.addHeader(Header.TRANSFER_ENCODING, Header.CHUNKED);
+            // 移除可能重复添加chunked的情况
+        } else if (response.isAllowChunking()) {
+            response.removeHeader(Header.TRANSFER_ENCODING, Header.CHUNKED);
         }
     }
 
