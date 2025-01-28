@@ -22,6 +22,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     //<editor-fold desc="attr">
     private final Map<String, List<String>> headers = new LinkedHashMap<>();
     private final List<Cookie> cookies = new ArrayList<>();
+    private HttpConnector connector;
     private final int bufferSize = 8192;
     private int status = SC_OK;
     private String statusMessage = "OK";
@@ -549,6 +550,14 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         this.allowChunking = false;
         this.request = null;
         resetBuffer();
+    }
+
+    public HttpConnector getConnector() {
+        return connector;
+    }
+
+    public void setConnector(HttpConnector connector) {
+        this.connector = connector;
     }
 
     public HttpRequest getRequest() {

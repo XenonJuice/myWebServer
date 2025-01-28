@@ -20,6 +20,28 @@ public final class Const {
     }
 
     /**
+     * 常见的ContentType
+     */
+    public static class ContentType {
+        public static final String TEXT_PLAIN = "text/plain";
+        public static final String TEXT_HTML = "text/html";
+        public static final String TEXT_XML = "text/xml";
+        public static final String TEXT_JSON = "text/json";
+        public static final String APPLICATION_OCTET_STREAM = "application/octet-stream";
+        public static final String APPLICATION_X_WWW_FORM_URLENCODED = "application/x-www-form-urlencoded";
+        public static final String APPLICATION_X_WWW_FORM_MULTIPART = "multipart/form-data";
+        public static final String APPLICATION_JSON = "application/json";
+        public static final String APPLICATION_XML = "application/xml";
+    }
+
+    /**
+     * 连接器使用的常量
+     */
+    public static class ConnectorConstants {
+        public static final int DEFAULT_CONNECTION_TIMEOUT = 5000;
+    }
+
+    /**
      * HTTP协议版本
      */
     public static class HttpProtocol {

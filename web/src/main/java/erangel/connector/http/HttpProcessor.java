@@ -574,13 +574,14 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             try {
                 initializeRequestAndResponse(socket);
             } catch (IOException e) {
-                noProblem = false;
-                logger.error("处理请求时发生IO错误: output", e);
+                handleIOException(e);
             }
 
             // IO无异常，继续解析
             try {
-                parseRequestAndConnection(socket);
+                if (noProblem) {
+                    parseRequestAndConnection(socket);
+                }
             } catch (EOFException e) {
                 handleEOFException();
             } catch (ServletException e) {
@@ -594,9 +595,10 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             }
             // TODO servlet容器加载
             try {
-                // if(noProblem)
-                // container.invoke(request,response)
-                System.out.println("假装已经通过了servlet");
+                if (noProblem) {
+                    // container.invoke(request,response)
+                    System.out.println("假装已经通过了servlet");
+                }
                 // ---------------------------------------
             } catch (RuntimeException e) {
                 handleUnknownException(e);
