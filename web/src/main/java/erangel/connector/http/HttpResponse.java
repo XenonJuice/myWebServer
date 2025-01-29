@@ -4,6 +4,7 @@ import erangel.connector.http.Const.Header;
 import erangel.connector.http.Const.PunctuationMarks;
 import erangel.log.BaseLogger;
 
+import javax.servlet.ServletInputStream;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
@@ -31,7 +32,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     private String characterEncoding = "UTF-8";
     private HttpRequest request;
     private OutputStream clientOutputStream; // 最终输出到客户端的流
-    // private BufferedOutputStream bufferedOutputStream; // 直接缓冲到clientOutputStream
     private HttpResponseStream servletOutputStream; // 自定义流
     private PrintWriter writer;
     private boolean isCommitted = false;
@@ -43,8 +43,10 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
      * 用指定的字符编码创建/重置 PrintWriter
      */
     private void createWriter(String encoding) throws UnsupportedEncodingException {
+        HttpResponseStream newStream = (HttpResponseStream) createOutputStream();
         this.writer = new PrintWriter(
-                new OutputStreamWriter(this.servletOutputStream, encoding));
+                new OutputStreamWriter(newStream, encoding));
+        this.servletOutputStream = newStream;
     }
 
     @Override
@@ -228,11 +230,14 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     }
 
     @Override
-    public ServletOutputStream getOutputStream() throws IOException {
+    public ServletOutputStream getOutputStream() {
         if (writerUsed) {
             throw new IllegalStateException("getWriter() has already been called on this response.");
         }
         outputStreamUsed = true;
+        if(this.servletOutputStream == null) {
+            this.servletOutputStream= (HttpResponseStream) createOutputStream();
+        }
         return this.servletOutputStream;
     }
 
@@ -394,8 +399,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         if (isCommitted) {
             throw new IllegalStateException("Cannot reset buffer after response has been committed.");
         }
-        // this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
-        this.servletOutputStream = new HttpResponseStream(this.clientOutputStream, this);
+        this.servletOutputStream = new HttpResponseStream(this);
         try {
             // 必须重建 writer，否则已经写过的数据无法被重置
             createWriter(this.characterEncoding);
@@ -414,8 +418,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         }
         status = SC_OK;
         statusMessage = "OK";
-        // this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
-        this.servletOutputStream = new HttpResponseStream(this.clientOutputStream, this);
+        this.servletOutputStream = new HttpResponseStream(this);
         headers.clear();
         cookies.clear();
         contentType = null;
@@ -606,10 +609,11 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     public void setStream(OutputStream outputStream) {
         this.clientOutputStream = outputStream;
-        // this.bufferedOutputStream = new BufferedOutputStream(clientOutputStream, bufferSize);
-        this.servletOutputStream = new HttpResponseStream(this.clientOutputStream, this);
     }
 
+    public ServletOutputStream createOutputStream(){
+        return new HttpResponseStream(this);
+    }
     //</editor-fold>
     //<editor-fold desc="chunk?">
     public boolean isAllowChunking() {

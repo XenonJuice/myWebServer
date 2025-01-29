@@ -13,7 +13,7 @@ import java.io.OutputStream;
  */
 public class HttpResponseStream extends ServletOutputStream {
     private static final int CHUNK_BUFFER_SIZE = 8192;
-    private final OutputStream outputStream;
+    private final OutputStream clienteOutputStream;
     private final byte[] buffer = new byte[CHUNK_BUFFER_SIZE];
     private boolean useChunkedEncoding = false;
     private int byteCount;
@@ -24,11 +24,10 @@ public class HttpResponseStream extends ServletOutputStream {
     /**
      * 构造函数，初始化 socketOutputStream。
      *
-     * @param outputStream 用于实际数据写入的 socketOutputStream
      */
-    public HttpResponseStream(OutputStream outputStream, HttpResponse r) {
-        this.outputStream = outputStream;
-        checkChunking(r);
+    public HttpResponseStream(HttpResponse response) {
+        this.clienteOutputStream = response.getStream();
+        checkChunking(response);
     }
 
     /**
@@ -141,7 +140,7 @@ public class HttpResponseStream extends ServletOutputStream {
             if (useChunkedEncoding) {
                 writeChunk(buffer, 0, bufferIndex); // 如果启用了 Chunked Encoding，写入 Chunk
             } else {
-                outputStream.write(buffer, 0, bufferIndex); // 普通模式写入缓冲区
+                clienteOutputStream.write(buffer, 0, bufferIndex); // 普通模式写入缓冲区
             }
             bufferIndex = 0; // 清空缓冲区
         }
@@ -158,11 +157,11 @@ public class HttpResponseStream extends ServletOutputStream {
     private void writeChunk(byte[] b, int off, int len) throws IOException {
         // 写入 Chunk 大小（十六进制） + CRLF
         String chunkSize = Integer.toHexString(len) + Const.PunctuationMarks.CRLF;
-        outputStream.write(chunkSize.getBytes());
+        clienteOutputStream.write(chunkSize.getBytes());
         // 写入实际数据
-        outputStream.write(b, off, len);
+        clienteOutputStream.write(b, off, len);
         // 写入 Chunk 结束符 CRLF
-        outputStream.write(Const.PunctuationMarks.CRLF.getBytes());
+        clienteOutputStream.write(Const.PunctuationMarks.CRLF.getBytes());
     }
 
 
@@ -186,14 +185,14 @@ public class HttpResponseStream extends ServletOutputStream {
                 writeChunkBufferToStream(); // 关闭前刷新缓冲区
                 if (useChunkedEncoding) {
                     // 如果启用了 Chunked ，写入终止块
-                    outputStream.write(("0"
+                    clienteOutputStream.write(("0"
                             + Const.PunctuationMarks.CRLF
                             + Const.PunctuationMarks.CRLF)
                             .getBytes());
                 }
             } finally {
                 closed = true;
-                outputStream.flush();
+                clienteOutputStream.flush();
             }
         }
     }

@@ -96,12 +96,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     public void setStream(InputStream inputStream) {
         this.clientInputStream = inputStream;
-        this.bufferedInputStream = new BufferedInputStream(clientInputStream, bufferSize);
-        this.servletInputStream = new HttpRequestStream(this.bufferedInputStream, response, this);
     }
 
     public InputStream getStream() {
-        return bufferedInputStream;
+        return clientInputStream;
     }
 
     @Override
@@ -386,8 +384,15 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     }
 
     @Override
-    public ServletInputStream getInputStream() throws IOException {
+    public ServletInputStream getInputStream() {
+        if(this.servletInputStream == null){
+            this.servletInputStream = (HttpRequestStream) createInputStream();
+        }
         return servletInputStream;
+    }
+
+    public ServletInputStream createInputStream(){
+        return new HttpRequestStream(response,this);
     }
 
     @Override

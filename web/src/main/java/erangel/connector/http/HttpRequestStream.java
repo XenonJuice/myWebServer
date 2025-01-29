@@ -14,6 +14,7 @@ import java.io.InputStream;
  * 主要用于 HttpRequest 类中，提供读取请求体数据的功能。
  */
 public class HttpRequestStream extends ServletInputStream {
+    private final InputStream inputStream;
     private final BufferedInputStream bufferedInputStream;
     private boolean isFinished = false;
     private final boolean isReady = true; // 始终返回 true
@@ -27,9 +28,9 @@ public class HttpRequestStream extends ServletInputStream {
     /**
      * 构造函数，初始化 BufferedInputStream。
      *
-     * @param inputStream 客户端发送的 InputStream
      */
-    public HttpRequestStream(InputStream inputStream, HttpResponse response, HttpRequest request) {
+    public HttpRequestStream(HttpResponse response, HttpRequest request) {
+        this.inputStream = request.getStream();
         String transferEncoding = request.getHeader(Header.TRANSFER_ENCODING);
         http11 = request.getProtocol().equals(HttpProtocol.HTTP_1_1);
         useChunkedEncoding = ((transferEncoding != null)
