@@ -4,7 +4,6 @@ import erangel.connector.http.Const.Header;
 import erangel.connector.http.Const.PunctuationMarks;
 import erangel.log.BaseLogger;
 
-import javax.servlet.ServletInputStream;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
@@ -235,8 +234,8 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
             throw new IllegalStateException("getWriter() has already been called on this response.");
         }
         outputStreamUsed = true;
-        if(this.servletOutputStream == null) {
-            this.servletOutputStream= (HttpResponseStream) createOutputStream();
+        if (this.servletOutputStream == null) {
+            this.servletOutputStream = (HttpResponseStream) createOutputStream();
         }
         return this.servletOutputStream;
     }
@@ -317,9 +316,6 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     @Override
     public void flushBuffer() throws IOException {
-        if (isCommitted) {
-            return;
-        }
         writeStatusLineAndHeaders();
         if (writerUsed) writer.flush();
         if (outputStreamUsed) servletOutputStream.flush();
@@ -331,7 +327,8 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     /**
      * 写出状态行、响应头和 Cookie；必须保证先于响应正文
      */
-    private void writeStatusLineAndHeaders() throws IOException {
+    protected void writeStatusLineAndHeaders() throws IOException {
+        if (isCommitted) return;
         StringBuilder sb = new StringBuilder();
         sb.append(request.getProtocol()).append(PunctuationMarks.SPACE)
                 .append(status)
@@ -611,9 +608,10 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         this.clientOutputStream = outputStream;
     }
 
-    public ServletOutputStream createOutputStream(){
+    public ServletOutputStream createOutputStream() {
         return new HttpResponseStream(this);
     }
+
     //</editor-fold>
     //<editor-fold desc="chunk?">
     public boolean isAllowChunking() {
