@@ -53,7 +53,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     private final HttpRequest request;
     private final HttpResponse response;
     // 解析器的ID
-    private final AtomicInteger id;
+    private final int id;
     // 与此解析器绑定的连接器
     private final HttpConnector connector;
     // 代理端口、名 (从绑定的连接器中获取)
@@ -92,7 +92,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
 
     //</editor-fold>
     //<editor-fold desc = "constructor">
-    public HttpProcessor(HttpConnector connector, AtomicInteger id) throws IOException {
+    public HttpProcessor(HttpConnector connector, int id) throws IOException {
         this.connector = connector;
         this.proxyName = connector.getProxyName();
         this.proxyPort = connector.getProxyPort();

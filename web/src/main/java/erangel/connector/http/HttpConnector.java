@@ -9,22 +9,22 @@ import java.net.BindException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.ArrayDeque;
+import java.util.Queue;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class HttpConnector extends BaseLogger implements Runnable {
     //<editor-fold desc = "attr">
     // 描述信息
     private static final String info = "llj.erangel.connector.http.HttpConnector/1.0";
     // 线程容器
-    private final ConcurrentLinkedQueue<HttpProcessor> processors = new ConcurrentLinkedQueue<>();
+    private final Queue<HttpProcessor> processors = new ArrayDeque<>();
     // 已创建的解析器线程之容器
     private final CopyOnWriteArrayList<HttpProcessor> created = new CopyOnWriteArrayList<>();
-    // 当前解析器数量
-    private final AtomicInteger currentProcessors = new AtomicInteger(0);
     // 对象锁
     private final Object lock = new Object();
+    // 当前解析器数量
+    private final int currentProcessors = 0;
     // 经过本连接器处理的所有请求的协议名
     private String scheme = "http";
     // 最大连接数
@@ -53,9 +53,11 @@ public class HttpConnector extends BaseLogger implements Runnable {
     // 本线程
     private Thread thread = null;
     // 当前线程名称
-    private final String threadName = null;
+    private String threadName = null;
     // 线程停止标志位
     private boolean stopped = false;
+    // 线程启动标志位
+    private boolean started = false;
 
     //</editor-fold>
     //<editor-fold desc="getter & setter">
@@ -238,12 +240,56 @@ public class HttpConnector extends BaseLogger implements Runnable {
     }
 
     void initialize() {
+        try {
+            serverSocket = openSocket();
+        } catch (BindException e) {
+            throw new RuntimeException(threadName+"openSocket",e);
+        }
+
     }
 
     void start() {
+        if (started) {
+            logger.warn("HttpConnector:already started,ignore this start request");
+            return;
+        }
+        threadName = "HttpConnector[" + port + "]";
+        // 启动线程
+        threadStart();
+        started = true;
+
+        // 创建一定数量的解析器
+        while (currentProcessors < minProcessors) {
+            if (currentProcessors >= maxProcessors) break;
+            HttpProcessor processor = newProcessor();
+            recycle(processor);
+        }
+
     }
 
     void stop() {
+        if (!started) {
+            logger.warn("HttpConnector:not started,ignore this close request");
+            return;
+        }
+        started = false;
+        // 关闭所有和当前连接器关联的解析器
+        for (HttpProcessor processor : created) {
+            if (processor != null) {
+                processor.stop();
+            }
+        }
+        synchronized (lock) {
+            if (serverSocket != null) {
+                try {
+                    serverSocket.close();
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                serverSocket = null;
+            }
+            threadStop();
+        }
     }
 
     //</editor-fold>
@@ -298,28 +344,21 @@ public class HttpConnector extends BaseLogger implements Runnable {
      * 创建解析器
      **/
     private HttpProcessor createProcessor() {
-        HttpProcessor processor = processors.poll();
-        if (processor != null) {
-            return processor;
+        synchronized (processors) {
+            // 解析起池不为空时，直接取出一个
+            if (!processors.isEmpty()) return processors.poll();
+            // 当前解析器池内的数量不足时，重新创建一个
+            if (currentProcessors < maxProcessors) {
+                return newProcessor();
+            } else {
+                return null;
+            }
         }
-
-        // 创建新processor时检查数量限制
-        int current = currentProcessors.get();
-        if (maxProcessors > 0 && current >= maxProcessors) {
-            return null;
-        }
-
-        if (currentProcessors.compareAndSet(current, current + 1)) {
-            return newProcessor();
-        }
-
-        // 重试从队列获取
-        processor = processors.poll();
-        return processor;
     }
 
+
     private HttpProcessor newProcessor() {
-        HttpProcessor processor = null;
+        HttpProcessor processor;
         try {
             processor = new HttpProcessor(this, currentProcessors);
         } catch (IOException e) {
