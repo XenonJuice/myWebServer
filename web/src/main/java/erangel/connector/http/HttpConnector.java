@@ -209,8 +209,7 @@ public class HttpConnector extends BaseLogger implements Runnable {
                 }
                 continue;
             }
-            // TODO 向解析起分配socket
-            // processor.attach(socket);
+            processor.receiveSocket(socket);
         }
         // 通知线程终结方法已经成功关闭socket
         synchronized (lock) {
@@ -243,7 +242,7 @@ public class HttpConnector extends BaseLogger implements Runnable {
         try {
             serverSocket = openSocket();
         } catch (BindException e) {
-            throw new RuntimeException(threadName+"openSocket",e);
+            throw new RuntimeException(threadName + "openSocket", e);
         }
 
     }

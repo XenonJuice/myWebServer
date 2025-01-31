@@ -13,7 +13,6 @@ import java.io.*;
 import java.net.Socket;
 import java.net.URLDecoder;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static erangel.connector.Utils.CookieUtils.convertToCookieArray;
 import static erangel.connector.Utils.CookieUtils.convertToCookieList;
@@ -78,7 +77,9 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     public String protocol;
     public String uri;
     // 解析过程中是否发生异常标志位
-    boolean noProblem = true;
+    private boolean noProblem = true;
+    // 是否有可用的socket
+    private boolean hasSocket = false;
     // 是否可以发送响应标志位
     boolean finishResponse = true;
     // 解析器状态
@@ -89,6 +90,8 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     private boolean http11 = false;
     // 确认消息标志位
     private boolean ack = false;
+    // 当前解析器持有的socket
+    private Socket socket = null;
 
     //</editor-fold>
     //<editor-fold desc = "constructor">
@@ -99,9 +102,46 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         this.id = id;
         this.request = connector.createRequest();
         this.response = connector.createResponse();
-        // this.servletInputStream = request.getInputStream();
         this.characterEncoding = request.getCharacterEncoding() != null ? request.getCharacterEncoding() : "UTF-8";
-        // assembleRequest(request, method, uri, protocol, headers, parameters);
+    }
+    //</editor-fold>
+
+
+    //<editor-fold desc = "线程相关">
+    protected synchronized void receiveSocket(Socket socket) {
+        // 当前解析器已持有一个socket时，等待
+        while (hasSocket) {
+            try {
+                wait();
+            } catch (InterruptedException _) {
+            }
+        }
+        // 当前不持有socket时
+        this.socket = socket;
+        hasSocket = true;
+        // 唤醒waitSocket()
+        notifyAll();
+        logger.info("已分配到一个请求");
+    }
+
+    private synchronized Socket waitSocket() {
+        // 当前解析器不持有一个socket时，等待
+        while (!hasSocket) {
+            try {
+                wait();
+            } catch (InterruptedException _) {
+            }
+        }
+        Socket socket = this.socket;
+        hasSocket = false;
+//        1.connector调用processor.receiveSocket(socket);，向processor传递一个socket。同时唤醒了processor的waitSocket。
+//        2.waitSocket目前运行到设置标志位之前（还未设置标志位）
+//        3.生命周期方法被触发，在processor内部直接触发了receiveSocket（null）
+//        4.第三点中到receiveSocket处于阻塞状态，等待第二点中的waitSocket唤醒。
+        // 唤醒receiveSocket()
+        notifyAll();
+        logger.info("正在等待请求");
+        return socket;
     }
     //</editor-fold>
     //<editor-fold desc = "解析相关">
