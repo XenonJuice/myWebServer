@@ -105,54 +105,6 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         this.characterEncoding = request.getCharacterEncoding() != null ? request.getCharacterEncoding() : "UTF-8";
     }
     //</editor-fold>
-
-
-    //<editor-fold desc = "线程相关">
-    protected synchronized void receiveSocket(Socket socket) {
-        // 当前解析器已持有一个socket时，等待
-        while (hasSocket) {
-            try {
-                wait();
-            } catch (InterruptedException _) {
-            }
-        }
-        // 当前不持有socket时
-        this.socket = socket;
-        hasSocket = true;
-        // 唤醒waitSocket()
-        notifyAll();
-        logger.info("已分配到一个请求");
-    }
-
-    private synchronized Socket waitSocket() {
-        // 当前解析器不持有一个socket时，等待
-        while (!hasSocket) {
-            try {
-                wait();
-            } catch (InterruptedException _) {
-            }
-        }
-        Socket socket = this.socket;
-        hasSocket = false;
-        /* notifyAll();
-         * 这里是对关键操作的详细解释：
-         * 1. HttpConnector通过receiveSocket()向Processor传递socket，与此同时，生命周期函数可能被触发，
-         *    HttpConnector所在线程会再次调用processor.stop()，间接导致receiveSocket(null)进入等待状态。
-         * 2. 在首次的receiveSocket(socket)之后，notifyAll()会唤醒在processor线程上阻塞的waitSocket()，
-         *    并且释放锁，但是在 1. 中receiveSocket(null)在此时也被唤醒，此时有两条线程试图获取processor
-         *    的对象锁，分别是connector线程和processor线程，如果这时分配null的connector线程先于从阻塞在
-         *    waitSocket()的processor的线程获得了对象锁，会紧接着再次进入receiveSocket()中
-         * 3. 由于前一次进入receiveSocket()导致boolean hasSocket被修改为true，receiveSocket(null)会
-         *    阻塞在wait()，并且释放锁
-         * 4. 这时唯一处于就绪状态的processor线程调用waitSocket()，继续处理第一次connector线程向processor
-         *    中分配的socket，将hasSocket修改为false，同时唤醒等待状态中的分配null的线程。
-         * 5. 正常进行之后的线程停止流程...
-         */
-        notifyAll();
-        logger.info("正在等待请求");
-        return socket;
-    }
-    //</editor-fold>
     //<editor-fold desc = "解析相关">
 
     private void parseRequestAndConnection(Socket socket) throws IOException, ServletException {
@@ -589,6 +541,51 @@ public class HttpProcessor extends BaseLogger implements Runnable {
 
     //</editor-fold>
     //<editor-fold desc = "线程相关">
+    protected synchronized void receiveSocket(Socket socket) {
+        // 当前解析器已持有一个socket时，等待
+        while (hasSocket) {
+            try {
+                wait();
+            } catch (InterruptedException _) {
+            }
+        }
+        // 当前不持有socket时
+        this.socket = socket;
+        hasSocket = true;
+        // 唤醒waitSocket()
+        notifyAll();
+        logger.info("已分配到一个请求");
+    }
+
+    private synchronized Socket waitSocket() {
+        // 当前解析器不持有一个socket时，等待
+        while (!hasSocket) {
+            try {
+                wait();
+            } catch (InterruptedException _) {
+            }
+        }
+        Socket socket = this.socket;
+        hasSocket = false;
+        /* notifyAll();
+         * 这里是对关键操作的详细解释：
+         * 1. HttpConnector通过receiveSocket()向Processor传递socket，与此同时，生命周期函数可能被触发，
+         *    HttpConnector所在线程会再次调用processor.stop()，间接导致receiveSocket(null)进入等待状态。
+         * 2. 在首次的receiveSocket(socket)之后，notifyAll()会唤醒在processor线程上阻塞的waitSocket()，
+         *    并且释放锁，但是在 1. 中receiveSocket(null)在此时也被唤醒，此时有两条线程试图获取processor
+         *    的对象锁，分别是connector线程和processor线程，如果这时分配null的connector线程先于从阻塞在
+         *    waitSocket()的processor的线程获得了对象锁，会紧接着再次进入receiveSocket()中
+         * 3. 由于前一次进入receiveSocket()导致boolean hasSocket被修改为true，receiveSocket(null)会
+         *    阻塞在wait()，并且释放锁
+         * 4. 这时唯一处于就绪状态的processor线程调用waitSocket()，继续处理第一次connector线程向processor
+         *    中分配的socket，将hasSocket修改为false，同时唤醒等待状态中的分配null的线程。
+         * 5. 正常进行之后的线程停止流程...
+         */
+        notifyAll();
+        logger.info("正在等待请求");
+        return socket;
+    }
+
     @Override
     public void run() {
 
@@ -736,7 +733,6 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         }
     }
     //</editor-fold>
-
     //<editor-fold desc = "just for test">
     public void setNoProblem(boolean noProblem) {
         this.noProblem = noProblem;
