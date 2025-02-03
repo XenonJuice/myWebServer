@@ -209,6 +209,7 @@ public class HttpConnector extends BaseLogger implements Runnable {
                 }
                 continue;
             }
+            // 向解析器分配socket
             processor.receiveSocket(socket);
         }
         // 通知线程终结方法已经成功关闭socket
@@ -222,6 +223,7 @@ public class HttpConnector extends BaseLogger implements Runnable {
     void threadStart() {
         logger.info("HttpConnector:后台线程启动");
         thread = new Thread(this, threadName);
+        // HttpConnector作为socket监视器，可设置为守护线程
         thread.setDaemon(true);
         thread.start();
     }

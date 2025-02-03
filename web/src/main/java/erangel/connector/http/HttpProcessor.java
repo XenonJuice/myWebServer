@@ -134,11 +134,20 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         }
         Socket socket = this.socket;
         hasSocket = false;
-//        1.connector调用processor.receiveSocket(socket);，向processor传递一个socket。同时唤醒了processor的waitSocket。
-//        2.waitSocket目前运行到设置标志位之前（还未设置标志位）
-//        3.生命周期方法被触发，在processor内部直接触发了receiveSocket（null）
-//        4.第三点中到receiveSocket处于阻塞状态，等待第二点中的waitSocket唤醒。
-        // 唤醒receiveSocket()
+        /* notifyAll();
+         * 这里是对关键操作的详细解释：
+         * 1. HttpConnector通过receiveSocket()向Processor传递socket，与此同时，生命周期函数可能被触发，
+         *    HttpConnector所在线程会再次调用processor.stop()，间接导致receiveSocket(null)进入等待状态。
+         * 2. 在首次的receiveSocket(socket)之后，notifyAll()会唤醒在processor线程上阻塞的waitSocket()，
+         *    并且释放锁，但是在 1. 中receiveSocket(null)在此时也被唤醒，此时有两条线程试图获取processor
+         *    的对象锁，分别是connector线程和processor线程，如果这时分配null的connector线程先于从阻塞在
+         *    waitSocket()的processor的线程获得了对象锁，会紧接着再次进入receiveSocket()中
+         * 3. 由于前一次进入receiveSocket()导致boolean hasSocket被修改为true，receiveSocket(null)会
+         *    阻塞在wait()，并且释放锁
+         * 4. 这时唯一处于就绪状态的processor线程调用waitSocket()，继续处理第一次connector线程向processor
+         *    中分配的socket，将hasSocket修改为false，同时唤醒等待状态中的分配null的线程。
+         * 5. 正常进行之后的线程停止流程...
+         */
         notifyAll();
         logger.info("正在等待请求");
         return socket;
