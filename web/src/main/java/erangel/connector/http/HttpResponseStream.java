@@ -206,6 +206,7 @@ public class HttpResponseStream extends ServletOutputStream {
             // 移除可能重复添加chunked的情况
         } else if (response.isAllowChunking()) {
             response.removeHeader(Header.TRANSFER_ENCODING, Header.CHUNKED);
+            response.addHeader(Header.CONNECTION, Header.CLOSE);
         }
     }
 

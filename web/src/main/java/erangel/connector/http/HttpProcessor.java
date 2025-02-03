@@ -59,7 +59,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     // 对象锁
     private final Object lock = new Object();
     // 从请求中获得的 InputStream
-    public ServletInputStream servletInputStream;
+    public HttpRequestStream servletInputStream;
     // 从请求中获得的字符编码
     public String characterEncoding;
     // 存储HTTP头的映射
@@ -203,6 +203,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         }
         if (protocol.equals(HttpProtocol.HTTP_1_1)) {
             http11 = true;
+            servletInputStream.setHttp11(true);
         }
 
         logger.info("请求方法: {}", method);
@@ -259,42 +260,63 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                         }
                     }
                 }
+                // 处理chunked的情况
+                if (Header.TRANSFER_ENCODING.equalsIgnoreCase(key) && Header.CHUNKED.equalsIgnoreCase(value)) {
+                    servletInputStream.setUseChunkedEncoding(true);
+                }
                 // 解析Cookies
                 if (Header.COOKIE.equalsIgnoreCase(key)) {
                     parseCookies(value);
                 }
             }
 
-            // 3. 根据Content-Length从流中按字节读取请求体
-            // TODO 处理chunked的情况，为inputstream和outputstream的chunked？添加赋值操作
-            if (contentLength > 0) {
-                logger.info("开始读取请求体, 长度: {}", contentLength);
-                byte[] body = new byte[contentLength];
-                int bytesRead = 0;
-                while (bytesRead < contentLength) {
-                    int readCount = servletInputStream.read(body, bytesRead, contentLength - bytesRead);
-                    if (readCount == -1) {
-                        break;
+            // 3.从流中按字节读取请求体
+            if (contentLength > 0 ||
+                    Header.TRANSFER_ENCODING.equalsIgnoreCase(
+                            headers.get(Header.TRANSFER_ENCODING).getFirst())) {
+                byte[] body = null;
+                if (contentLength > 0) {
+                    logger.debug("开始读取请求体, 长度: {}", contentLength);
+                    body = new byte[contentLength];
+                    int bytesRead = 0;
+                    while (bytesRead < contentLength) {
+                        int readCount = servletInputStream.read(body, bytesRead, contentLength - bytesRead);
+                        if (readCount == -1) {
+                            break;
+                        }
+                        bytesRead += readCount;
                     }
-                    bytesRead += readCount;
-                }
-                if (bytesRead != contentLength) {
-                    logger.warn("请求体不完整: 已读 {} 字节, 期望 {} 字节", bytesRead, contentLength);
-                    throw new ServletException("Request body is incomplete");
-                }
-                request.setBody(body);
-                logger.info("成功读取请求体");
+                    if (bytesRead != contentLength) {
+                        logger.warn("请求体不完整: 已读 {} 字节, 期望 {} 字节", bytesRead, contentLength);
+                        throw new ServletException("Request body is incomplete");
+                    }
+                    request.setBody(body);
 
+                } else if (Header.TRANSFER_ENCODING.equalsIgnoreCase(
+                        headers.get(Header.TRANSFER_ENCODING).getFirst())) {
+                    logger.debug("开始读取CHUNKED请求体");
+                    ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                    body = new byte[1024];
+                    int readCount;
+                    while ((readCount = servletInputStream.read(body)) != -1) {
+                        buf.write(body, 0, readCount);
+                    }
+                    request.setBody(buf.toByteArray());
+                }
+                logger.debug("成功读取请求体");
                 // 如果Content-Type是application/x-www-form-urlencoded，则对body进行解码并解析参数
                 if (contentType != null && contentType.startsWith("application/x-www-form-urlencoded")) {
-                    String bodyStr = new String(body, characterEncoding);
+                    String bodyStr = null;
+                    if (body != null) {
+                        bodyStr = new String(body, characterEncoding);
+                    }
                     parseParameters(bodyStr);
-                    logger.info("解析后的请求体参数: {}", parameters);
+                    logger.debug("解析后的请求体参数: {}", parameters);
                 }
             }
         }
         assembleRequest(request, method, uri, protocol, headers, parameters);
-        logger.info("HTTP请求解析完成");
+        logger.debug("HTTP请求解析完成");
     }
 
     /**
@@ -309,7 +331,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             String key = URLDecoder.decode(keyValue[0], characterEncoding);
             String value = keyValue.length > 1 ? URLDecoder.decode(keyValue[1], characterEncoding) : "";
             parameters.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
-            logger.info("参数: {} = {}", key, value);
+            logger.debug("参数: {} = {}", key, value);
         }
     }
 
@@ -325,7 +347,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
                 String key = keyValue[0].trim();
                 String value = keyValue[1].trim();
                 cookies.put(key, value);
-                logger.info("解析Cookie: {} = {}", key, value);
+                logger.debug("解析Cookie: {} = {}", key, value);
             }
 
         }

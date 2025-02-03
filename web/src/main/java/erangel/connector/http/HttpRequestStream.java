@@ -19,9 +19,23 @@ public class HttpRequestStream extends ServletInputStream {
     private boolean isFinished = false;
     private final boolean isReady = true; // 始终返回 true
     private ReadListener readListener;
-    private final Boolean http11;
+
+    public void setHttp11(Boolean http11) {
+        this.http11 = http11;
+    }
+
+    private  Boolean http11 =false;
     private int bufferSize;
     private boolean closed = false;
+
+    public boolean isUseChunkedEncoding() {
+        return useChunkedEncoding;
+    }
+
+    public void setUseChunkedEncoding(boolean useChunkedEncoding) {
+        this.useChunkedEncoding = useChunkedEncoding;
+    }
+
     private boolean useChunkedEncoding = false;
     private int chunkSize = 0; // 当前chunk的剩余大小
 
@@ -30,13 +44,6 @@ public class HttpRequestStream extends ServletInputStream {
      */
     public HttpRequestStream(HttpResponse response, HttpRequest request) {
         this.inputStream = request.getStream();
-        String transferEncoding = request.getHeader(Header.TRANSFER_ENCODING);
-        http11 = request.getProtocol().equals(HttpProtocol.HTTP_1_1);
-        useChunkedEncoding = ((transferEncoding != null)
-                && (transferEncoding.contains(Header.CHUNKED)));
-        if (!useChunkedEncoding) {
-            response.addHeader(Header.CONNECTION, Header.CLOSE);
-        }
         this.bufferedInputStream = new BufferedInputStream(inputStream, bufferSize);
     }
 
