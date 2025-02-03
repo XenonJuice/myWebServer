@@ -51,17 +51,13 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     //<editor-fold desc = "attr">
     private final HttpRequest request;
     private final HttpResponse response;
-    // 解析器的ID
-    private final int id;
     // 与此解析器绑定的连接器
     private final HttpConnector connector;
     // 代理端口、名 (从绑定的连接器中获取)
     private final String proxyName;
     private final int proxyPort;
-    // 服务器实际端口
-    private final int serverPort = 0;
-    // 线程停止信号
-    private final boolean stopped = false;
+    // 对象锁
+    private final Object lock = new Object();
     // 从请求中获得的 InputStream
     public ServletInputStream servletInputStream;
     // 从请求中获得的字符编码
@@ -76,12 +72,16 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     public String fullUri;
     public String protocol;
     public String uri;
+    // 是否可以发送响应标志位
+    boolean finishResponse = true;
+    // 服务器实际端口
+    private int serverPort = 0;
+    // 线程停止信号
+    private boolean stopped = false;
     // 解析过程中是否发生异常标志位
     private boolean noProblem = true;
     // 是否有可用的socket
     private boolean hasSocket = false;
-    // 是否可以发送响应标志位
-    boolean finishResponse = true;
     // 解析器状态
     private int status = Processor.PROCESSOR_IDLE;
     // 长连接标志位
@@ -92,6 +92,12 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     private boolean ack = false;
     // 当前解析器持有的socket
     private Socket socket = null;
+    // 当前线程
+    private Thread thread = null;
+    // 当前线程名
+    private String threadName = null;
+    // 线程启动标志位
+    private boolean started = false;
 
     //</editor-fold>
     //<editor-fold desc = "constructor">
@@ -99,10 +105,11 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         this.connector = connector;
         this.proxyName = connector.getProxyName();
         this.proxyPort = connector.getProxyPort();
-        this.id = id;
+        this.serverPort = connector.getPort();
         this.request = connector.createRequest();
         this.response = connector.createResponse();
         this.characterEncoding = request.getCharacterEncoding() != null ? request.getCharacterEncoding() : "UTF-8";
+        this.threadName = "HttpProcessor[" + connector.getPort() + "][" + id + "]";
     }
     //</editor-fold>
     //<editor-fold desc = "解析相关">
@@ -340,7 +347,6 @@ public class HttpProcessor extends BaseLogger implements Runnable {
     /**
      * 解析请求头
      */
-    //TODO
     private void parseHeaders(Map<String, List<String>> headers) {
         if (headers.isEmpty()) return;
         // 设置确认反馈
@@ -554,7 +560,11 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         hasSocket = true;
         // 唤醒waitSocket()
         notifyAll();
-        logger.info("已分配到一个请求,来自：{}",socket.getRemoteSocketAddress());
+        if (socket == null) {
+            logger.info("收到停止信号，socket为null");
+        } else {
+            logger.info("已分配到一个请求,来自：{}", socket.getRemoteSocketAddress());
+        }
     }
 
     private synchronized Socket waitSocket() {
@@ -588,26 +598,78 @@ public class HttpProcessor extends BaseLogger implements Runnable {
 
     @Override
     public void run() {
+        while (!stopped) {
+            Socket socket = waitSocket();
+            // 当socket为null时，说明生命周期方法stop被调用
+            if (socket == null) {
+                continue;
+            }
+            try {
+                process(socket);
+            } catch (Throwable e) {
+                handleTerribleException(e);
+            } finally {
+                connector.recycle(this);
+            }
+        }
+
+        synchronized (lock) {
+            lock.notifyAll();
+        }
 
     }
 
     void threadStart() {
+        logger.info("HttpProcessor:后台线程启动");
+        thread = new Thread(this, threadName);
+        // HttpProcessor作为socket解析器，可设置为守护线程
+        thread.setDaemon(true);
+        thread.start();
     }
 
     void threadStop() {
+        logger.info("HttpProcessor:后台线程关闭");
+        stopped = true;
+        receiveSocket(null);
+        // 在当前处理器所在线程工作时，等待五秒收拾残局
+        if (status == Processor.PROCESSOR_ACTIVE) {
+            synchronized (lock) {
+                try {
+                    lock.wait();
+                } catch (InterruptedException _) {
+                    // ignore
+                }
+            }
+            thread = null;
+
+        }
     }
 
     void start() {
+        if (started) {
+            logger.warn("HttpProcessor:already started,ignore this start request");
+            return;
+        }
+        started = true;
+        threadStart();
+
     }
 
     void stop() {
+        if (!started) {
+            logger.warn("HttpProcessor:not started,ignore this stop request");
+            return;
+        }
+        stopped = true;
+        if (thread != null) {
+            threadStop();
+        }
     }
 
     //</editor-fold>
     //<editor-fold desc = "process">
     public void process(Socket socket) {
         servletInputStream = new HttpRequestStream(response, request);
-        // TODO 具体的处理逻辑
         keepAlive = true;
         while (!stopped && noProblem && keepAlive) {
             finishResponse = true;
@@ -732,6 +794,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
             logger.warn("发送错误响应时失败: {}", e.getMessage());
         }
     }
+
     //</editor-fold>
     //<editor-fold desc = "just for test">
     public void setNoProblem(boolean noProblem) {
