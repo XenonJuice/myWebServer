@@ -554,7 +554,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         hasSocket = true;
         // 唤醒waitSocket()
         notifyAll();
-        logger.info("已分配到一个请求");
+        logger.info("已分配到一个请求,来自：{}",socket.getRemoteSocketAddress());
     }
 
     private synchronized Socket waitSocket() {
