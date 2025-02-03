@@ -27,7 +27,6 @@ public class HttpRequestStream extends ServletInputStream {
 
     /**
      * 构造函数，初始化 BufferedInputStream。
-     *
      */
     public HttpRequestStream(HttpResponse response, HttpRequest request) {
         this.inputStream = request.getStream();

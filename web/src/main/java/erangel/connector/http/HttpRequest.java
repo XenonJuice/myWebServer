@@ -385,14 +385,14 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public ServletInputStream getInputStream() {
-        if(this.servletInputStream == null){
+        if (this.servletInputStream == null) {
             this.servletInputStream = (HttpRequestStream) createInputStream();
         }
         return servletInputStream;
     }
 
-    public ServletInputStream createInputStream(){
-        return new HttpRequestStream(response,this);
+    public ServletInputStream createInputStream() {
+        return new HttpRequestStream(response, this);
     }
 
     @Override
