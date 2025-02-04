@@ -1,4 +1,4 @@
-package erangel.connector.Utils;
+package erangel.Utils;
 
 import javax.servlet.http.Cookie;
 import java.util.ArrayList;
