@@ -1,4 +1,4 @@
-package erangel.Utils;
+package erangel.utils;
 
 import erangel.Lifecycle;
 import erangel.LifecycleEvent;

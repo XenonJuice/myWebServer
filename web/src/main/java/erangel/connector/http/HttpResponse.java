@@ -11,7 +11,7 @@ import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static erangel.Utils.CookieUtils.formatCookie;
+import static erangel.utils.CookieUtils.formatCookie;
 
 /**
  * 自定义的 HttpServletResponse 实现，用于处理 HTTP 响应。
