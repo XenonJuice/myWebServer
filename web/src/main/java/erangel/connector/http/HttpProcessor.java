@@ -1,5 +1,7 @@
 package erangel.connector.http;
 
+import erangel.Lifecycle;
+import erangel.LifecycleListener;
 import erangel.connector.http.Const.*;
 import erangel.log.BaseLogger;
 import org.slf4j.Logger;
@@ -46,7 +48,7 @@ import static erangel.utils.CookieUtils.convertToCookieList;
  * @author LILINJIAN
  * @version 2024/12/19
  */
-public class HttpProcessor extends BaseLogger implements Runnable {
+public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private static final Logger logger = LoggerFactory.getLogger(HttpProcessor.class);
     //<editor-fold desc = "attr">
     private final HttpRequest request;
@@ -667,7 +669,22 @@ public class HttpProcessor extends BaseLogger implements Runnable {
         }
     }
 
-    void start() {
+    @Override
+    public void removeLifecycleListener(LifecycleListener listener) {
+
+    }
+
+    @Override
+    public void addLifecycleListener(LifecycleListener listener) {
+
+    }
+
+    @Override
+    public LifecycleListener[] findLifecycleListener() {
+        return new LifecycleListener[0];
+    }
+
+    public void start() {
         if (started) {
             logger.warn("HttpProcessor:already started,ignore this start request");
             return;
@@ -677,7 +694,7 @@ public class HttpProcessor extends BaseLogger implements Runnable {
 
     }
 
-    void stop() {
+    public void stop() {
         if (!started) {
             logger.warn("HttpProcessor:not started,ignore this stop request");
             return;

@@ -1,5 +1,7 @@
 package erangel.connector.http;
 
+import erangel.Lifecycle;
+import erangel.LifecycleListener;
 import erangel.log.BaseLogger;
 import erangel.net.DefaultServerSocketFactory;
 import erangel.net.ServerSocketFactory;
@@ -13,7 +15,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class HttpConnector extends BaseLogger implements Runnable {
+public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
     //<editor-fold desc = "attr">
     // 描述信息
     private static final String info = "llj.erangel.connector.http.HttpConnector/1.0";
@@ -249,7 +251,22 @@ public class HttpConnector extends BaseLogger implements Runnable {
 
     }
 
-    void start() {
+    @Override
+    public void removeLifecycleListener(LifecycleListener listener) {
+
+    }
+
+    @Override
+    public void addLifecycleListener(LifecycleListener listener) {
+
+    }
+
+    @Override
+    public LifecycleListener[] findLifecycleListener() {
+        return new LifecycleListener[0];
+    }
+
+    public void start() {
         if (started) {
             logger.warn("HttpConnector:already started,ignore this start request");
             return;
@@ -268,7 +285,7 @@ public class HttpConnector extends BaseLogger implements Runnable {
 
     }
 
-    void stop() {
+    public void stop() {
         if (!started) {
             logger.warn("HttpConnector:not started,ignore this close request");
             return;
