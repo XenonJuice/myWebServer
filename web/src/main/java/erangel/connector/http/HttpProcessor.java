@@ -14,8 +14,8 @@ import java.net.Socket;
 import java.net.URLDecoder;
 import java.util.*;
 
-import static erangel.connector.Utils.CookieUtils.convertToCookieArray;
-import static erangel.connector.Utils.CookieUtils.convertToCookieList;
+import static erangel.Utils.CookieUtils.convertToCookieArray;
+import static erangel.Utils.CookieUtils.convertToCookieList;
 
 /**
  * HTTP解析器 - 用于解析HTTP请求并生成响应。
