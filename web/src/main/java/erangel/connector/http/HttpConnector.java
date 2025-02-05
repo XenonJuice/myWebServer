@@ -1,10 +1,12 @@
 package erangel.connector.http;
 
 import erangel.Lifecycle;
+import erangel.LifecycleException;
 import erangel.LifecycleListener;
 import erangel.log.BaseLogger;
 import erangel.net.DefaultServerSocketFactory;
 import erangel.net.ServerSocketFactory;
+import erangel.utils.LifecycleHelper;
 
 import java.io.IOException;
 import java.net.BindException;
@@ -60,6 +62,10 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
     private boolean stopped = false;
     // 线程启动标志位
     private boolean started = false;
+    // 连接器初始化标志位
+    private boolean initialized = false;
+    // 生米周期助手
+    protected LifecycleHelper helper = new LifecycleHelper(this);
 
     //</editor-fold>
     //<editor-fold desc="getter & setter">
@@ -242,40 +248,44 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
         thread = null;
     }
 
-    void initialize() {
+    public void initialize() throws LifecycleException {
+        if (initialized) {
+            throw new LifecycleException("HttpConnector:already initialized");
+        }
+        this.initialized = true;
         try {
             serverSocket = openSocket();
         } catch (BindException e) {
-            throw new RuntimeException(threadName + "openSocket", e);
+            throw new LifecycleException(threadName + "openSocket", e);
         }
 
     }
 
     @Override
     public void removeLifecycleListener(LifecycleListener listener) {
-
+        helper.removeLifecycleListener(listener);
     }
 
     @Override
     public void addLifecycleListener(LifecycleListener listener) {
-
+        helper.addLifecycleListener(listener);
     }
 
     @Override
     public LifecycleListener[] findLifecycleListener() {
-        return new LifecycleListener[0];
+        return helper.findLifecycleListeners();
     }
 
-    public void start() {
+    public void start() throws LifecycleException {
         if (started) {
             logger.warn("HttpConnector:already started,ignore this start request");
-            return;
+            throw new LifecycleException("HttpConnector:already started");
         }
         threadName = "HttpConnector[" + port + "]";
+        helper.fireLifecycleEvent(START_EVENT, null);
+        started = true;
         // 启动线程
         threadStart();
-        started = true;
-
         // 创建一定数量的解析器
         while (currentProcessors < minProcessors) {
             if (currentProcessors >= maxProcessors) break;
@@ -285,16 +295,21 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
 
     }
 
-    public void stop() {
+    public void stop() throws LifecycleException {
         if (!started) {
             logger.warn("HttpConnector:not started,ignore this close request");
-            return;
+            throw new LifecycleException("HttpConnector:not started");
         }
+        helper.fireLifecycleEvent(STOP_EVENT, null);
         started = false;
         // 关闭所有和当前连接器关联的解析器
         for (HttpProcessor processor : created) {
             if (processor != null) {
+                try{
                 processor.stop();
+                } catch (LifecycleException e) {
+                    logger.error("HttpConnector：关闭解析器时失败");
+                }
             }
         }
         synchronized (lock) {
@@ -304,10 +319,10 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                serverSocket = null;
             }
             threadStop();
         }
+        serverSocket = null;
     }
 
     //</editor-fold>
@@ -376,14 +391,13 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
 
 
     private HttpProcessor newProcessor() {
-        HttpProcessor processor;
+        HttpProcessor processor = new HttpProcessor(this, currentProcessors);
         try {
-            processor = new HttpProcessor(this, currentProcessors);
-        } catch (IOException e) {
+            processor.start();
+        } catch (LifecycleException e) {
             logger.error("解析器创建失败", e);
             return null;
         }
-        processor.start();
         // 添加到已创建解析器的列表中
         created.add(processor);
         return processor;
