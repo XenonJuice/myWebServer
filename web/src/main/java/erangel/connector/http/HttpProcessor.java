@@ -1,9 +1,11 @@
 package erangel.connector.http;
 
 import erangel.Lifecycle;
+import erangel.LifecycleException;
 import erangel.LifecycleListener;
 import erangel.connector.http.Const.*;
 import erangel.log.BaseLogger;
+import erangel.utils.LifecycleHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,10 +102,12 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private String threadName = null;
     // 线程启动标志位
     private boolean started = false;
+    // 生命周期助手
+    protected LifecycleHelper helper = new LifecycleHelper(this);
 
     //</editor-fold>
     //<editor-fold desc = "constructor">
-    public HttpProcessor(HttpConnector connector, int id) throws IOException {
+    public HttpProcessor(HttpConnector connector, int id) {
         this.connector = connector;
         this.proxyName = connector.getProxyName();
         this.proxyPort = connector.getProxyPort();
@@ -671,35 +675,34 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
 
     @Override
     public void removeLifecycleListener(LifecycleListener listener) {
-
+        helper.removeLifecycleListener(listener);
     }
 
     @Override
     public void addLifecycleListener(LifecycleListener listener) {
-
+        helper.addLifecycleListener(listener);
     }
 
     @Override
     public LifecycleListener[] findLifecycleListener() {
-        return new LifecycleListener[0];
+       return  helper.findLifecycleListeners();
     }
 
-    public void start() {
+    public void start() throws LifecycleException {
         if (started) {
             logger.warn("HttpProcessor:already started,ignore this start request");
-            return;
+            throw new LifecycleException("HttpProcessor:already started,ignore this start request");
         }
+        helper.fireLifecycleEvent(Lifecycle.START_EVENT, null);
         started = true;
         threadStart();
-
     }
 
-    public void stop() {
+    public void stop() throws LifecycleException {
         if (!started) {
             logger.warn("HttpProcessor:not started,ignore this stop request");
-            return;
+            throw new LifecycleException("HttpProcessor:not started,ignore this stop request");
         }
-        stopped = true;
         if (thread != null) {
             threadStop();
         }
