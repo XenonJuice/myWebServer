@@ -51,7 +51,6 @@ import static erangel.utils.CookieUtils.convertToCookieList;
  * @version 2024/12/19
  */
 public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
-    private static final Logger logger = LoggerFactory.getLogger(HttpProcessor.class);
     //<editor-fold desc = "attr">
     private final HttpRequest request;
     private final HttpResponse response;
@@ -104,11 +103,15 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private boolean started = false;
     // 生命周期助手
     protected LifecycleHelper helper = new LifecycleHelper(this);
+    // FIXME get logger from Vas
+    // private  Logger logger = null;
 
     //</editor-fold>
     //<editor-fold desc = "constructor">
     public HttpProcessor(HttpConnector connector, int id) {
         this.connector = connector;
+        // FIXME
+        // this.logger=connector.getLogger();
         this.proxyName = connector.getProxyName();
         this.proxyPort = connector.getProxyPort();
         this.serverPort = connector.getPort();

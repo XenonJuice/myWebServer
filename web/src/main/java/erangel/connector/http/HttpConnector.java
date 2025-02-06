@@ -7,6 +7,7 @@ import erangel.log.BaseLogger;
 import erangel.net.DefaultServerSocketFactory;
 import erangel.net.ServerSocketFactory;
 import erangel.utils.LifecycleHelper;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.BindException;
@@ -17,7 +18,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
+public class HttpConnector extends BaseLogger  implements Runnable, Lifecycle {
     //<editor-fold desc = "attr">
     // 描述信息
     private static final String info = "llj.erangel.connector.http.HttpConnector/1.0";
@@ -66,6 +67,8 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
     private boolean initialized = false;
     // 生米周期助手
     protected LifecycleHelper helper = new LifecycleHelper(this);
+    // logger FIXME
+    // protected Logger logger = connector.getVas().getLogger();
 
     //</editor-fold>
     //<editor-fold desc="getter & setter">
