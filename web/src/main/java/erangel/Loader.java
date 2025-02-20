@@ -15,6 +15,20 @@ public interface Loader {
     void setVas(Vas vas);
 
     /**
+     * 检索与此加载器相关联的上下文。
+     *
+     * @return 与此加载器关联的上下文实例，如果没有设置上下文则返回null。
+     */
+    Context getContext();
+
+    /**
+     * 设置与此加载器实例关联的上下文。
+     *
+     * @param context 要与此加载器关联的上下文对象。
+     */
+    void setContext(Context context);
+
+    /**
      * 获取加载器的委托状态。
      *
      * @return 如果该加载器是标准委托模式，则返回true，否则返回false。
