@@ -18,7 +18,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class HttpConnector extends BaseLogger  implements Runnable, Lifecycle {
+public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
     //<editor-fold desc = "attr">
     // 描述信息
     private static final String info = "llj.erangel.connector.http.HttpConnector/1.0";
