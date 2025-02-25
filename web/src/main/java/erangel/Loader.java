@@ -1,5 +1,7 @@
 package erangel;
 
+import java.beans.PropertyChangeListener;
+
 public interface Loader {
 
     /**
@@ -75,4 +77,20 @@ public interface Loader {
      * 以至于加载的类需要重新加载？
      */
     boolean modified();
+    /**
+     * 向组件添加属性变化监听器。
+     * 监听器将在实施对象的属性发生任何变化时被通知。
+     *
+     * @param listener 要添加的 PropertyChangeListener；它监听
+     *                 属性变化事件。
+     */
+    void addPropertyChangeListener(PropertyChangeListener listener);
+
+    /**
+     * 从组件中移除 PropertyChangeListener。此监听器将不再接收组件中绑定属性更改的通知。
+     *
+     * @param listener 要移除的 PropertyChangeListener
+     */
+    void removePropertyChangeListener(PropertyChangeListener listener);
+
 }
