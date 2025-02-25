@@ -4,6 +4,14 @@ import static erangel.connector.http.Const.PunctuationMarks.CRLF;
 
 public final class Const {
     /**
+     * webApp关联
+     */
+    public static class webApp {
+        public static final String CLASSES = "/WEB-INF/classes";
+        public static final String LIB = "/WEB-INF/lib";
+    }
+
+    /**
      * 描述信息
      */
     public static class Package {
