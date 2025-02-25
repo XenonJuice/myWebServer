@@ -7,5 +7,5 @@ package erangel;
  * @author LILINJIAN
  * @version 2025/02/20
  */
-public interface Context {
+public interface Context extends Vas {
 }
