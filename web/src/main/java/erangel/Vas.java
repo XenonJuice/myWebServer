@@ -107,4 +107,18 @@ public interface Vas {
      */
     Mapper findMapper(String name);
 
+    /**
+     * 获取与此容器关联的父类加载器。
+     *
+     * @return 父 {@code ClassLoader} 实例，如果未定义父类加载器，则返回 {@code null}。
+     */
+    ClassLoader getParentClassLoader();
+
+    /**
+     * 设置此组件的父类加载器。
+     *
+     * @param classLoader 要设置为父类加载器的 ClassLoader
+     */
+    void setParentClassLoader(ClassLoader classLoader);
+
 }
