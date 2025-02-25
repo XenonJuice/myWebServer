@@ -1,5 +1,7 @@
 package erangel.core;
 
+import erangel.Context;
+
 import javax.servlet.*;
 import javax.servlet.descriptor.JspConfigDescriptor;
 import java.io.InputStream;
@@ -8,7 +10,7 @@ import java.net.URL;
 import java.util.*;
 
 /**
- * `表示一个web程序的上下文环境
+ * 表示一个web程序的上下文环境
  *
  * @author LILINJIAN
  * @version 2025/02/25
@@ -17,6 +19,37 @@ public class WebApplicationContext implements ServletContext {
     // 用于处理过时方法
     private final Enumeration<Servlet> emptyEnumeration = Collections.emptyEnumeration();
     private final Enumeration<String> emptyStringEnumeration = Collections.emptyEnumeration();
+
+    /**
+     * 一个存储WebApplicationContext上下文中的属性的映射。
+     * 键是类型为String的属性名称，值是相应的对象。
+     * 该映射用于动态管理应用特定的属性
+     */
+    private Map<String, Object> attr = new HashMap<>();
+
+    /**
+     * 一个在只读上下文中保存属性的映射，用于web应用程序。
+     * 键是表示属性名称的字符串，值是相应的对象。
+     * 该映射用于存储在应用上下文生命周期内不应被修改的不可变属性。
+     */
+    private Map<String, Object> readOnlyAttr = new HashMap<>();
+
+    /**
+     * 存储与web应用程序上下文相关的参数的键值对映射。
+     */
+    private Map<String, String> param = new HashMap<>();
+
+    private String contextPath = "";
+
+    public WebApplicationContext(String contextPath,Context context) {
+        this.contextPath = contextPath;
+        this.context = context;
+    }
+    /**
+     * 关联的Context
+     */
+    private Context context;
+
     @Override
     public String getContextPath() {
         return "";
