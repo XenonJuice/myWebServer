@@ -4,6 +4,15 @@ import static erangel.connector.http.Const.PunctuationMarks.CRLF;
 
 public final class Const {
     /**
+     * 常用字符
+     */
+    public static class commonCharacters {
+        public static final String EMPTY = "";
+        public static final String BLANK = " ";
+        public static final String TAB = "\t";
+    }
+
+    /**
      * webApp关联
      */
     public static class webApp {
