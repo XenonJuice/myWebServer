@@ -1,6 +1,7 @@
 package erangel.connector.http;
 
-import erangel.connector.http.Const.Header;
+import erangel.Const;
+import erangel.Const.Header;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;

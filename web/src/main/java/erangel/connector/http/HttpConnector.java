@@ -1,5 +1,6 @@
 package erangel.connector.http;
 
+import erangel.Const;
 import erangel.Lifecycle;
 import erangel.LifecycleException;
 import erangel.LifecycleListener;
@@ -7,7 +8,6 @@ import erangel.log.BaseLogger;
 import erangel.net.DefaultServerSocketFactory;
 import erangel.net.ServerSocketFactory;
 import erangel.utils.LifecycleHelper;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.BindException;

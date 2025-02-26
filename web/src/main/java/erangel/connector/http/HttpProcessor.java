@@ -3,11 +3,9 @@ package erangel.connector.http;
 import erangel.Lifecycle;
 import erangel.LifecycleException;
 import erangel.LifecycleListener;
-import erangel.connector.http.Const.*;
+import erangel.Const.*;
 import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;

@@ -1,8 +1,5 @@
 package erangel.connector.http;
 
-import erangel.connector.http.Const.Header;
-import erangel.connector.http.Const.HttpProtocol;
-
 import javax.servlet.ReadListener;
 import javax.servlet.ServletInputStream;
 import java.io.BufferedInputStream;

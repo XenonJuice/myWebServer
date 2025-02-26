@@ -1,6 +1,6 @@
-package erangel.connector.http;
+package erangel;
 
-import static erangel.connector.http.Const.PunctuationMarks.CRLF;
+import static erangel.Const.PunctuationMarks.CRLF;
 
 public final class Const {
     /**
