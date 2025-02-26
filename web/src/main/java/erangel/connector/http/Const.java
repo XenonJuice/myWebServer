@@ -10,6 +10,8 @@ public final class Const {
         public static final String EMPTY = "";
         public static final String BLANK = " ";
         public static final String TAB = "\t";
+        public static final String DOT = ".";
+        public static final String SOLIDUS = "/";
     }
 
     /**
