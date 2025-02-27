@@ -22,6 +22,7 @@ public final class Const {
         public static final String LIB = "/WEB-INF/lib";
         public static final String WEB_XML = "/WEB-INF/web.xml";
         public static final String JAR = ".jar";
+        public static final String WAR = ".war";
     }
 
     /**
