@@ -14,7 +14,7 @@ import java.util.Map;
  * @author LILINJIAN
  * @version 2025/2/26
  */
-public abstract class abstractDirContext implements DirContext {
+public abstract class AbstractDirContext implements DirContext {
     //<editor-fold desc = "attr">
 
     // 用来存储绑定的对象
@@ -26,11 +26,11 @@ public abstract class abstractDirContext implements DirContext {
 
     //</editor-fold>
     //<editor-fold desc = "构造器">
-    public abstractDirContext() {
+    public AbstractDirContext() {
         this.environment = new Hashtable<String, Object>();
     }
 
-    public abstractDirContext(Hashtable<String, Object> environment) {
+    public AbstractDirContext(Hashtable<String, Object> environment) {
         this.environment = environment;
     }
 
@@ -50,7 +50,7 @@ public abstract class abstractDirContext implements DirContext {
     //</editor-fold>
     //<editor-fold desc = "抽象方法">
     public abstract Object lookup(String name) throws NamingException;
-
+    public abstract Object lookupLink(String name) throws NamingException;
     public abstract void bind(String name, Object obj, Attributes attrs) throws NamingException;
 
     public abstract void rebind(String name, Object obj, Attributes attrs) throws NamingException;
@@ -92,6 +92,11 @@ public abstract class abstractDirContext implements DirContext {
     @Override
     public Object lookup(Name name) throws NamingException {
         return lookup(name.toString());
+    }
+
+    public Object lookupLink(Name name)
+            throws NamingException {
+        return lookupLink(name.toString());
     }
 
     @Override
