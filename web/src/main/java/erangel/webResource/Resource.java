@@ -10,6 +10,8 @@ import java.io.InputStream;
  * @author LILINJIAN
  * @version 2025/2/26
  */
+@Deprecated
+@SuppressWarnings("unused")
 public class Resource {
     //<editor-fold desc = "构造器">
     public Resource() {
