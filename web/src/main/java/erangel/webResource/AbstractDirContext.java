@@ -14,6 +14,8 @@ import java.util.Map;
  * @author LILINJIAN
  * @version 2025/2/26
  */
+@Deprecated
+@SuppressWarnings("unused")
 public abstract class AbstractDirContext implements DirContext {
     //<editor-fold desc = "attr">
 
