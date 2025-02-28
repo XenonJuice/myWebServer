@@ -10,10 +10,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Hashtable;
-import java.util.List;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
@@ -26,6 +23,8 @@ import static erangel.Const.commonCharacters.SOLIDUS;
  * @author LILINJIAN
  * @version 2025/2/27
  */
+@Deprecated
+@SuppressWarnings("unused")
 public class WarContext extends AbstractDirContext {
 
     //<editor-fold desc = "attr">
@@ -44,6 +43,7 @@ public class WarContext extends AbstractDirContext {
         super(environment);
     }
 
+    //
     protected WarContext(ZipFile rootZipFile, Entry rootEntry) {
         super();
         this.rootZipFile = rootZipFile;
@@ -66,6 +66,7 @@ public class WarContext extends AbstractDirContext {
         if (entry == null) throw new NamingException();
         ZipEntry zipEntry = entry.getZipEntry();
         if (zipEntry.isDirectory()) {
+            // 当检测到当前的压缩条目是一个目录时，以此目录展开一个新的warContext对象
             return new WarContext(rootZipFile, entry);
         } else {
             return new WARResource(entry.getZipEntry());
@@ -73,102 +74,30 @@ public class WarContext extends AbstractDirContext {
     }
 
     @Override
-    public Object lookupLink(String name) throws NamingException {
-        return null;
-    }
-
-    @Override
-    public void bind(String name, Object obj, Attributes attrs) throws NamingException {
-
-    }
-
-    @Override
-    public void rebind(String name, Object obj, Attributes attrs) throws NamingException {
-
-    }
-
-    @Override
-    public void unbind(String name) throws NamingException {
-
-    }
-
-    @Override
-    public void rename(String oldName, String newName) throws NamingException {
-
-    }
-
-    @Override
-    public NamingEnumeration<NameClassPair> list(String name) throws NamingException {
-        return null;
-    }
-
-    @Override
-    public NamingEnumeration<Binding> listBindings(String name) throws NamingException {
-        return null;
-    }
-
-    @Override
-    public void destroySubcontext(String name) throws NamingException {
-
-    }
-
-    @Override
-    public DirContext createSubcontext(String name, Attributes attrs) throws NamingException {
-        return null;
-    }
-
-    @Override
-    public DirContext getSchema(String name) throws NamingException {
-        return null;
-    }
-
-    @Override
-    public DirContext getSchemaClassDefinition(String name) throws NamingException {
-        return null;
-    }
-
-    @Override
-    public NamingEnumeration<SearchResult> search(String name, Attributes matchingAttributes) throws NamingException {
-        return null;
-    }
-
-    @Override
-    public NamingEnumeration<SearchResult> search(String name, String filterExpr, Object[] filterArgs, SearchControls cons) throws NamingException {
-        return null;
-    }
-
-    @Override
-    public NamingEnumeration<SearchResult> search(String name, Attributes matchingAttributes, String[] attributesToReturn) throws NamingException {
-        return null;
-    }
-
-    @Override
-    public NamingEnumeration<SearchResult> search(String name, String filter, SearchControls cons) throws NamingException {
-        return null;
-    }
-
-    @Override
     public Attributes getAttributes(String name, String[] attrIds) throws NamingException {
+        return getAttributes(new CompositeName(name), attrIds);
+    }
+    @Override
+    public Attributes getAttributes(Name name, String[] attrIds) throws NamingException {
+        Entry entry;
+        if (name.isEmpty()) entry = rootEntry;
+        else entry = lookupInTree(name);
+        if (entry == null) throw new NamingException(
+                this.getClass().getName() +
+                        " getAttributes: " + name + " not found");
+
+        ZipEntry zipEntry = entry.getZipEntry();
+
         return null;
     }
-
-    @Override
-    public void modifyAttributes(String name, int mod_op, Attributes attrs) throws NamingException {
-
-    }
-
-    @Override
-    public void modifyAttributes(String name, ModificationItem[] mods) throws NamingException {
-
-    }
-
     @Override
     public String getNameInNamespace() throws NamingException {
-        return "";
+        return root;
     }
 
     //</editor-fold>
     //<editor-fold desc = "其他方法">
+    // 设置根
     public void setRootZipFile(String root) {
         if (root == null ||
                 !(root.endsWith(Const.webApp.WAR))) {
@@ -296,7 +225,55 @@ public class WarContext extends AbstractDirContext {
     //</editor-fold>
 
 
-    //<editor-fold desc = "XXXXXXX">
+    //<editor-fold desc = "不做实现">
+    @Override
+    public void unbind(String name) {}
+    @Override
+    public void rename(String oldName, String newName)  {}
+    @Override
+    public void modifyAttributes(String name, int mod_op, Attributes attrs)  {}
+    @Override
+    public void modifyAttributes(String name, ModificationItem[] mods)  {}
+    @Override
+    public void bind(String name, Object obj, Attributes attrs) {}
+    @Override
+    public void rebind(String name, Object obj, Attributes attrs)  {}
+    @Override
+    public DirContext createSubcontext(String name, Attributes attrs) {return null;}
+    @Override
+    public DirContext getSchema(String name) {return null;}
+    @Override
+    public DirContext getSchemaClassDefinition(String name) {return null;}
+    @Override
+    public NamingEnumeration<SearchResult> search(String name, Attributes matchingAttributes) {return null;}
+    @Override
+    public NamingEnumeration<SearchResult> search(String name, String filterExpr, Object[] filterArgs, SearchControls cons) {return null;}
+    @Override
+    public NamingEnumeration<SearchResult> search(String name, Attributes matchingAttributes, String[] attributesToReturn)  {return null;}
+    @Override
+    public NamingEnumeration<SearchResult> search(String name, String filter, SearchControls cons) {return null;}
+    @Override
+    public Object lookupLink(String name)  {
+        return null;
+    }
+
+    @Override
+    public NamingEnumeration<NameClassPair> list(String name)  {
+        return null;
+    }
+    @Override
+    public NamingEnumeration<NameClassPair> list(Name name)  {
+        return null;
+    }
+    @Override
+    public NamingEnumeration<Binding> listBindings(String name) throws NamingException {
+        return null;
+    }
+
+    @Override
+    public void destroySubcontext(String name) throws NamingException {
+
+    }
     //</editor-fold>
 
     //<editor-fold desc = "内部类">
