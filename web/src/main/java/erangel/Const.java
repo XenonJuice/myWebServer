@@ -1,5 +1,8 @@
 package erangel;
 
+import java.text.SimpleDateFormat;
+import java.util.Locale;
+
 import static erangel.Const.PunctuationMarks.CRLF;
 
 public final class Const {
@@ -23,6 +26,12 @@ public final class Const {
         public static final String WEB_XML = "/WEB-INF/web.xml";
         public static final String JAR = ".jar";
         public static final String WAR = ".war";
+        public static final SimpleDateFormat[] DATE_FORMATS = {
+                new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US),
+                new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy", Locale.US),
+                new SimpleDateFormat("EEEEEE, dd-MMM-yy HH:mm:ss zzz", Locale.US),
+                new SimpleDateFormat("EEE MMMM d HH:mm:ss yyyy", Locale.US)
+        };
     }
 
     /**
