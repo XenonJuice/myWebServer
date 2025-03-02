@@ -26,4 +26,12 @@ public interface ResourceContext {
      * @throws IOException 如果目录读取出错
      */
     List<Path> listResources(String path) throws IOException;
+
+    /**
+     * 检测资源是否发生了修改
+     *
+     * @return 如果资源被修改，则返回 true
+     */
+    boolean isModified() throws IOException;
+
 }
