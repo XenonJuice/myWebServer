@@ -4,10 +4,12 @@ package erangel.loader;
 import erangel.*;
 import erangel.Const.commonCharacters;
 import erangel.Const.webApp;
+import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;
 import erangel.webResource.FileSystemResourceContext;
 import erangel.webResource.Resource;
 import erangel.webResource.ResourceContext;
+import org.slf4j.Logger;
 
 import javax.naming.NameClassPair;
 import javax.naming.NamingEnumeration;
@@ -26,7 +28,6 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
 import java.util.jar.JarFile;
-import java.util.stream.Collectors;
 
 /**
  * 类加载器层次结构：
@@ -46,6 +47,8 @@ import java.util.stream.Collectors;
 
 public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChangeListener {
     //<editor-fold desc = "attr">
+    // logger
+    private static final Logger logger = BaseLogger.getLogger(WebAppLoader.class);
     // 生命周期助手
     protected LifecycleHelper lifecycleHelper = new LifecycleHelper(this);
     // 属性更改助手
@@ -72,6 +75,10 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
     private Thread thread = null;
     // 线程名
     private String threadName = "WebAppLoader";
+    // 关联的web资源
+    private ResourceContext resourceContext = null;
+    // 确认关闭
+    private boolean closeRequried = false;
 
     //</editor-fold>
     //<editor-fold desc = "构造器">
@@ -165,8 +172,7 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
             threadStart();
             // 若之前一次可重载而现在不可重载则终止线程
         } else if (oldReloadable && !reloadable) {
-            theadStop();
-
+            threadStop();
         }
     }
 
@@ -240,7 +246,7 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
      * <p>
      * 处理任何缺失的目录或无效的目录结构（例如，缺少`/WEB-INF/classes`或`/WEB-INF/lib`）
      * <p>
-     * 捕获NamingException和IOException等异常时，输出日志
+     * 捕获IOException等异常时，输出日志
      */
 
     //<editor-fold desc = "@Deprecated">
@@ -386,11 +392,12 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
         }
         Path appRoot = Path.of(realPath);
 
+        // FIXME 此处仍有改进空间，目前只能操作完全展开的war包
         // 使用应用根目录构造基于文件系统的资源上下文
-        ResourceContext res = new FileSystemResourceContext(appRoot);
+        resourceContext = new FileSystemResourceContext(appRoot);
 
         // -------------------- 处理 WEB-INF/classes --------------------
-        Path classesPath = res.getResource(webApp.CLASSES);
+        Path classesPath = resourceContext.getResource(webApp.CLASSES);
         if (Files.exists(classesPath)) {
             Path classesRepo;
             // 如果可以通过ServletContext获取真实路径，则直接使用该路径
@@ -414,7 +421,7 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
         }
 
         // -------------------- 处理 WEB-INF/lib --------------------
-        Path libPath = res.getResource(webApp.LIB);
+        Path libPath = resourceContext.getResource(webApp.LIB);
         if (Files.exists(libPath)) {
             Path libRepo;
             String realLibPath = servletContext.getRealPath(webApp.LIB);
@@ -434,12 +441,12 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
                 // 列出 lib 目录下所有 jar 文件
                 List<Path> jars = Files.list(libRepo)
                         .filter(p -> p.getFileName().toString().endsWith(webApp.JAR))
-                        .collect(Collectors.toList());
+                        .toList();
                 for (Path jar : jars) {
                     // 可以在这里直接打开JarFile，以确保jar包可用
                     JarFile jarFile = new JarFile(jar.toFile());
-                    // 此处根据实际情况向 WebAppClassLoader 传递jar信息
-                    webAppClassLoader.addJar();
+                    // 向 WebAppClassLoader 传递jar信息
+                    webAppClassLoader.addJar(jarFile);
                 }
             } catch (IOException e) {
                 throw new RuntimeException("处理 WEB-INF/lib 目录失败", e);
@@ -470,7 +477,10 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
         });
     }
 
-    @Deprecated
+    /**
+     * @deprecated 考虑到JNDI管理资源带来的复杂度较高的抽象性，弃用JNDI相关处理
+     */
+    @Deprecated()
     private void copyToWorkDir(DirContext srcRes, Path workDir) {
         try {
             // 遍历源目录下所有的资源，获得所有资源的 name 和 class 信息
@@ -519,38 +529,103 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 
     @Override
     public boolean modified() {
-        return false;
+        return webAppClassLoader.modified();
     }
 
     //</editor-fold>
     //<editor-fold desc = "线程相关">
     @Override
-    public void start() {
+    public void start() throws LifecycleException {
+        if (isStarted) throw new LifecycleException("webAppLoader is already started");
+        logger.debug("LifeCycle : webAppLoader is starting");
+        lifecycleHelper.fireLifecycleEvent(START_EVENT, null);
+        isStarted = true;
+        try{
+        webAppClassLoader = createWebAppClassLoader();
+        webAppClassLoader.setDelegate(this.delegate);
+        } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException |
+                 NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
+        setRepository();
 
+        if (webAppClassLoader!=null) webAppClassLoader.start();
+        if (reloadable) threadStart();
     }
 
     @Override
-    public void stop() {
-
+    public void stop() throws LifecycleException {
+        if (!isStarted) throw new LifecycleException("webAppLoader is not started");
+        logger.debug("LifeCycle : webAppLoader is stopping");
+        lifecycleHelper.fireLifecycleEvent(STOP_EVENT,null);
+        isStarted = false;
+        if (reloadable) threadStop();
+        if (webAppClassLoader != null) webAppClassLoader.stop();
+        webAppClassLoader = null;
+        logger.debug("LifeCycle : webAppLoader is stopped");
     }
 
-    private void sleep() {
+    private void threadSleep() {
         try {
             Thread.sleep(checkPeriod);
         } catch (InterruptedException _) {
         }
     }
 
+    // 检查重新部署或者关闭指令
     @Override
     public void run() {
-
+        while (!closeRequried) {
+            threadSleep();
+            // 如果在这时候收到关闭指令的话，可以直接退出
+            if (!isStarted) break;
+            // 如果没有检测到web资源的变化，继续
+            if (!modified()) continue;
+            // 处理重新部署需求
+            askForReload();
+            break;
+        }
     }
 
-    private void theadStop() {
+    //要求context容器重载
+    private void askForReload() {
+        Thread reloadThread = new Thread(((Context) vas)::reload);
+        reloadThread.start();
     }
 
     private void threadStart() {
+        if (thread != null) return;
+        logger.debug("webAppLoader is starting");
+        if (!reloadable) throw new IllegalStateException("webapp is not reloadable");
+        threadName = this.getClass().getSimpleName() +
+                Const.PunctuationMarks.LEFT_BRACKET +
+                vas.getName() +
+                Const.PunctuationMarks.RIGHT_BRACKET;
+        closeRequried = false;
+        thread = new Thread(this, threadName);
+        thread.setDaemon(true);
+        thread.start();
     }
+
+    private void threadStop() {
+        if (thread == null) return;
+        logger.debug("webAppLoader is stopping");
+        closeRequried = true;
+        // 打断可能处于的threadSleep状态
+        thread.interrupt();
+        try {
+            thread.join();
+        } catch (InterruptedException _) {
+
+        } finally {
+            thread = null;
+        }
+
+
+    }
+
+
+    //
     //</editor-fold>
 
     //<editor-fold desc = "监听器相关">
