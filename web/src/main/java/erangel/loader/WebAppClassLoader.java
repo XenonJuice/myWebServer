@@ -1,16 +1,20 @@
 package erangel.loader;
 
 
+import ch.qos.logback.core.spi.LifeCycle;
 import erangel.Const;
+import erangel.log.BaseLogger;
+import org.slf4j.Logger;
 
-import java.net.URL;
-import java.net.URLClassLoader;
+import java.net.*;
 import java.nio.file.Path;
 import java.util.jar.JarFile;
 
-public class WebAppClassLoader extends URLClassLoader {
+public class WebAppClassLoader extends URLClassLoader implements LifeCycle {
     //<editor-fold desc = "attr">
-    private String repository;
+    private static final Logger logger = BaseLogger.getLogger(WebAppClassLoader.class);
+    private String[] repositories = new String[0];
+    private Path[] paths= new Path[0];
     private String JarPath;
     private ClassLoader appClassLoader;
     private ClassLoader parentClassLoader;
@@ -57,12 +61,39 @@ public class WebAppClassLoader extends URLClassLoader {
     //</editor-fold>
     //<editor-fold desc = "其他方法">
     protected synchronized void addRepository(String repository, Path path) {
-        this.repository = repository;
+        if (repository == null) return;
+        logger.debug("add repository: {}", repository);
+        // 将新入仓库添加到内部记录中
+        String [] newRepositories = new String[repositories.length + 1];
+        System.arraycopy(repositories, 0, newRepositories, 0, repositories.length);
+        newRepositories[repositories.length] = repository;
+        repositories = newRepositories;
+
+        Path [] newPaths = new Path[paths.length + 1];
+        System.arraycopy(paths, 0, newPaths, 0, paths.length);
+        newPaths[paths.length] = path;
+        paths = newPaths;
+    }
+
+    private void addRepository(String repository){
+        if(repository == null) return;
+        try {
+            URI uri= new URI(repository);
+            URL url = uri.toURL();
+            super.addURL(url);
+        } catch (URISyntaxException | MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     protected synchronized void addJar(JarFile jarFile) {
     }
 
+    private boolean checkJar(){
+
+        return false;
+    }
     /**
      * 类加载过程的三个主要步骤：
      * 1. Loading（加载）
@@ -140,6 +171,19 @@ public class WebAppClassLoader extends URLClassLoader {
     }
 
     public boolean modified() {
+        return false;
+    }
+
+    public void start() {
+    }
+
+    @Override
+    public void stop() {
+
+    }
+
+    @Override
+    public boolean isStarted() {
         return false;
     }
     //</editor-fold>
