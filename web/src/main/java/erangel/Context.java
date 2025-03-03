@@ -18,4 +18,9 @@ public interface Context extends Vas {
      * 返回servlet上下文。
      */
     ServletContext getServletContext();
+
+    /**
+     * 重载
+     */
+    void reload();
 }
