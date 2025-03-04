@@ -257,7 +257,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 //        Path tmpWorkDir =
 //                ((File) servletContext.
 //                        getAttribute(ServletContext.TEMPDIR)).toPath();
-//        // FIXME may change it to log output
 //        System.out.println("临时工作目录的绝对路径为：" + tmpWorkDir.toAbsolutePath());
 //        // 获取到当前容器关联的目录上下文
 //        DirContext res = vas.getResources();
@@ -268,7 +267,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 //            // 找到classes目录下的资源
 //            classes = (DirContext) res.lookup(webApp.CLASSES);
 //        } catch (NamingException e) {
-//            // FIXME log output
 //            System.out.println("try to find" +
 //                    webApp.CLASSES + e.getMessage() +
 //                    Const.commonCharacters.BLANK + webApp.CLASSES +
@@ -297,7 +295,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 //                }
 //            }
 //
-//            // FIXME 这里加一个处理结果的日志输出，把/WEB-INF/classes部署到哪里去了之类的
 //            // 将仓库名，仓库位置添加到webapp类加载器的仓库中
 //            webAppClassLoader.addRepository(
 //                    webApp.CLASSES + commonCharacters.SOLIDUS,
@@ -314,7 +311,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 //        try {
 //            lib = (DirContext) res.lookup(webApp.LIB);
 //        } catch (NamingException e) {
-//            // FIXME log output
 //            System.out.println("try to find" +
 //                    webApp.LIB + e.getMessage() +
 //                    Const.commonCharacters.BLANK + webApp.LIB +
@@ -343,7 +339,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 //                } catch (IOException e) {
 //                    throw new RuntimeException(e);
 //                }
-//                // FIXME 添加日志 说明lib文件夹被创建了之类的
 //            }
 //            try {
 //                // 获取与WEB-INFO/lib相关的所有绑定
@@ -415,7 +410,8 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
                 }
             }
             // 将 classes 目录添加到 WebAppClassLoader 的仓库中
-            webAppClassLoader.addRepository(webApp.CLASSES + commonCharacters.SOLIDUS, classesRepo);
+            webAppClassLoader.addRepository(webApp.CLASSES +
+                    commonCharacters.SOLIDUS, classesRepo);
         } else {
             throw new RuntimeException("WEB-INF/classes 目录不存在");
         }
@@ -445,8 +441,13 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
                 for (Path jar : jars) {
                     // 可以在这里直接打开JarFile，以确保jar包可用
                     JarFile jarFile = new JarFile(jar.toFile());
+                    // 最后修改时间
+                    long lastModified = Files.getLastModifiedTime(jar).toMillis();
+                    // 提取文件名
+                    String jarFileName = jar.getFileName().toString();
                     // 向 WebAppClassLoader 传递jar信息
-                    webAppClassLoader.addJar(jarFile);
+                    webAppClassLoader.addJar(jar,jarFile,
+                            jarFileName.substring(0, jarFileName.lastIndexOf(webApp.JAR)),lastModified);
                 }
             } catch (IOException e) {
                 throw new RuntimeException("处理 WEB-INF/lib 目录失败", e);
