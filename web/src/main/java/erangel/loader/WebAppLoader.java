@@ -66,7 +66,7 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
     // 被这个loader组件管理的真正的用于加载web程序的类加载器
     private WebAppClassLoader webAppClassLoader = null;
     // 定期检查时常
-    private long checkPeriod = 10000L;
+    private final long checkPeriod = 10000L;
     // 使用的类加载器的全限定名
     private String loadClass = WebAppClassLoader.class.getName();
     // 组件启动标志位
@@ -446,8 +446,8 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
                     // 提取文件名
                     String jarFileName = jar.getFileName().toString();
                     // 向 WebAppClassLoader 传递jar信息
-                    webAppClassLoader.addJar(jar,jarFile,
-                            jarFileName.substring(0, jarFileName.lastIndexOf(webApp.JAR)),lastModified);
+                    webAppClassLoader.addJar(jar, jarFile,
+                            jarFileName.substring(0, jarFileName.lastIndexOf(webApp.JAR)), lastModified);
                 }
             } catch (IOException e) {
                 throw new RuntimeException("处理 WEB-INF/lib 目录失败", e);
@@ -530,7 +530,11 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 
     @Override
     public boolean modified() {
-        return webAppClassLoader.modified();
+        try {
+            return webAppClassLoader.modified();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     //</editor-fold>
@@ -541,16 +545,16 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
         logger.debug("LifeCycle : webAppLoader is starting");
         lifecycleHelper.fireLifecycleEvent(START_EVENT, null);
         isStarted = true;
-        try{
-        webAppClassLoader = createWebAppClassLoader();
-        webAppClassLoader.setDelegate(this.delegate);
+        try {
+            webAppClassLoader = createWebAppClassLoader();
+            webAppClassLoader.setDelegate(this.delegate);
         } catch (ClassNotFoundException | InvocationTargetException | InstantiationException | IllegalAccessException |
                  NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
         setRepository();
 
-        if (webAppClassLoader!=null) webAppClassLoader.start();
+        if (webAppClassLoader != null) webAppClassLoader.start();
         if (reloadable) threadStart();
     }
 
@@ -558,7 +562,7 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
     public void stop() throws LifecycleException {
         if (!isStarted) throw new LifecycleException("webAppLoader is not started");
         logger.debug("LifeCycle : webAppLoader is stopping");
-        lifecycleHelper.fireLifecycleEvent(STOP_EVENT,null);
+        lifecycleHelper.fireLifecycleEvent(STOP_EVENT, null);
         isStarted = false;
         if (reloadable) threadStop();
         if (webAppClassLoader != null) webAppClassLoader.stop();
@@ -617,7 +621,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
         try {
             thread.join();
         } catch (InterruptedException _) {
-
         } finally {
             thread = null;
         }
