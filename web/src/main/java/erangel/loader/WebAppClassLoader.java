@@ -4,12 +4,15 @@ package erangel.loader;
 import ch.qos.logback.core.spi.LifeCycle;
 import erangel.Const;
 import erangel.log.BaseLogger;
+import erangel.webResource.FileSystemResourceContext;
+import erangel.webResource.ResourceContext;
 import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.*;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.jar.JarFile;
 
@@ -72,7 +75,7 @@ public class WebAppClassLoader extends URLClassLoader implements LifeCycle {
 
     //</editor-fold>
     //<editor-fold desc = "其他方法">
-    protected synchronized void addRepository(String repository, Path path) {
+    public synchronized void addRepository(String repository, Path path) {
         if (repository == null) return;
         logger.debug("add repository: {}", repository);
         // 将新入仓库添加到内部记录中
@@ -86,7 +89,16 @@ public class WebAppClassLoader extends URLClassLoader implements LifeCycle {
         newPaths[paths.length] = path;
         paths = newPaths;
         // 设置更新追踪
-        trackFiles(path);
+        ResourceContext tmp = new FileSystemResourceContext(path);
+        try {
+            List<Path> paths = tmp.listResources(path.toString());
+            for (Path p : paths) {
+                trackFiles(p);
+            }
+        } catch (IOException _) {
+        }
+
+
     }
 
     private void trackFiles(Path path) {
@@ -114,7 +126,7 @@ public class WebAppClassLoader extends URLClassLoader implements LifeCycle {
     }
 
 
-    protected synchronized void addJar(Path jarPath, JarFile jarFile, String jarFileName, long lastModified) throws IOException {
+    public synchronized void addJar(Path jarPath, JarFile jarFile, String jarFileName, long lastModified) throws IOException {
         if (jarFile == null ||
                 jarFileName == null ||
                 jarFileName.isEmpty()) return;
@@ -274,7 +286,7 @@ public class WebAppClassLoader extends URLClassLoader implements LifeCycle {
         return clazz;
     }
 
-    public boolean modified() {
+    public boolean modified() throws IOException {
         return false;
     }
 
@@ -326,12 +338,73 @@ public class WebAppClassLoader extends URLClassLoader implements LifeCycle {
     //</editor-fold>
     //<editor-fold desc = "内部类">
     // 资源条目
-    private class ResourceEntry {
+    public static class ResourceEntry {
         private volatile Class<?> loadedClass = null;
         private long lastModified;
     }
+
     //</editor-fold>
-    //<editor-fold desc = "XXXXXXX">
+    //<editor-fold desc = "only for test">
+    public String[] getRepositories() {
+        return repositories;
+    }
+
+    public void setRepositories(String[] repositories) {
+        this.repositories = repositories;
+    }
+
+    public Map<String, ResourceEntry> getEntries() {
+        return entries;
+    }
+
+    public Path[] getPaths() {
+        return paths;
+    }
+
+    public void setPaths(Path[] paths) {
+        this.paths = paths;
+    }
+
+    public String[] getJarNames() {
+        return JarNames;
+    }
+
+    public void setJarNames(String[] jarNames) {
+        JarNames = jarNames;
+    }
+
+    public Map<String, String> getJarAttributes() {
+        return JarAttributes;
+    }
+
+    public void setJarAttributes(Map<String, String> jarAttributes) {
+        JarAttributes = jarAttributes;
+    }
+
+    public String[] getJarFiles() {
+        return JarFiles;
+    }
+
+    public void setJarFiles(String[] jarFiles) {
+        JarFiles = jarFiles;
+    }
+
+    public ClassLoader getAppClassLoader() {
+        return appClassLoader;
+    }
+
+    public void setAppClassLoader(ClassLoader appClassLoader) {
+        this.appClassLoader = appClassLoader;
+    }
+
+    public ClassLoader getParentClassLoader() {
+        return parentClassLoader;
+    }
+
+    public void setParentClassLoader(ClassLoader parentClassLoader) {
+        this.parentClassLoader = parentClassLoader;
+    }
+
     //</editor-fold>
     //<editor-fold desc = "XXXXXXX">
     //</editor-fold>
