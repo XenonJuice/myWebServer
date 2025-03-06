@@ -21,7 +21,14 @@ public final class Const {
      * webApp关联
      */
     public static class webApp {
+        public static final String WEB_INF = "/WEB-INF";
+        public static final String DOTCLASS = ".class";
+        public static final String DOTJAR = ".jar";
+        public static final String DOTWAR = ".war";
+        public static final String META_INF = "/META-INF";
         public static final String CLASSES = "/WEB-INF/classes";
+        public static final String CLASSES_ONLY = "classes";
+        public static final String LIB_ONLY = "lib";
         public static final String LIB = "/WEB-INF/lib";
         public static final String WEB_XML = "/WEB-INF/web.xml";
         public static final String JAR = ".jar";
