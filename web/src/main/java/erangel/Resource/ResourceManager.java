@@ -10,23 +10,22 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import static erangel.Const.commonCharacters.SOLIDUS;
+import static erangel.Const.commonCharacters.*;
 import static erangel.Const.webApp.*;
 
 public class ResourceManager implements Lifecycle, Runnable {
     //<editor-fold desc = "attr">
     // logger
     private static final Logger logger = BaseLogger.getLogger(ResourceManager.class);
+    // 本地资源映射
+    private final Map<String, List<LocalResource>> resourceMap = new HashMap<>();
+    private final Map<String, LocalResource> propMap = new HashMap<>();
     // 生命周期助手
     protected LifecycleHelper lifecycleHelper = new LifecycleHelper(this);
-    // 本地资源映射
-    private Map<String, LocalResource> resourceMap = new HashMap<>();
     // 根目录
     private String basePath = null;
     // 线程
@@ -49,27 +48,31 @@ public class ResourceManager implements Lifecycle, Runnable {
 
     //</editor-fold>
     //<editor-fold desc = "扫描资源">
+    // 始终以斜杠开头 例如/com/example/LLJ.class  /web.xml
 
     // 扫描WEB-INF/classes
-    public void scanFileSystem(Path classesDir) {
+    public void scanFileSystem(Path rootDir) {
+        // 递归遍历整个目录树
         try {
-            Files.walk(classesDir)
+            Files.walk(rootDir)
                     .filter(Files::isRegularFile)
                     .forEach(path -> {
-                        // classesDir 对应 /WEB-INF/classes，
-                        // 那么将 path 转换成统一的资源路径
-                        String resourcePath = SOLIDUS + classesDir.relativize(path).
-                                toString().replace(File.separatorChar, '/');
-                        resourceMap.put(resourcePath, new FileResource(path));
+                        String relative = rootDir.relativize(path).toString().replace(
+                                File.separatorChar, '/');
+                        String resourcePath = SOLIDUS+ relative;
+                        // 构造 FileResource 对象
+                        LocalResource resource = new FileResource(path);
+                        addResource(resourcePath, resource);
                     });
         } catch (IOException e) {
-            logger.error("Failed to scan files in WEB-INF/classes", e);
+            throw new RuntimeException(e);
         }
     }
 
+
     // 扫描 jar 文件
     public void scanJarFile(File jarFile) {
-        JarFile jf;
+        JarFile jf = null;
         try {
             jf = new JarFile(jarFile);
         } catch (IOException e) {
@@ -77,18 +80,87 @@ public class ResourceManager implements Lifecycle, Runnable {
         }
         Enumeration<JarEntry> entries = jf.entries();
         while (entries.hasMoreElements()) {
-            JarEntry entry = entries.nextElement();
-            if (!entry.isDirectory() && entry.getName().endsWith(
-                    Const.webApp.DOTCLASS)) {
-                // 此处 entry.getName() 通常已经使用 '/' 分隔
-                resourceMap.put(SOLIDUS +
-                        entry.getName(), new JarResource(jf, entry));
+            JarEntry je = entries.nextElement();
+            if (!je.isDirectory()) {
+                String resourcePath = normalizePath(je.getName());
+                LocalResource resource = new JarResource(jf, je);
+                addResource(resourcePath, resource);
             }
         }
     }
 
+
+    // 扫描 配置文件
+    public void scanAdditionalResources(Path rootPath) throws IOException {
+        // 遍历整个根目录
+        Files.walk(rootPath, 1)
+                .filter(Files::isRegularFile)
+                .forEach(path -> {
+                    String fileName = path.getFileName().toString();
+                    // 判断是否为常用的 web 配置文件或属性文件
+                    if (fileName.equalsIgnoreCase(WEB_XML) ||
+                            fileName.equalsIgnoreCase("context.xml") ||
+                            fileName.endsWith(DOTPROP)) {
+                        // 统一资源路径
+                        String resourcePath = "/" + rootPath.relativize(path)
+                                .toString()
+                                .replace(File.separatorChar, '/');
+                        logger.debug("Found resource: {}", resourcePath);
+                        // 将扫描到的资源信息存入 propMap
+                        propMap.put(resourcePath, new FileResource(path));
+                    }
+                });
+    }
+
     //</editor-fold>
-    //<editor-fold desc = "XXXXXXX">
+    //<editor-fold desc = "获取资源">
+    public LocalResource getLoaderResource(String path) {
+        String normalizedPath = normalizePath(path);
+        List<LocalResource> resources = resourceMap.get(normalizedPath);
+        if (resources != null) {
+            for (LocalResource res : resources) {
+                if (res.exists()) {
+                    return res;
+                }
+            }
+        }
+        return null;
+    }
+
+    public LocalResource[] getLoaderResources(String path) {
+        String normalizedPath = normalizePath(path);
+        List<LocalResource> resources = resourceMap.get(normalizedPath);
+        if (resources == null) {
+            return new LocalResource[0];
+        }
+        List<LocalResource> result = new ArrayList<>();
+        for (LocalResource res : resources) {
+            if (res.exists()) {
+                result.add(res);
+            }
+        }
+        return result.toArray(new LocalResource[0]);
+    }
+
+    public LocalResource getPropResource(String path) {
+        return propMap.get(path);
+    }
+
+    private String normalizePath(String path) {
+        if (!path.startsWith(SOLIDUS)) path = SOLIDUS + path;
+        return path;
+    }
+
+    public void addResource(String path, LocalResource resource) {
+        String normalizedPath = normalizePath(path);
+        List<LocalResource> list = resourceMap.get(normalizedPath);
+        if (list == null) {
+            list = new ArrayList<>();
+            resourceMap.put(normalizedPath, list);
+        }
+        list.add(resource);
+    }
+
     //</editor-fold>
     //<editor-fold desc = "创建资源映射">
     private void createResourceMapping() {
@@ -110,7 +182,66 @@ public class ResourceManager implements Lifecycle, Runnable {
             logger.error("Failed to scan jar files in WEB-INF/lib", e);
         }
     }
+    //<editor-fold desc = "扫描WEB-INF/classes">
+    /**
+     * 获取WEB-INF/classes目录下所有文件，并以LocalResource数组形式返回
+     *
+     * @return 包含所有文件的LocalResource数组
+     */
+    public LocalResource[] getAllClassesResources() {
+        // 确保basePath被设置
+        if (basePath == null) {
+            logger.error("basePath未设置，无法获取classes资源");
+            return new LocalResource[0];
+        }
+        Path classesDir = Path.of(basePath + CLASSES);
+        // 检查目录是否存在
+        if (!Files.exists(classesDir) || !Files.isDirectory(classesDir)) {
+            logger.warn("未找到WEB-INF/classes目录: {}", classesDir);
+            return new LocalResource[0];
+        }
+        try (var stream = Files.walk(classesDir)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .map(FileResource::new)
+                    .toArray(LocalResource[]::new);
+        } catch (IOException e) {
+            logger.error("遍历WEB-INF/classes时出错", e);
+            return new LocalResource[0];
+        }
+    }
+    //</editor-fold>
 
+    //<editor-fold desc = "扫描WEB-INF/lib">
+    /**
+     * 获取WEB-INF/lib目录下所有JAR文件，并以LocalResource数组形式返回
+     *
+     * @return 包含所有JAR文件的LocalResource数组
+     */
+    public LocalResource[] getAllLibResources()  {
+        // 确保basePath被设置
+        if (basePath == null) {
+            logger.error("basePath未设置，无法获取lib资源");
+            return new LocalResource[0];
+        }
+        Path libDir = Path.of(basePath + Const.webApp.LIB);
+        // 检查目录是否存在
+        if (!Files.exists(libDir) || !Files.isDirectory(libDir)) {
+            logger.warn("未找到WEB-INF/lib目录: {}", libDir);
+            return new LocalResource[0];
+        }
+        try (var stream = Files.list(libDir)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.toString().endsWith(Const.webApp.DOTJAR))
+                    .map(FileResource::new)
+                    .toArray(LocalResource[]::new);
+        } catch (IOException e) {
+            logger.error("遍历WEB-INF/lib时出错", e);
+            return new LocalResource[0];
+        }
+    }
+    //</editor-fold>
     //</editor-fold>
     //<editor-fold desc = "生命周期">
     @Override
