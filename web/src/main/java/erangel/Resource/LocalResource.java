@@ -2,6 +2,7 @@ package erangel.Resource;
 
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -14,11 +15,17 @@ import java.net.URL;
 public interface LocalResource {
     boolean exists();
 
-    byte[] getContent() throws IOException;
+    boolean isDirectory();
+
+    boolean canRead();
+
+    byte[] getContent() ;
 
     String getName();
 
-    long getLastModified() throws IOException;
+    long getLastModified();
 
-    URL getURL() throws MalformedURLException;
+    URL getURL() ;
+
+    InputStream getInputStream();
 }
