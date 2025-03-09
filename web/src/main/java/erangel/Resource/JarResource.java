@@ -1,12 +1,14 @@
 package erangel.Resource;
 
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+
 
 /**
  * 表示 JAR 文件中的一个资源。
@@ -33,9 +35,21 @@ public class JarResource implements LocalResource {
     }
 
     @Override
-    public byte[] getContent() throws IOException {
+    public boolean isDirectory() {
+        return true;
+    }
+
+    @Override
+    public boolean canRead() {
+        return true;
+    }
+
+    @Override
+    public byte[] getContent() {
         try (InputStream is = jarFile.getInputStream(jarEntry)) {
             return is.readAllBytes();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -50,11 +64,24 @@ public class JarResource implements LocalResource {
     }
 
     @Override
-    public URL getURL() throws MalformedURLException {
+    public URL getURL(){
         // 实际路径 /Users/LLJ/projects/myapp/lib/myapp.jar，
         // 返回类似
         // jar:file:/Users/LLJ/projects/myapp/lib/myapp.jar!/com/example/LLJ.class
         String jarPath = jarFile.getName();
-        return new URL("jar:file:" + jarPath + "!/" + jarEntry.getName());
+        try {
+            return new URL("jar:file:" + jarPath + "!/" + jarEntry.getName());
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public InputStream getInputStream() {
+        try {
+            return jarFile.getInputStream(jarEntry);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
