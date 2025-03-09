@@ -21,6 +21,7 @@ public final class Const {
      * webApp关联
      */
     public static class webApp {
+        public static final String DOTPROP = ".properties";
         public static final String WEB_INF = "/WEB-INF";
         public static final String DOTCLASS = ".class";
         public static final String DOTJAR = ".jar";
@@ -30,7 +31,7 @@ public final class Const {
         public static final String CLASSES_ONLY = "classes";
         public static final String LIB_ONLY = "lib";
         public static final String LIB = "/WEB-INF/lib";
-        public static final String WEB_XML = "/WEB-INF/web.xml";
+        public static final String WEB_XML = "web.xml";
         public static final String JAR = ".jar";
         public static final String WAR = ".war";
         public static final SimpleDateFormat[] DATE_FORMATS = {
