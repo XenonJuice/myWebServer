@@ -22,21 +22,21 @@ import static erangel.Const.commonCharacters.SOLIDUS;
 import static erangel.Const.webApp.DOTCLASS;
 
 public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
+    //<editor-fold desc = "attr">
     // logger
     private static final Logger logger = BaseLogger.getLogger(WebAppClassLoader.class);
     // 资源条目
     private final Map<String, ResourceEntry> entries = new ConcurrentHashMap<>();
     // jar文件修改时刻
     private final Map<String, Long> jarTimes = new ConcurrentHashMap<>();
-    //<editor-fold desc = "attr">
+    // 本地仓库URL集合
+    private final List<URL> localRepositories = new ArrayList<>();
     // 生命周期助手
     protected LifecycleHelper lifecycleHelper = new LifecycleHelper(this);
     // 本地资源对象
     private ResourceManager localResource = null;
     // 父类已被添加URL标志位
     private boolean extRepo = false;
-    // 本地仓库URL集合
-    private List<URL> localRepositories = new ArrayList<>();
     // 系统类加载器
     private ClassLoader sysLoader = null;
     // 父类加载器
@@ -94,6 +94,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
 
     // 检查MAP
     private Class<?> findLoadedClassFromMap(String name) {
+        if (!started) throw new IllegalStateException("WebAppClassLoader has not been started");
         String path = changeNameToPath(name, true);
         ResourceEntry entry = entries.get(path);
         if (entry != null) return entry.loadedClass;
@@ -203,52 +204,39 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
         return false;
     }
 
-    public boolean modified() throws IOException {
-        return false;
-    }
-
-    @Override
-    public void removeLifecycleListener(LifecycleListener listener) {
-
-    }
-
-    @Override
-    public void addLifecycleListener(LifecycleListener listener) {
-
-    }
-
-    @Override
-    public LifecycleListener[] findLifecycleListener() {
-        return new LifecycleListener[0];
-    }
-
-
-    @Override
-    public void start() {
-        lifecycleHelper.fireLifecycleEvent(BEFORE_START_EVENT, null);
-        LocalResource[] classes = localResource.getAllClassesResources();
-        for (LocalResource clazz : classes) {
-            if (clazz.isDirectory() && clazz.canRead()) localRepositories.add(clazz.getURL());
-        }
-        LocalResource[] jars = localResource.getAllLibResources();
-        for (LocalResource jar : jars) {
-            if (jar.getName().endsWith(Const.webApp.DOTJAR) && jar.canRead()) {
-                localRepositories.add(jar.getURL());
-                jarTimes.put(jar.getName(), jar.getLastModified());
+    // 检查web资源是否有更新
+    public boolean modified() {
+        logger.debug("modified: {}", entries.size());
+        for (Map.Entry<String, ResourceEntry> entry : entries.entrySet()) {
+            long oldTime = entry.getValue().lastModified;
+            long newTime = localResource.getLoaderResource(entry.getKey()).getLastModified();
+            if (oldTime != newTime) {
+                logger.debug("modified: {} , oldTime: {} , newTime: {}",
+                        entry.getKey(), new Date(oldTime), new Date(newTime));
+                return true;
             }
         }
-        lifecycleHelper.fireLifecycleEvent(START_EVENT, null);
-    }
+        LocalResource[] jars = localResource.getAllLibResources();
+        int jarsSize = jars.length;
+        for (LocalResource jar : jars) {
+            if (jar.getName().endsWith(Const.webApp.DOTJAR) && jar.canRead()) {
+                Long oldTime = jarTimes.get(jar.getName());
+                if (oldTime == null) {
+                    logger.info("webAppClassLoader modified jar has been added: {} in Context : {}", jar.getName(), localResource.getContext().getName());
+                }
+                if (oldTime != jar.getLastModified()) {
+                    logger.info("webAppClassLoader modified jar has been modified: {} in Context : {}", jar.getName(), localResource.getContext().getName());
+                    return true;
+                }
 
-    @Override
-    public void stop() {
-        entries.clear();
-        jarTimes.clear();
-        localRepositories.clear();
-        localResource = null;
-        lifecycleHelper.fireLifecycleEvent(STOP_EVENT, null);
+            }
+        }
+        if (jarsSize < jarTimes.size()) {
+            logger.info("webAppClassLoader modified jar has been deleted: {} ", localResource.getContext().getName());
+            return true;
+        }
+        return false;
     }
-
 
     //</editor-fold>
     //<editor-fold desc = "only for test">
@@ -292,6 +280,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
     public Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
         synchronized (getClassLoadingLock(name)) {
             Class<?> clazz;
+            if (!started) throw new IllegalStateException("WebAppClassLoader has not been started");
             // 检查MAP
             clazz = findLoadedClassFromMap(name);
             if (clazz != null) {
@@ -369,6 +358,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
     //<editor-fold desc = "重写父类的部分方法">
     @Override
     public URL findResource(String name) {
+        if (!started) throw new IllegalStateException("WebAppClassLoader has not been started");
         logger.debug("findResource: {}", name);
         URL url = null;
         String resourceName = nameToPath(name);
@@ -401,6 +391,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
 
     @Override
     public URL getResource(String name) {
+        if (!started) throw new IllegalStateException("WebAppClassLoader has not been started");
         URL url = null;
         logger.debug("getResource: {}", name);
         // 委托给父类或者为敏感类时
@@ -446,13 +437,15 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
         result.addAll(Arrays.asList(super.getURLs()));
         return result.toArray(new URL[0]);
     }
+
     @Override
-    public InputStream getResourceAsStream(String name){
+    public InputStream getResourceAsStream(String name) {
+        if (!started) throw new IllegalStateException("WebAppClassLoader has not been started");
         logger.debug("getResourceAsStream: {}", name);
         InputStream inputStream = null;
         boolean delegated = delegate || classFilter(name);
         // 委托给父类
-        if (delegated){
+        if (delegated) {
             ClassLoader loader = parentClassLoader;
             if (loader == null) loader = sysLoader;
             inputStream = loader.getResourceAsStream(name);
@@ -461,7 +454,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
         // 寻找本地仓库
         String resourceName = nameToPath(name);
         LocalResource resource = localResource.getLoaderResource(resourceName);
-        if (resource.exists()){
+        if (resource.exists()) {
             inputStream = resource.getInputStream();
             recordModifiedTime(resourceName, resource);
         }
@@ -477,8 +470,55 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
             }
         }
         // 都找不到的话就返回null
-    return null;
+        return null;
     }
+
+    //</editor-fold>
+    //<editor-fold desc = "生命周期">
+    @Override
+    public void removeLifecycleListener(LifecycleListener listener) {
+        // 不做实现
+    }
+
+    @Override
+    public void addLifecycleListener(LifecycleListener listener) {
+        // 不做实现
+    }
+
+    @Override
+    public LifecycleListener[] findLifecycleListener() {
+        // 不做实现
+        return null;
+    }
+
+    @Override
+    public void start() {
+        lifecycleHelper.fireLifecycleEvent(BEFORE_START_EVENT, null);
+        LocalResource[] classes = localResource.getAllClassesResources();
+        for (LocalResource clazz : classes) {
+            if (clazz.isDirectory() && clazz.canRead()) localRepositories.add(clazz.getURL());
+        }
+        LocalResource[] jars = localResource.getAllLibResources();
+        for (LocalResource jar : jars) {
+            if (jar.getName().endsWith(Const.webApp.DOTJAR) && jar.canRead()) {
+                localRepositories.add(jar.getURL());
+                jarTimes.put(jar.getName(), jar.getLastModified());
+            }
+        }
+        started=true;
+        lifecycleHelper.fireLifecycleEvent(START_EVENT, null);
+    }
+
+    @Override
+    public void stop() {
+        entries.clear();
+        jarTimes.clear();
+        localRepositories.clear();
+        localResource = null;
+        started=false;
+        lifecycleHelper.fireLifecycleEvent(STOP_EVENT, null);
+    }
+
     //</editor-fold>
     //<editor-fold desc = "敏感类，包">
     // 要被过滤掉的包名前缀
