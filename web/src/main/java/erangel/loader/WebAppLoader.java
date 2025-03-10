@@ -6,22 +6,13 @@ import erangel.Const.commonCharacters;
 import erangel.Const.webApp;
 import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;
-import erangel.webResource.FileSystemResourceContext;
-import erangel.webResource.Resource;
-import erangel.webResource.ResourceContext;
 import org.slf4j.Logger;
-
-import javax.naming.NameClassPair;
-import javax.naming.NamingEnumeration;
-import javax.naming.NamingException;
-import javax.naming.directory.DirContext;
 import javax.servlet.ServletContext;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.*;
@@ -223,7 +214,7 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
     public void addRepository(String repository) {
 
     }
-
+    //<editor-fold desc = "@Deprecated">
     /**
      * 配置类加载器以使用Web应用程序所需的类和JAR文件库。此方法设置两个主要库：
      * <p>
@@ -248,8 +239,90 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
      * <p>
      * 捕获IOException等异常时，输出日志
      */
-
-    //<editor-fold desc = "@Deprecated">
+    //    private void setRepository() {
+//        ServletContext servletContext = context.getServletContext();
+//        if (servletContext == null) return;
+//
+//        // 取得临时工作目录
+//        Path tmpWorkDir = ((File) servletContext.getAttribute(ServletContext.TEMPDIR)).toPath();
+//        System.out.println("临时工作目录的绝对路径为：" + tmpWorkDir.toAbsolutePath());
+//
+//        // 获取应用根目录的真实路径
+//        String realPath = servletContext.getRealPath(commonCharacters.SOLIDUS);
+//        if (realPath == null) {
+//            throw new RuntimeException("无法获取应用根路径");
+//        }
+//        Path appRoot = Path.of(realPath);
+//
+//        // FIXME 此处仍有改进空间，目前只能操作完全展开的war包
+//        // 使用应用根目录构造基于文件系统的资源上下文
+//        resourceContext = new FileSystemResourceContext(appRoot);
+//
+//        // -------------------- 处理 WEB-INF/classes --------------------
+//        Path classesPath = resourceContext.getResource(webApp.CLASSES);
+//        if (Files.exists(classesPath)) {
+//            Path classesRepo;
+//            // 如果可以通过ServletContext获取真实路径，则直接使用该路径
+//            String realClassesPath = servletContext.getRealPath(webApp.CLASSES);
+//            if (realClassesPath != null) {
+//                classesRepo = Path.of(realClassesPath);
+//            } else {
+//                // 若无法获取真实路径，则将classes目录复制到临时工作目录中
+//                classesRepo = tmpWorkDir.resolve(webApp.CLASSES.replace(commonCharacters.SOLIDUS, File.separator));
+//                try {
+//                    Files.createDirectories(classesRepo);
+//                    copyDirectory(classesPath, classesRepo);
+//                } catch (IOException e) {
+//                    throw new RuntimeException("复制 WEB-INF/classes 到工作目录失败", e);
+//                }
+//            }
+//            // 将 classes 目录添加到 WebAppClassLoader 的仓库中
+//            webAppClassLoader.addRepository(webApp.CLASSES +
+//                    commonCharacters.SOLIDUS, classesRepo);
+//        } else {
+//            throw new RuntimeException("WEB-INF/classes 目录不存在");
+//        }
+//
+//        // -------------------- 处理 WEB-INF/lib --------------------
+//        Path libPath = resourceContext.getResource(webApp.LIB);
+//        if (Files.exists(libPath)) {
+//            Path libRepo;
+//            String realLibPath = servletContext.getRealPath(webApp.LIB);
+//            if (realLibPath != null) {
+//                libRepo = Path.of(realLibPath);
+//            } else {
+//                // 若真实路径不可用，将 lib 目录复制到临时工作目录中
+//                libRepo = tmpWorkDir.resolve(webApp.LIB.replace(commonCharacters.SOLIDUS, File.separator));
+//                try {
+//                    Files.createDirectories(libRepo);
+//                    copyDirectory(libPath, libRepo);
+//                } catch (IOException e) {
+//                    throw new RuntimeException("复制 WEB-INF/lib 到工作目录失败", e);
+//                }
+//            }
+//            try {
+//                // 列出 lib 目录下所有 jar 文件
+//                List<Path> jars = Files.list(libRepo)
+//                        .filter(p -> p.getFileName().toString().endsWith(webApp.JAR))
+//                        .toList();
+//                for (Path jar : jars) {
+//                    // 可以在这里直接打开JarFile，以确保jar包可用
+//                    JarFile jarFile = new JarFile(jar.toFile());
+//                    // 最后修改时间
+//                    long lastModified = Files.getLastModifiedTime(jar).toMillis();
+//                    // 提取文件名
+//                    String jarFileName = jar.getFileName().toString();
+//                    // 向 WebAppClassLoader 传递jar信息
+//                    webAppClassLoader.addJar(jar, jarFile,
+//                            jarFileName.substring(0, jarFileName.lastIndexOf(webApp.JAR)), lastModified);
+//                }
+//            } catch (IOException e) {
+//                throw new RuntimeException("处理 WEB-INF/lib 目录失败", e);
+//            }
+//        } else {
+//            throw new RuntimeException("WEB-INF/lib 目录不存在");
+//        }
+//    }
 //    private void setRepository() {
 //        ServletContext servletContext = context.getServletContext();
 //        if (servletContext == null) return;
@@ -372,91 +445,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 //
 //    }
     //</editor-fold>
-    private void setRepository() {
-        ServletContext servletContext = context.getServletContext();
-        if (servletContext == null) return;
-
-        // 取得临时工作目录
-        Path tmpWorkDir = ((File) servletContext.getAttribute(ServletContext.TEMPDIR)).toPath();
-        System.out.println("临时工作目录的绝对路径为：" + tmpWorkDir.toAbsolutePath());
-
-        // 获取应用根目录的真实路径
-        String realPath = servletContext.getRealPath(commonCharacters.SOLIDUS);
-        if (realPath == null) {
-            throw new RuntimeException("无法获取应用根路径");
-        }
-        Path appRoot = Path.of(realPath);
-
-        // FIXME 此处仍有改进空间，目前只能操作完全展开的war包
-        // 使用应用根目录构造基于文件系统的资源上下文
-        resourceContext = new FileSystemResourceContext(appRoot);
-
-        // -------------------- 处理 WEB-INF/classes --------------------
-        Path classesPath = resourceContext.getResource(webApp.CLASSES);
-        if (Files.exists(classesPath)) {
-            Path classesRepo;
-            // 如果可以通过ServletContext获取真实路径，则直接使用该路径
-            String realClassesPath = servletContext.getRealPath(webApp.CLASSES);
-            if (realClassesPath != null) {
-                classesRepo = Path.of(realClassesPath);
-            } else {
-                // 若无法获取真实路径，则将classes目录复制到临时工作目录中
-                classesRepo = tmpWorkDir.resolve(webApp.CLASSES.replace(commonCharacters.SOLIDUS, File.separator));
-                try {
-                    Files.createDirectories(classesRepo);
-                    copyDirectory(classesPath, classesRepo);
-                } catch (IOException e) {
-                    throw new RuntimeException("复制 WEB-INF/classes 到工作目录失败", e);
-                }
-            }
-            // 将 classes 目录添加到 WebAppClassLoader 的仓库中
-            webAppClassLoader.addRepository(webApp.CLASSES +
-                    commonCharacters.SOLIDUS, classesRepo);
-        } else {
-            throw new RuntimeException("WEB-INF/classes 目录不存在");
-        }
-
-        // -------------------- 处理 WEB-INF/lib --------------------
-        Path libPath = resourceContext.getResource(webApp.LIB);
-        if (Files.exists(libPath)) {
-            Path libRepo;
-            String realLibPath = servletContext.getRealPath(webApp.LIB);
-            if (realLibPath != null) {
-                libRepo = Path.of(realLibPath);
-            } else {
-                // 若真实路径不可用，将 lib 目录复制到临时工作目录中
-                libRepo = tmpWorkDir.resolve(webApp.LIB.replace(commonCharacters.SOLIDUS, File.separator));
-                try {
-                    Files.createDirectories(libRepo);
-                    copyDirectory(libPath, libRepo);
-                } catch (IOException e) {
-                    throw new RuntimeException("复制 WEB-INF/lib 到工作目录失败", e);
-                }
-            }
-            try {
-                // 列出 lib 目录下所有 jar 文件
-                List<Path> jars = Files.list(libRepo)
-                        .filter(p -> p.getFileName().toString().endsWith(webApp.JAR))
-                        .toList();
-                for (Path jar : jars) {
-                    // 可以在这里直接打开JarFile，以确保jar包可用
-                    JarFile jarFile = new JarFile(jar.toFile());
-                    // 最后修改时间
-                    long lastModified = Files.getLastModifiedTime(jar).toMillis();
-                    // 提取文件名
-                    String jarFileName = jar.getFileName().toString();
-                    // 向 WebAppClassLoader 传递jar信息
-                    webAppClassLoader.addJar(jar, jarFile,
-                            jarFileName.substring(0, jarFileName.lastIndexOf(webApp.JAR)), lastModified);
-                }
-            } catch (IOException e) {
-                throw new RuntimeException("处理 WEB-INF/lib 目录失败", e);
-            }
-        } else {
-            throw new RuntimeException("WEB-INF/lib 目录不存在");
-        }
-    }
-
     private void copyDirectory(Path source, Path target) throws IOException {
         Files.walkFileTree(source, new SimpleFileVisitor<>() {
             @Override
@@ -481,47 +469,46 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
     /**
      * @deprecated 考虑到JNDI管理资源带来的复杂度较高的抽象性，弃用JNDI相关处理
      */
-    @Deprecated()
-    private void copyToWorkDir(DirContext srcRes, Path workDir) {
-        try {
-            // 遍历源目录下所有的资源，获得所有资源的 name 和 class 信息
-            NamingEnumeration<NameClassPair> enumRes =
-                    srcRes.list(Const.commonCharacters.EMPTY);
-            while (enumRes.hasMoreElements()) {
-                NameClassPair pair = enumRes.nextElement();
-                // 拿到当前条目的名称
-                String name = pair.getName();
-                // 用名称在源条目中lookup，得到这个条目的实际资源对象
-                Object object = srcRes.lookup(name);
-                // 拼装子路径，表示目标目录下这个子条目对应的完整路径
-                Path childPath = workDir.resolve(name);
-
-                if (object instanceof DirContext) {
-                    Files.createDirectories(childPath);
-                    // 说明是子目录（warContext），递归处理
-                    copyToWorkDir((DirContext) object, childPath);
-                } else if (object instanceof InputStream) {
-                    // 说明是 JNDI 返回的文件流
-                    try (InputStream is = (InputStream) object) {
-                        // 确保目标文件所在的父目录也存在，如果不存在就创建
-                        if (Files.notExists(childPath.getParent())) {
-                            Files.createDirectories(childPath.getParent());
-                        }
-                        // 把输入流复制到 childPath 对应的文件中
-                        Files.copy(is, childPath);
-                    }
-                    // 说明找到了具体的压缩文件（warResource）
-                } else if (object instanceof Resource) {
-                    InputStream is = ((Resource) object).getStreamContent();
-                    Files.copy(is, childPath);
-                }
-            }
-        } catch (NamingException | IOException e) {
-            //FIXME
-            throw new RuntimeException(e);
-        }
-
-    }
+//    private void copyToWorkDir(DirContext srcRes, Path workDir) {
+//        try {
+//            // 遍历源目录下所有的资源，获得所有资源的 name 和 class 信息
+//            NamingEnumeration<NameClassPair> enumRes =
+//                    srcRes.list(Const.commonCharacters.EMPTY);
+//            while (enumRes.hasMoreElements()) {
+//                NameClassPair pair = enumRes.nextElement();
+//                // 拿到当前条目的名称
+//                String name = pair.getName();
+//                // 用名称在源条目中lookup，得到这个条目的实际资源对象
+//                Object object = srcRes.lookup(name);
+//                // 拼装子路径，表示目标目录下这个子条目对应的完整路径
+//                Path childPath = workDir.resolve(name);
+//
+//                if (object instanceof DirContext) {
+//                    Files.createDirectories(childPath);
+//                    // 说明是子目录（warContext），递归处理
+//                    copyToWorkDir((DirContext) object, childPath);
+//                } else if (object instanceof InputStream) {
+//                    // 说明是 JNDI 返回的文件流
+//                    try (InputStream is = (InputStream) object) {
+//                        // 确保目标文件所在的父目录也存在，如果不存在就创建
+//                        if (Files.notExists(childPath.getParent())) {
+//                            Files.createDirectories(childPath.getParent());
+//                        }
+//                        // 把输入流复制到 childPath 对应的文件中
+//                        Files.copy(is, childPath);
+//                    }
+//                    // 说明找到了具体的压缩文件（warResource）
+//                } else if (object instanceof Resource) {
+//                    InputStream is = ((Resource) object).getStreamContent();
+//                    Files.copy(is, childPath);
+//                }
+//            }
+//        } catch (NamingException | IOException e) {
+//            //FIXME
+//            throw new RuntimeException(e);
+//        }
+//
+//    }
 
     @Override
     public String[] findRepositories() {
@@ -530,11 +517,7 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 
     @Override
     public boolean modified() {
-        try {
             return webAppClassLoader.modified();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
     }
 
     //</editor-fold>
@@ -552,8 +535,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
                  NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
-        setRepository();
-
         if (webAppClassLoader != null) webAppClassLoader.start();
         if (reloadable) threadStart();
     }
@@ -624,8 +605,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
         } finally {
             thread = null;
         }
-
-
     }
 
 
