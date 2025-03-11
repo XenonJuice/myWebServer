@@ -1,5 +1,6 @@
 package erangel;
 
+import erangel.Resource.ResourceManager;
 import erangel.connector.http.HttpRequest;
 import erangel.connector.http.HttpResponse;
 
@@ -28,10 +29,10 @@ public interface Vas {
     Vas setParent(Vas parent);
 
     /**
-     * 返回与此容器关联的资源，如果没有则返回父容器的关联资源
+     * 返回与此容器关联的资源管理对象，如果没有则返回父容器的关联资源
      * 如果还没有则返回null
      */
-    DirContext getResources();
+    Object getResources();
 
     /**
      * 为此容器设定关联资源
