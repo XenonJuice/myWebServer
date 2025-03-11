@@ -29,6 +29,7 @@ public final class Const {
         public static final String META_INF = "/META-INF";
         public static final String CLASSES = "/WEB-INF/classes";
         public static final String CLASSES_ONLY = "classes";
+        public static final String RESOURCES_ONLY = "resource";
         public static final String LIB_ONLY = "lib";
         public static final String LIB = "/WEB-INF/lib";
         public static final String WEB_XML = "web.xml";
@@ -124,7 +125,7 @@ public final class Const {
         public static final String CLOSE = "close";
         public static final String SESSION_ID = "JSESSIONID";
         public static final String AUTHORIZATION = "Authorization";
-        public static final String HOST = "Host";
+        public static final String HOST = "erangel.Host";
         public static final String CONTENT_TYPE = "Content-Type";
         public static final String CONTENT_LENGTH = "Content-Length";
         public static final String ACCEPT_LANGUAGE = "Content-Language";
