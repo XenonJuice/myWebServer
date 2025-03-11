@@ -58,21 +58,6 @@ public interface Loader {
     void setReloadable(boolean reloadable);
 
     /**
-     * 将新仓库添加到此类加载器的仓库集合中。
-     *
-     * @param repository 要添加的仓库
-     */
-    void addRepository(String repository);
-
-
-    /**
-     * 返回为此类加载器定义的仓库集合。
-     * 如果没有定义，则返回一个零长度的数组。
-     */
-    String[] findRepositories();
-
-
-    /**
      * 与此加载器关联的内部仓库是否已被修改，
      * 以至于加载的类需要重新加载？
      */

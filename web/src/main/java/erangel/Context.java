@@ -1,5 +1,8 @@
 package erangel;
 
+import erangel.Resource.LocalResource;
+import erangel.Resource.ResourceManager;
+
 import javax.servlet.ServletContext;
 
 /**
@@ -28,6 +31,14 @@ public interface Context extends Vas {
      * 返回servlet上下文。
      */
     ServletContext getServletContext();
+
+    /**
+     * 获取关联的本地资源。
+     *
+     * @return 一个表示关联本地资源的 LocalResource，
+     * 如果没有关联的资源，则返回 null。
+     */
+    ResourceManager getResources();
 
     /**
      * 重载
