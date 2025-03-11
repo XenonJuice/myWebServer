@@ -1,7 +1,6 @@
-package erangel.Resource;
+package erangel.resource;
 
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -36,7 +35,7 @@ public class JarResource implements LocalResource {
 
     @Override
     public boolean isDirectory() {
-        return true;
+        return jarEntry.isDirectory();
     }
 
     @Override

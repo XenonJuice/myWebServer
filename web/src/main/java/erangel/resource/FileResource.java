@@ -1,4 +1,4 @@
-package erangel.Resource;
+package erangel.resource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -6,8 +6,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-
-import static erangel.Const.webApp.DOTCLASS;
 
 /**
  * {@link LocalResource} 接口的一个具体实现
