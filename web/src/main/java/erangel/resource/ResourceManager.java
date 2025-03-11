@@ -1,4 +1,4 @@
-package erangel.Resource;
+package erangel.resource;
 
 import erangel.*;
 import erangel.log.BaseLogger;
@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,7 +15,7 @@ import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import static erangel.Const.commonCharacters.*;
+import static erangel.Const.commonCharacters.SOLIDUS;
 import static erangel.Const.webApp.*;
 
 public class ResourceManager implements Lifecycle, Runnable {
@@ -22,8 +23,10 @@ public class ResourceManager implements Lifecycle, Runnable {
     // logger
     private static final Logger logger = BaseLogger.getLogger(ResourceManager.class);
     // 本地资源映射
-    private final Map<String, List<LocalResource>> resourceMap = new HashMap<>();
-    private final Map<String, LocalResource> propMap = new HashMap<>();
+    private final Map<String, List<LocalResource>> classLoaderResourceMap = new HashMap<>();
+    private final Map<String, List<LocalResource>> configMap = new HashMap<>();
+    private final Map<String, List<LocalResource>> stasticResMap = new HashMap<>();
+    private Map<String, List<LocalResource>> allResources = new HashMap<>();
     // 生命周期助手
     protected LifecycleHelper lifecycleHelper = new LifecycleHelper(this);
     // 根目录
@@ -49,7 +52,6 @@ public class ResourceManager implements Lifecycle, Runnable {
     //</editor-fold>
     //<editor-fold desc = "扫描资源">
     // 始终以斜杠开头 例如/com/example/LLJ.class  /web.xml
-
     // 扫描WEB-INF/classes
     public void scanFileSystem(Path rootDir) {
         // 递归遍历整个目录树
@@ -59,10 +61,10 @@ public class ResourceManager implements Lifecycle, Runnable {
                     .forEach(path -> {
                         String relative = rootDir.relativize(path).toString().replace(
                                 File.separatorChar, '/');
-                        String resourcePath = SOLIDUS+ relative;
+                        String resourcePath = SOLIDUS + relative;
                         // 构造 FileResource 对象
                         LocalResource resource = new FileResource(path);
-                        addResource(resourcePath, resource);
+                        addStaticResources(resourcePath, resource);
                     });
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -84,39 +86,124 @@ public class ResourceManager implements Lifecycle, Runnable {
             if (!je.isDirectory()) {
                 String resourcePath = normalizePath(je.getName());
                 LocalResource resource = new JarResource(jf, je);
-                addResource(resourcePath, resource);
+                addClassLoaderResources(resourcePath, resource);
             }
         }
     }
 
-
     // 扫描 配置文件
-    public void scanAdditionalResources(Path rootPath) throws IOException {
+    public void scanConfigResources(Path rootPath) {
         // 遍历整个根目录
-        Files.walk(rootPath, 1)
-                .filter(Files::isRegularFile)
-                .forEach(path -> {
-                    String fileName = path.getFileName().toString();
-                    // 判断是否为常用的 web 配置文件或属性文件
-                    if (fileName.equalsIgnoreCase(WEB_XML) ||
-                            fileName.equalsIgnoreCase("context.xml") ||
-                            fileName.endsWith(DOTPROP)) {
-                        // 统一资源路径
-                        String resourcePath = "/" + rootPath.relativize(path)
-                                .toString()
-                                .replace(File.separatorChar, '/');
-                        logger.debug("Found resource: {}", resourcePath);
-                        // 将扫描到的资源信息存入 propMap
-                        propMap.put(resourcePath, new FileResource(path));
-                    }
-                });
+        try {
+            Files.walk(rootPath, 1)
+                    .filter(Files::isRegularFile)
+                    .forEach(path -> {
+                        String fileName = path.getFileName().toString();
+                        // 判断是否为常用的 web 配置文件或属性文件
+                        if (fileName.equalsIgnoreCase(WEB_XML) ||
+                                fileName.equalsIgnoreCase("context.xml") ||
+                                fileName.endsWith(DOTPROP)) {
+                            // 统一资源路径
+                            String resourcePath = SOLIDUS + rootPath.relativize(path)
+                                    .toString()
+                                    .replace(File.separatorChar, '/');
+                            logger.debug("Found resource: {}", resourcePath);
+                            // 将扫描到的资源信息存入 propMap
+                            LocalResource resource = new FileResource(path);
+                            addConfigResources(resourcePath, resource);
+                        }
+                    });
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
+    /**
+     * 获取位于指定目录路径下的一组资源路径。
+     *
+     * @param path 要列出资源路径的目录路径。必须以 '/' 结尾。
+     * @return 指定目录下的一组资源路径。
+     * 集合中的路径可以表示文件或目录。
+     * 如果目录中没有资源或输入无效，则返回一个空集合。
+     */
+    public Set<String> listResourcePaths(String path) {
+        // 检查路径必须以 '/' 结尾
+        if (!path.endsWith(SOLIDUS)) throw new IllegalArgumentException("路径必须以 / 结尾");
+        LocalResource[] resources = getLoaderResources(path);
+        if (resources == null) {
+            return Collections.emptySet();
+        }
+
+        Set<String> resourcePaths = new HashSet<>();
+        for (LocalResource resource : resources) {
+            URL resourceURL = resource.getURL();
+            String resourcePath = resourceURL.getPath();
+            // 规范为子路径
+            int index = resourcePath.indexOf(path);
+            if (index >= 0) {
+                resourcePath = resourcePath.substring(index);
+            }
+            // 如果为目录且路径不以 '/' 结尾，则添加 '/'
+            if (resource.isDirectory() && !resourcePath.endsWith(SOLIDUS)) {
+                resourcePath += SOLIDUS;
+            }
+            resourcePaths.add(resourcePath);
+        }
+        return resourcePaths;
+    }
+    // combine
+    private void combine() {
+        allResources.clear();
+        Map<String, List<LocalResource>> tempMap = new HashMap<>();
+        tempMap.putAll(classLoaderResourceMap);
+        tempMap.putAll(configMap);
+        tempMap.putAll(stasticResMap);
+        allResources = tempMap;
+        logger.debug("allResources size : {}", allResources.size());
+        for (Map.Entry<String, List<LocalResource>> entry : allResources.entrySet()) {
+            String path = entry.getKey();
+            List<LocalResource> resources = entry.getValue();
+            logger.debug("path : {}, }", path);
+            for (LocalResource resource : resources) {
+                logger.debug("resource : {}", resource);
+                String name = resource.getName();
+                logger.debug("name : {}", name);
+            }
+        }
+        logger.debug("combine finished");
+    }
+
 
     //</editor-fold>
     //<editor-fold desc = "获取资源">
+    public LocalResource getResource(String path) {
+        String normalizedPath = normalizePath(path);
+        List<LocalResource> resources = allResources.get(normalizedPath);
+        if (resources == null || resources.isEmpty()) {
+            return null;
+        }
+        for (LocalResource res : resources) {
+            if (res.exists()) {
+                return res;
+            } else {
+                logger.warn("Resource {} not found", path);
+                return null;
+            }
+        }
+        return null;
+    }
+
+    public LocalResource[] getResources(String path) {
+        String normalizedPath = normalizePath(path);
+        List<LocalResource> resources = allResources.get(normalizedPath);
+        if (resources == null) {
+            return new LocalResource[0];
+        }
+        return resources.toArray(new LocalResource[0]);
+    }
+
     public LocalResource getLoaderResource(String path) {
         String normalizedPath = normalizePath(path);
-        List<LocalResource> resources = resourceMap.get(normalizedPath);
+        List<LocalResource> resources = classLoaderResourceMap.get(normalizedPath);
         if (resources != null) {
             for (LocalResource res : resources) {
                 if (res.exists()) {
@@ -129,7 +216,7 @@ public class ResourceManager implements Lifecycle, Runnable {
 
     public LocalResource[] getLoaderResources(String path) {
         String normalizedPath = normalizePath(path);
-        List<LocalResource> resources = resourceMap.get(normalizedPath);
+        List<LocalResource> resources = classLoaderResourceMap.get(normalizedPath);
         if (resources == null) {
             return new LocalResource[0];
         }
@@ -142,23 +229,37 @@ public class ResourceManager implements Lifecycle, Runnable {
         return result.toArray(new LocalResource[0]);
     }
 
-    public LocalResource getPropResource(String path) {
-        return propMap.get(path);
-    }
-
     private String normalizePath(String path) {
         if (!path.startsWith(SOLIDUS)) path = SOLIDUS + path;
         return path;
     }
 
-    public void addResource(String path, LocalResource resource) {
+    public void addClassLoaderResources(String path, LocalResource resource) {
         String normalizedPath = normalizePath(path);
-        List<LocalResource> list = resourceMap.get(normalizedPath);
+        List<LocalResource> list = classLoaderResourceMap.get(normalizedPath);
         if (list == null) {
             list = new ArrayList<>();
-            resourceMap.put(normalizedPath, list);
+            classLoaderResourceMap.put(normalizedPath, list);
         }
         list.add(resource);
+    }
+
+    public void addConfigResources(String path, LocalResource resource) {
+        String normalizedPath = normalizePath(path);
+        List<LocalResource> list = configMap.get(normalizedPath);
+        if (list == null) {
+            list = new ArrayList<>();
+            configMap.put(normalizedPath, list);
+        }
+    }
+
+    public void addStaticResources(String path, LocalResource resource) {
+        String normalizedPath = normalizePath(path);
+        List<LocalResource> list = stasticResMap.get(normalizedPath);
+        if (list == null) {
+            list = new ArrayList<>();
+            stasticResMap.put(normalizedPath, list);
+        }
     }
 
     //</editor-fold>
@@ -169,6 +270,7 @@ public class ResourceManager implements Lifecycle, Runnable {
         Path webInfRoot = Path.of(innerBase);
         Path classesDir = webInfRoot.resolve(CLASSES_ONLY);
         Path libDir = webInfRoot.resolve(LIB_ONLY);
+        Path staticDir =webInfRoot.resolve(RESOURCES_ONLY);
         // 扫描WEB-INF/classes下的所有 class 文件
         scanFileSystem(classesDir);
         // 扫描 WEB-INF/lib 下的所有 jar 文件
@@ -181,7 +283,15 @@ public class ResourceManager implements Lifecycle, Runnable {
         } catch (IOException e) {
             logger.error("Failed to scan jar files in WEB-INF/lib", e);
         }
+        // 扫描所有配置文件
+        scanConfigResources(webInfRoot);
+        // 扫描所有静态文件
+        scanFileSystem(staticDir);
+        // 将所有映射统一管理
+        combine();
     }
+
+
     //<editor-fold desc = "扫描WEB-INF/classes">
     /**
      * 获取WEB-INF/classes目录下所有文件，并以LocalResource数组形式返回
@@ -211,14 +321,13 @@ public class ResourceManager implements Lifecycle, Runnable {
         }
     }
     //</editor-fold>
-
     //<editor-fold desc = "扫描WEB-INF/lib">
     /**
      * 获取WEB-INF/lib目录下所有JAR文件，并以LocalResource数组形式返回
      *
      * @return 包含所有JAR文件的LocalResource数组
      */
-    public LocalResource[] getAllLibResources()  {
+    public LocalResource[] getAllLibResources() {
         // 确保basePath被设置
         if (basePath == null) {
             logger.error("basePath未设置，无法获取lib资源");
@@ -241,7 +350,6 @@ public class ResourceManager implements Lifecycle, Runnable {
             return new LocalResource[0];
         }
     }
-    //</editor-fold>
     //</editor-fold>
     //<editor-fold desc = "生命周期">
     @Override
@@ -295,7 +403,7 @@ public class ResourceManager implements Lifecycle, Runnable {
 
     @Override
     public void run() {
-        resourceMap.clear();
+        classLoaderResourceMap.clear();
         if (context == null) throw new IllegalStateException("ResourceManager ：context is null！");
         basePath = context.getBasePath();
         // /Users/lilinjian/workspace/webapp/WEB-INF/
