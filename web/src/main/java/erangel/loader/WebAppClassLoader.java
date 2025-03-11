@@ -71,6 +71,13 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
 
     //</editor-fold>
     //<editor-fold desc = "getter & setter">
+    public ResourceManager getLocalResource() {
+        return localResource;
+    }
+
+    public void setLocalResource(ResourceManager localResource) {
+        this.localResource = localResource;
+    }
     public boolean isDelegate() {
         return delegate;
     }
