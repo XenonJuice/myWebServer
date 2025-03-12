@@ -4,9 +4,9 @@ package erangel.loader;
 import erangel.Const;
 import erangel.Lifecycle;
 import erangel.LifecycleListener;
-import erangel.Resource.LocalResource;
-import erangel.Resource.ResourceManager;
 import erangel.log.BaseLogger;
+import erangel.resource.LocalResource;
+import erangel.resource.ResourceManager;
 import erangel.utils.LifecycleHelper;
 import org.slf4j.Logger;
 
@@ -78,6 +78,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
     public void setLocalResource(ResourceManager localResource) {
         this.localResource = localResource;
     }
+
     public boolean isDelegate() {
         return delegate;
     }
@@ -512,7 +513,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
                 jarTimes.put(jar.getName(), jar.getLastModified());
             }
         }
-        started=true;
+        started = true;
         lifecycleHelper.fireLifecycleEvent(START_EVENT, null);
     }
 
@@ -522,7 +523,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
         jarTimes.clear();
         localRepositories.clear();
         localResource = null;
-        started=false;
+        started = false;
         lifecycleHelper.fireLifecycleEvent(STOP_EVENT, null);
     }
 
