@@ -1,6 +1,5 @@
 package erangel;
 
-import erangel.Resource.ResourceManager;
 import erangel.connector.http.HttpRequest;
 import erangel.connector.http.HttpResponse;
 
@@ -16,7 +15,7 @@ public interface Vas {
     /**
      * 设定容器名称
      */
-    String setName();
+    void setName(String name);
 
     /**
      * 返回父容器
@@ -26,18 +25,7 @@ public interface Vas {
     /**
      * 设定父容器
      */
-    Vas setParent(Vas parent);
-
-    /**
-     * 返回与此容器关联的资源管理对象，如果没有则返回父容器的关联资源
-     * 如果还没有则返回null
-     */
-    Object getResources();
-
-    /**
-     * 为此容器设定关联资源
-     */
-    void setResources(DirContext resources);
+    void setParent(Vas parent);
 
     /**
      * 设定此容器的子容器
@@ -69,28 +57,11 @@ public interface Vas {
      * @return 映射的容器或资源作为Vas对象，如果未找到映射则返回null。
      */
     Vas map(HttpRequest req, boolean writeRequest);
-    // FIXME 增删容器事件监听器，
 
     /**
      * 为此容器添加映射器
      */
     void addMapper(Mapper mapper);
-
-    /**
-     * 向组件添加属性变化监听器。
-     * 监听器将在实施对象的属性发生任何变化时被通知。
-     *
-     * @param listener 要添加的 PropertyChangeListener；它监听
-     *                 属性变化事件。
-     */
-    void addPropertyChangeListener(PropertyChangeListener listener);
-
-    /**
-     * 从组件中移除 PropertyChangeListener。此监听器将不再接收组件中绑定属性更改的通知。
-     *
-     * @param listener 要移除的 PropertyChangeListener
-     */
-    void removePropertyChangeListener(PropertyChangeListener listener);
 
     /**
      * 查找并检索与此容器相关的所有映射器。
