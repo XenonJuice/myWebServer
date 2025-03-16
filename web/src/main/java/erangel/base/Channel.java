@@ -1,4 +1,7 @@
-package erangel;
+package erangel.base;
+
+import erangel.connector.http.HttpRequest;
+import erangel.connector.http.HttpResponse;
 
 /**
  * 表示一个在系统中管理检查点的通道。
@@ -16,9 +19,8 @@ public interface Channel {
      * 为通道设置基本检查点。
      *
      * @param checkpoint 要设置为基本检查点的检查点。
-     * @return 之前设置的基本检查点，如果没有设置检查点则返回 null。
      */
-    CheckPoint setBasicCheckpoint(CheckPoint checkpoint);
+    void setBasicCheckpoint(CheckPoint checkpoint);
 
     /**
      * 向通道添加一个检查点。
@@ -41,4 +43,9 @@ public interface Channel {
      * @param checkpoint 要移除的检查点。此检查点必须已经与通道相关联。
      */
     void removeCheckpoint(CheckPoint checkpoint);
+
+    /**
+     * 通过检查点处理请求和响应
+     */
+    void process(HttpRequest request, HttpResponse response) throws Exception;
 }
