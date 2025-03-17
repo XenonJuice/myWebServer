@@ -1,7 +1,7 @@
 package erangel.checkpoints;
 
 import erangel.base.Checkpoint;
-import erangel.base.CheckPointContext;
+import erangel.base.CheckpointContext;
 import erangel.base.Vas;
 import erangel.base.VasManager;
 import erangel.connector.http.HttpRequest;
@@ -22,6 +22,6 @@ public abstract class CheckpointBase implements Checkpoint,VasManager {
         this.vas = vas;
     }
 
-    public abstract void process(HttpRequest request, HttpResponse response, CheckPointContext context) throws Exception;
+    public abstract void process(HttpRequest request, HttpResponse response, CheckpointContext context) throws Exception;
     //</editor-fold>
 }
