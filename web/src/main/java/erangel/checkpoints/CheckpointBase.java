@@ -1,4 +1,4 @@
-package erangel.checkPoints;
+package erangel.checkpoints;
 
 import erangel.base.Checkpoint;
 import erangel.base.CheckPointContext;
