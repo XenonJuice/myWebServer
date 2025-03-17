@@ -1,13 +1,13 @@
 package erangel.checkPoints;
 
-import erangel.base.CheckPoint;
+import erangel.base.Checkpoint;
 import erangel.base.CheckPointContext;
 import erangel.base.Vas;
 import erangel.base.VasManager;
 import erangel.connector.http.HttpRequest;
 import erangel.connector.http.HttpResponse;
 
-public abstract class CheckPointBase implements CheckPoint,VasManager {
+public abstract class CheckpointBase implements Checkpoint,VasManager {
     //<editor-fold desc = "attr">
     protected Vas vas = null;
     //</editor-fold>
