@@ -1,9 +1,9 @@
-package erangel;
+package erangel.base;
 
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 
-import static erangel.Const.PunctuationMarks.CRLF;
+import static erangel.base.Const.PunctuationMarks.CRLF;
 
 public final class Const {
     /**
@@ -125,7 +125,7 @@ public final class Const {
         public static final String CLOSE = "close";
         public static final String SESSION_ID = "JSESSIONID";
         public static final String AUTHORIZATION = "Authorization";
-        public static final String HOST = "erangel.Host";
+        public static final String HOST = "erangel.base.Host";
         public static final String CONTENT_TYPE = "Content-Type";
         public static final String CONTENT_LENGTH = "Content-Length";
         public static final String ACCEPT_LANGUAGE = "Content-Language";

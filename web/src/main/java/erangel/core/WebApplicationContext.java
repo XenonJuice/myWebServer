@@ -1,8 +1,8 @@
 package erangel.core;
 
-import erangel.Const;
-import erangel.Context;
-import erangel.Host;
+import erangel.base.Const;
+import erangel.base.Context;
+import erangel.base.Host;
 import erangel.log.BaseLogger;
 import erangel.resource.ResourceManager;
 import org.slf4j.Logger;
@@ -18,8 +18,8 @@ import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static erangel.Const.commonCharacters.DOT;
-import static erangel.Const.commonCharacters.SOLIDUS;
+import static erangel.base.Const.commonCharacters.DOT;
+import static erangel.base.Const.commonCharacters.SOLIDUS;
 
 /**
  * 表示一个web程序的上下文环境

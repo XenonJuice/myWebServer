@@ -1,4 +1,4 @@
-package erangel;
+package erangel.base;
 
 import java.beans.PropertyChangeListener;
 

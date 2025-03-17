@@ -1,10 +1,7 @@
-package erangel;
+package erangel.base;
 
 import erangel.connector.http.HttpRequest;
 import erangel.connector.http.HttpResponse;
-
-import javax.naming.directory.DirContext;
-import java.beans.PropertyChangeListener;
 
 public interface Vas {
     /**

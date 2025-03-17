@@ -1,7 +1,7 @@
 package erangel.connector.http;
 
-import erangel.Const.Header;
-import erangel.Const.PunctuationMarks;
+import erangel.base.Const.Header;
+import erangel.base.Const.PunctuationMarks;
 import erangel.log.BaseLogger;
 
 import javax.servlet.ServletOutputStream;

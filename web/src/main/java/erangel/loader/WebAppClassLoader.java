@@ -1,9 +1,9 @@
 package erangel.loader;
 
 
-import erangel.Const;
-import erangel.Lifecycle;
-import erangel.LifecycleListener;
+import erangel.base.Const;
+import erangel.base.Lifecycle;
+import erangel.base.LifecycleListener;
 import erangel.log.BaseLogger;
 import erangel.resource.LocalResource;
 import erangel.resource.ResourceManager;
@@ -18,8 +18,8 @@ import java.security.CodeSource;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static erangel.Const.commonCharacters.SOLIDUS;
-import static erangel.Const.webApp.DOTCLASS;
+import static erangel.base.Const.commonCharacters.SOLIDUS;
+import static erangel.base.Const.webApp.DOTCLASS;
 
 public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
     //<editor-fold desc = "attr">

@@ -1,6 +1,6 @@
 package erangel.resource;
 
-import erangel.*;
+import erangel.base.*;
 import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;
 import org.slf4j.Logger;
@@ -15,8 +15,8 @@ import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import static erangel.Const.commonCharacters.SOLIDUS;
-import static erangel.Const.webApp.*;
+import static erangel.base.Const.commonCharacters.SOLIDUS;
+import static erangel.base.Const.webApp.*;
 
 public class ResourceManager implements Lifecycle, Runnable {
     //<editor-fold desc = "attr">

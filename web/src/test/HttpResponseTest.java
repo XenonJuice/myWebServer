@@ -1,4 +1,4 @@
-import erangel.Const;
+import erangel.base.Const;
 import erangel.connector.http.HttpRequest;
 import erangel.connector.http.HttpResponse;
 import org.junit.jupiter.api.BeforeEach;
