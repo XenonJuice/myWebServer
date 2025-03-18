@@ -35,7 +35,7 @@ public interface Channel {
      * @return 一个 {@code Checkpoint} 对象数组，表示所有检查点。
      * 如果没有可用的检查点，则返回一个空数组。
      */
-    Checkpoint[] getCheckpoint();
+    Checkpoint[] getCheckpoints();
 
     /**
      * 从通道中移除指定的检查点。
