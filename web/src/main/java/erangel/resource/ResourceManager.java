@@ -354,12 +354,12 @@ public class ResourceManager implements Lifecycle, Runnable {
     //<editor-fold desc = "生命周期">
     @Override
     public void removeLifecycleListener(LifecycleListener listener) {
-
+        lifecycleHelper.removeLifecycleListener(listener);
     }
 
     @Override
     public void addLifecycleListener(LifecycleListener listener) {
-
+        lifecycleHelper.addLifecycleListener(listener);
     }
 
     @Override
