@@ -1,5 +1,6 @@
 package erangel.base;
 
+import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import javax.servlet.UnavailableException;
 
@@ -28,9 +29,10 @@ public interface Endpoint extends Vas {
      * 此过程可能涉及初始化 servlet 处理传入请求所需的必要组件。
      * 此操作应确保满足任何分配依赖项。
      *
+     * @return
      * @throws ServletException 如果在资源分配过程中发生错误。
      */
-    void salloc() throws ServletException;
+    Servlet salloc() throws ServletException;
 
     /**
      * 释放与 servlet 关联的资源或执行清理任务。
@@ -40,6 +42,13 @@ public interface Endpoint extends Vas {
      * @throws ServletException 如果在释放资源时发生错误。
      */
     void sfree() throws ServletException;
+
+    /**
+     * 设置与此 {@code Endpoint} 关联的 servlet 的类名。
+     *
+     * @param servletClass 要设置的 servlet 的完全限定类名
+     */
+    void setServletClass(String servletClass);
 
     /**
      * 根据提供的参数名称查找并检索初始化参数的值。
@@ -73,7 +82,7 @@ public interface Endpoint extends Vas {
      * @return {@code true} 如果不可用，
      * {@code false} 如果可用。
      */
-    boolean isUnavaliable();
+    boolean isUnavailable();
 
     /**
      * 该方法将提供的 {@code UnavailableException} 设置为状态，
@@ -81,5 +90,5 @@ public interface Endpoint extends Vas {
      *
      * @param unavailable 存放关于服务不可用原因的 {@code UnavailableException} 对象
      **/
-    void unavaliable(UnavailableException unavailable);
+    void unavailable(UnavailableException unavailable);
 }
