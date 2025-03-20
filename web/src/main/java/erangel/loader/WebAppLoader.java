@@ -89,17 +89,12 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 
     @Override
     public void setVas(Vas vas) {
-        // 如果存在旧容器，则解绑
-        if (this.vas != null) {
-            this.vas.removePropertyChangeListener(this);
-        }
         Vas oldVas = this.vas;
         this.vas = vas;
         propHelper.firePropertyChange("vas", oldVas, this.vas);
         // 绑定新的容器
         if (this.vas != null) {
             setReloadable(true);
-            this.vas.addPropertyChangeListener(this);
         }
     }
 
@@ -116,7 +111,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
         propHelper.firePropertyChange("Context", oldContext, this.context);
         if (this.context != null) {
             setReloadable(this.context.getReloadable());
-            this.context.addPropertyChangeListener(this);
         }
     }
 
@@ -169,6 +163,18 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
     //</editor-fold>
     //<editor-fold desc = "其他方法">
 
+    @Override
+    public String toString() {
+        return "WebAppLoader{" +
+                "loadClass='" + loadClass + '\'' +
+                ", delegate=" + delegate +
+                ", reloadable=" + reloadable +
+                ", parentClassLoader=" + parentClassLoader +
+                ", webAppClassLoader=" + webAppClassLoader +
+                ", thread=" + thread +
+                ", threadName='" + threadName + '\'' +
+                '}';
+    }
     /**
      * 创建并返回一个用于加载webapp的类加载器
      *
