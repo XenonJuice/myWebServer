@@ -376,12 +376,9 @@ public class WebApplicationContext implements ServletContext {
                 continue;
             }
             try {
-                context.fireContainerEvent("beforeContextAttributeRemoved", listener);
                 listener.attributeRemoved(event);
-                context.fireContainerEvent("afterContextAttributeRemoved", listener);
             } catch (Throwable t) {
                 return;
-                context.fireContainerEvent("afterContextAttributeRemoved", listener);
             }
         }
     }
