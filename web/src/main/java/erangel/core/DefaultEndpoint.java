@@ -2,6 +2,7 @@ package erangel.core;
 
 import erangel.base.Context;
 import erangel.base.Endpoint;
+import erangel.base.LifecycleException;
 import erangel.base.Loader;
 import erangel.loader.WebAppClassLoader;
 import erangel.log.BaseLogger;
@@ -194,6 +195,7 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
                 }
             }
         }
+        // 不是新生成的servlet实例，当前活跃访问+1
         if (!isNew) countUp();
         return sInstance;
     }
@@ -292,8 +294,19 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
     }
 
     //</editor-fold>
+    //<editor-fold desc = "生命周期">
+    @Override
+    public  void start() throws LifecycleException {
+        super.start();
+    }
+    @Override
+    public  void stop() throws LifecycleException {
+        super.stop();
+    }
+
+    //</editor-fold>
     //<editor-fold desc = "内部类">
-    public final class InnerServletConfig implements ServletConfig {
+    public static final class InnerServletConfig implements ServletConfig {
         private ServletConfig config = null;
 
         public InnerServletConfig(DefaultEndpoint endpoint) {
