@@ -67,4 +67,13 @@ public interface Context extends Vas {
      * @return 表示上下文显示名称的字符串。
      */
     String getDisplayName();
+
+    /**
+     * 查找给定的 servlet 名称或模式的 servlet 映射。
+     *
+     * @param s 要搜索映射的 servlet 名称或 URL 模式。
+     * @return 与给定 servlet 名称或模式关联的 servlet 映射字符串，
+     * 如果未找到映射，则返回 null。
+     */
+    String findServletMapping(String s);
 }
