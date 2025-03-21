@@ -119,6 +119,7 @@ public final class Const {
         public static final char COLON = ':';
         public static final char SEMICOLON = ';';
         public static final char COMMA = ',';
+        public static final char CHAR_SOLIDUS= '/';
     }
 
     public static class Header {
