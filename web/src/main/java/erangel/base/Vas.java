@@ -44,7 +44,7 @@ public interface Vas {
      */
     void removeChild(Vas child);
 
-    void invoke(HttpRequest req, HttpResponse res);
+    void process(HttpRequest req, HttpResponse res) throws Exception;
 
     /**
      * 将传入的HTTP请求映射到相应的容器或资源。
@@ -90,4 +90,7 @@ public interface Vas {
      */
     void setParentClassLoader(ClassLoader classLoader);
 
+
+    Loader getLoader();
+    void setLoader(Loader loader);
 }
