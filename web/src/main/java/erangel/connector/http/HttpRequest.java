@@ -1,5 +1,6 @@
 package erangel.connector.http;
 
+import erangel.base.Endpoint;
 import erangel.log.BaseLogger;
 
 import javax.servlet.*;
@@ -67,6 +68,13 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private ArrayList<Cookie> cookies = new ArrayList<>();
     // 客户端在请求中携带的SessionID
     private String requestedSessionId = null;
+    // /LLJ/LLJ-home/login 则为/LLJ-home/login
+    private String servletPath = null;
+    // 在前缀匹配模式下则为login
+    private String pathInfo = null;
+    // 绑定的servlet端点
+    private Endpoint endpoint = null;
+    private String contextPath;
 
     //</editor-fold>
     //<editor-fold desc="getter & setter">
@@ -94,12 +102,12 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         this.socket = socket;
     }
 
-    public void setStream(InputStream inputStream) {
-        this.clientInputStream = inputStream;
-    }
-
     public InputStream getStream() {
         return clientInputStream;
+    }
+
+    public void setStream(InputStream inputStream) {
+        this.clientInputStream = inputStream;
     }
 
     @Override
@@ -182,6 +190,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         return null;
     }
 
+    public void setPathInfo(String pathInfo) {
+        this.pathInfo = pathInfo;
+    }
+
     @Override
     public String getPathTranslated() {
         // 简单实现，根据需求调整
@@ -190,8 +202,11 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public String getContextPath() {
-        // 简单实现，根据需求调整
-        return "";
+        return this.contextPath;
+    }
+
+    public void setContextPath(String contextPath) {
+        this.contextPath = contextPath;
     }
 
     @Override
@@ -249,8 +264,11 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public String getServletPath() {
-        // 简单实现，根据需求调整
-        return "";
+        return servletPath != null ? servletPath : "";
+    }
+
+    public void setServletPath(String servletPath) {
+        this.servletPath = servletPath;
     }
 
     @Override
@@ -511,7 +529,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         this.locale = locale;
     }
 
-
     @Override
     public Enumeration<Locale> getLocales() {
         String acceptLanguage = getHeader("Accept-Language");
@@ -615,7 +632,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public DispatcherType getDispatcherType() {
-        // 简单实现，根据需求调整
         return DispatcherType.REQUEST;
     }
 
@@ -626,6 +642,9 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     public void setUri(String uri) {
         this.uri = uri;
     }
+    //</editor-fold>
+
+    //<editor-fold desc="其他方法">
 
     public HttpResponse getResponse() {
         return response;
@@ -634,9 +653,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     public void setResponse(HttpResponse response) {
         this.response = response;
     }
-    //</editor-fold>
-
-    //<editor-fold desc="其他方法">
 
     /**
      * 回收对象，清理资源
@@ -665,6 +681,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         } else {
             logger.warn("finishRequest失败，socket的输出流为null");
         }
+    }
+
+    public void setEndpoint(Endpoint endpoint) {
+        this.endpoint = endpoint;
     }
     //</editor-fold>
 }
