@@ -19,7 +19,7 @@ public interface Context extends Vas {
     /**
      * 设置资源的根目录
      */
-    String setRealPath(String path);
+    void setBasePath(String basePath);
 
     /**
      * 取得是否可重载标志位
@@ -40,6 +40,14 @@ public interface Context extends Vas {
     ResourceManager getResources();
 
     /**
+     * 设置与此上下文相关联的资源对象。
+     *
+     * @param resources 关联的资源
+     */
+    void setResources(ResourceManager resources);
+
+
+    /**
      * 重载
      */
     void reload();
@@ -54,12 +62,31 @@ public interface Context extends Vas {
     String findMimeMapping(String ext);
 
     /**
-     * 检索与上下文关联的应用程序事件监听器数组。
+     * 获取与当前上下文关联的应用程序监听器数组。
      *
-     * @return 一个表示应用程序事件监听器的对象数组。
-     * 如果没有关联的监听器，返回一个空数组。
+     * @return 一个对象数组，代表应用程序监听器。
+     * 如果没有关联的监听器，则返回一个空数组。
      */
-    Object[] getApplicationEventListeners();
+    Object[] getApplicationListeners();
+
+    /**
+     * 为当前上下文设置应用程序事件监听器。
+     *
+     * @param listeners 一个对象数组，表示要与上下文关联的应用程序事件监听器。
+     */
+    void setApplicationListeners(Object[] listeners);
+
+    /**
+     * 将应用程序事件监听器添加到当前上下文。
+     *
+     * @param listener 要添加的应用程序监听器。
+     */
+    void addApplicationListener(Object listener);
+
+    /**
+     * 返回为该应用程序配置的监听器类名集合。
+     */
+    String[] findApplicationListeners();
 
     /**
      * 获取与此上下文相关联的显示名称。
@@ -76,4 +103,32 @@ public interface Context extends Vas {
      * 如果未找到映射，则返回 null。
      */
     String findServletMapping(String s);
+
+    /**
+     * 确定当前上下文是否可用。
+     *
+     * @return 如果上下文可用则返回 true，否则返回 false。
+     */
+    boolean getAvailable();
+
+    /**
+     * 设置上下文的可用性状态。
+     *
+     * @param available 一个布尔值，指示上下文是否应标记为可用或不可用。
+     */
+    void setAvailable(boolean available);
+
+    /**
+     * 返回此Web应用程序的上下文路径。
+     */
+    String getPath();
+
+    /**
+     * 设置此 web 应用程序的上下文路径。
+     *
+     * @param path 新的上下文路径
+     */
+    void setPath(String path);
+
+
 }
