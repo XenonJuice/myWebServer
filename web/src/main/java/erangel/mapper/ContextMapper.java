@@ -27,7 +27,7 @@ public class ContextMapper implements Mapper {
 
     @Override
     public Vas map(HttpRequest request, boolean writeRequest) {
-        // 获取上下文路径，例如 htt：//local：1111/LLJ/LLJ—HOME 则上下文路径为/LLJ
+        // 获取上下文路径，例如 http：//local：1111/LLJ/LLJ—HOME 则上下文路径为/LLJ
         String contextPath = request.getContextPath();
         // 获取请求URI 按照上面的例子则为 /LLJ/LLJ-HOME
         String requestURI = request.getRequestURI();
@@ -89,7 +89,7 @@ public class ContextMapper implements Mapper {
             if (name != null) {
                 return (Endpoint) context.findChild(name);
             }
-            int slash = servletPath.lastIndexOf('/');
+            int slash = servletPath.lastIndexOf(CHAR_SOLIDUS);
             if (slash < 0) break;
             servletPath = servletPath.substring(0, slash);
         }
@@ -139,14 +139,6 @@ public class ContextMapper implements Mapper {
         }
         return null;
     }
+    //</editor-fold>
 
-    //</editor-fold>
-    //<editor-fold desc = "XXXXXXX">
-    //</editor-fold>
-    //<editor-fold desc = "XXXXXXX">
-    //</editor-fold>
-    //<editor-fold desc = "XXXXXXX">
-    //</editor-fold>
-    //<editor-fold desc = "XXXXXXX">
-    //</editor-fold>
 }
