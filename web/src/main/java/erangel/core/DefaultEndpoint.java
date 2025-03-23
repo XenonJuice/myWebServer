@@ -301,6 +301,11 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
     }
     @Override
     public  void stop() throws LifecycleException {
+        try{
+            unload();
+        } catch (ServletException e) {
+            logger.error("endpoint : {} unload failed", getName(), e);
+        }
         super.stop();
     }
 
