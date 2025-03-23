@@ -6,6 +6,7 @@ import erangel.base.LifecycleListener;
 import erangel.base.Const.*;
 import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;
+import org.slf4j.Logger;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
@@ -101,15 +102,12 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private boolean started = false;
     // 生命周期助手
     protected LifecycleHelper helper = new LifecycleHelper(this);
-    // FIXME get logger from Vas
-    // private  Logger logger = null;
+    private final Logger logger = BaseLogger.getLogger(this.getClass());
 
     //</editor-fold>
     //<editor-fold desc = "constructor">
     public HttpProcessor(HttpConnector connector, int id) {
         this.connector = connector;
-        // FIXME
-        // this.logger=connector.getLogger();
         this.proxyName = connector.getProxyName();
         this.proxyPort = connector.getProxyPort();
         this.serverPort = connector.getPort();
