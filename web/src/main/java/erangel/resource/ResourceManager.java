@@ -38,7 +38,9 @@ public class ResourceManager implements Lifecycle, Runnable {
     private Context context = null;
     // 组件启动标志位
     private boolean isStarted = false;
-
+    public ResourceManager(Context context) {
+        this.context = context;
+    }
     //</editor-fold>
     //<editor-fold desc = "getter & setter">
     public Context getContext() {
