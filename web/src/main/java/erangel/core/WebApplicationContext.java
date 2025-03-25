@@ -368,7 +368,7 @@ public class WebApplicationContext implements ServletContext {
         if (value == null) return;
         value = attr.remove(name);
         if (value == null) return;
-        Object[] listeners = context.getApplicationEventListeners();
+        Object[] listeners = context.getApplicationListeners();
         if (listeners == null || listeners.length == 0) return;
         ServletContextAttributeEvent event = new ServletContextAttributeEvent(context.getServletContext(), name, value);
         for (Object l : listeners) {
