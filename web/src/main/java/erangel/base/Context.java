@@ -81,7 +81,7 @@ public interface Context extends Vas {
      *
      * @param listener 要添加的应用程序监听器。
      */
-    void addApplicationListener(Object listener);
+    void addApplicationListener(String listener);
 
     /**
      * 返回为该应用程序配置的监听器类名集合。
@@ -103,7 +103,7 @@ public interface Context extends Vas {
      * 如果未找到映射，则返回 null。
      */
     String findServletMapping(String s);
-
+    String[] findServletMappings();
     /**
      * 确定当前上下文是否可用。
      *
@@ -129,6 +129,5 @@ public interface Context extends Vas {
      * @param path 新的上下文路径
      */
     void setPath(String path);
-
 
 }
