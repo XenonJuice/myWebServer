@@ -26,21 +26,25 @@ public class ResourceManager implements Lifecycle, Runnable {
     private final Map<String, List<LocalResource>> classLoaderResourceMap = new HashMap<>();
     private final Map<String, List<LocalResource>> configMap = new HashMap<>();
     private final Map<String, List<LocalResource>> stasticResMap = new HashMap<>();
-    private Map<String, List<LocalResource>> allResources = new HashMap<>();
+    private final Object lock = new Object();
     // 生命周期助手
     protected LifecycleHelper lifecycleHelper = new LifecycleHelper(this);
+    private Map<String, List<LocalResource>> allResources = new HashMap<>();
     // 根目录
     private String basePath = null;
     // 线程
     private Thread thread = null;
     private String threadName = null;
+    private volatile boolean isRunning = true;
     // 绑定的Context
     private Context context = null;
     // 组件启动标志位
     private boolean isStarted = false;
+
     public ResourceManager(Context context) {
         this.context = context;
     }
+
     //</editor-fold>
     //<editor-fold desc = "getter & setter">
     public Context getContext() {
@@ -119,6 +123,7 @@ public class ResourceManager implements Lifecycle, Runnable {
             throw new RuntimeException(e);
         }
     }
+
     /**
      * 获取位于指定目录路径下的一组资源路径。
      *
@@ -152,6 +157,7 @@ public class ResourceManager implements Lifecycle, Runnable {
         }
         return resourcePaths;
     }
+
     // combine
     private void combine() {
         allResources.clear();
@@ -272,7 +278,7 @@ public class ResourceManager implements Lifecycle, Runnable {
         Path webInfRoot = Path.of(innerBase);
         Path classesDir = webInfRoot.resolve(CLASSES_ONLY);
         Path libDir = webInfRoot.resolve(LIB_ONLY);
-        Path staticDir =webInfRoot.resolve(RESOURCES_ONLY);
+        Path staticDir = webInfRoot.resolve(RESOURCES_ONLY);
         // 扫描WEB-INF/classes下的所有 class 文件
         scanFileSystem(classesDir);
         // 扫描 WEB-INF/lib 下的所有 jar 文件
@@ -295,6 +301,7 @@ public class ResourceManager implements Lifecycle, Runnable {
 
 
     //<editor-fold desc = "扫描WEB-INF/classes">
+
     /**
      * 获取WEB-INF/classes目录下所有文件，并以LocalResource数组形式返回
      *
@@ -324,6 +331,7 @@ public class ResourceManager implements Lifecycle, Runnable {
     }
     //</editor-fold>
     //<editor-fold desc = "扫描WEB-INF/lib">
+
     /**
      * 获取WEB-INF/lib目录下所有JAR文件，并以LocalResource数组形式返回
      *
@@ -352,6 +360,7 @@ public class ResourceManager implements Lifecycle, Runnable {
             return new LocalResource[0];
         }
     }
+
     //</editor-fold>
     //<editor-fold desc = "生命周期">
     @Override
@@ -400,21 +409,42 @@ public class ResourceManager implements Lifecycle, Runnable {
     private void threadStop() {
         if (thread == null) return;
         logger.debug("ResourceManager is stopping");
+        isRunning = false;
+        synchronized (lock) {
+            lock.notifyAll();
+        }
         thread = null;
     }
 
     @Override
     public void run() {
-        classLoaderResourceMap.clear();
-        if (context == null) throw new IllegalStateException("ResourceManager ：context is null！");
-        basePath = context.getBasePath();
-        // /Users/lilinjian/workspace/webapp/WEB-INF/
-        //    ├── classes/          // 存放解压后的 .class 文件
-        //    │      └── com/example/MyClass.class
-        //    └── lib/              // 存放 jar 包
-        //           └── llj.jar    // jar 包内部可能包含 com/example/LLJClass.class 等
-        logger.debug("basePath ：{}", basePath);
-        createResourceMapping();
+        while (isRunning) {
+            classLoaderResourceMap.clear();
+            if (context == null) throw new IllegalStateException("ResourceManager ：context is null！");
+            basePath = context.getBasePath();
+            // /Users/lilinjian/workspace/webapp/WEB-INF/
+            //    ├── classes/          // 存放解压后的 .class 文件
+            //    │      └── com/example/MyClass.class
+            //    └── lib/              // 存放 jar 包
+            //           └── llj.jar    // jar 包内部可能包含 com/example/LLJClass.class 等
+            logger.debug("basePath ：{}", basePath);
+            createResourceMapping();
+            synchronized (lock) {
+                try {
+                    lock.wait();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    isRunning = false;
+                }
+            }
+        }
+
+    }
+
+    public void reload() {
+        synchronized (lock) {
+            lock.notifyAll();
+        }
     }
 
 
