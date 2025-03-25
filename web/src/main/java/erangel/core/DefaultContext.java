@@ -9,6 +9,7 @@ import erangel.resource.ResourceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -32,6 +33,10 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
     private HashMap<String, String> filterMappings = new HashMap<>();
     private HashMap<String, FilterDef> filterDefs = new HashMap<>();
     private HashMap<String, ApplicationFilterConfig> filterConfigs = new HashMap<>();
+    // servlet map
+    private HashMap<String, String> servletMappings = new HashMap<>();
+    // mime map
+    private  HashMap<String, String> mimeMappings = new HashMap<>();
     // 展示名
     private String displayName = "";
     // 当前上下文是否可使用flag
@@ -88,6 +93,9 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
 
     @Override
     public ServletContext getServletContext() {
+        if (applicationContext == null){
+            applicationContext = new WebApplicationContext(getBasePath(), this);
+        }
         return null;
     }
 
@@ -103,27 +111,46 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
 
     @Override
     public void reload() {
-
+        if (!started) throw new IllegalStateException("context : " + getName() + " is not started");
+        setPaused(true);
+        try {
+            stop();
+            start();
+        } catch (LifecycleException e) {
+            logger.error("reload context : {} failed , continue running the old context", getName(), e);
+        } finally {
+            setPaused(false);
+        }
     }
 
     @Override
     public String findMimeMapping(String ext) {
-        return "";
+       synchronized (mimeMappings) {
+           return mimeMappings.get(ext);
+       }
     }
 
     @Override
     public Object[] getApplicationListeners() {
-        return new Object[0];
+        return applicationListenersObjects;
     }
 
     @Override
     public void setApplicationListeners(Object[] listeners) {
-
+        this.applicationListenersObjects = listeners;
     }
 
     @Override
-    public void addApplicationListener(Object listener) {
-
+    public void addApplicationListener(String listener) {
+        synchronized (applicationListenersObjects) {
+            String [] newListeners = new String[applicationListenersObjects.length + 1];
+            for (int i = 0; i < applicationListenersObjects.length; i++) {
+                if (listener.equals(applicationListenersObjects[i])) return;
+                newListeners [i] = applicationListeners[i];
+            }
+            newListeners [newListeners.length - 1] = listener;
+            applicationListeners = newListeners;
+        }
     }
 
     @Override
@@ -133,17 +160,27 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
 
     @Override
     public String getDisplayName() {
-        return "";
+        return displayName;
     }
 
     @Override
     public String findServletMapping(String s) {
-        return "";
+        synchronized (servletMappings) {
+            return servletMappings.get(s);
+        }
+
+    }
+
+    @Override
+    public String[] findServletMappings() {
+        synchronized (servletMappings) {
+            return servletMappings.keySet().toArray(new String[0]);
+        }
     }
 
     @Override
     public boolean getAvailable() {
-        return false;
+        return available;
     }
 
     @Override
@@ -255,11 +292,11 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
             setAvailable(true);
         } else {
             logger.error("context : {} start failed", getName());
-           try{
-               stop();
-           } catch (Exception e) {
-               logger.error("context : {} start failed, and try to stop but failed", getName(), e);
-           }
+            try {
+                stop();
+            } catch (Exception e) {
+                logger.error("context : {} start failed, and try to stop but failed", getName(), e);
+            }
             setAvailable(false);
         }
         lifecycleHelper.fireLifecycleEvent(AFTER_START_EVENT, null);
@@ -270,6 +307,36 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
         if (!started) throw new LifecycleException("context : " + getName() + " is not started");
         lifecycleHelper.fireLifecycleEvent(BEFORE_STOP_EVENT, null);
         logger.info("context : {} stopping...", getName());
+        setAvailable(false);
+        // 将类加载器切换至自定义类加载器
+        ClassLoader oldCL = bindThread();
+        stopFilter();
+        lifecycleHelper.fireLifecycleEvent(STOP_EVENT, null);
+        started = false;
+        // 关闭各种组件
+        try {
+            if (channel instanceof Lifecycle) ((Lifecycle) channel).stop();
+            Vas[] children = findChildren();
+            for (Vas child : children) {
+                if (child instanceof Lifecycle)
+                    ((Lifecycle) child).stop();
+            }
+            Mapper[] mappers = findMappers();
+            for (Mapper mapper : mappers) {
+                if (mapper instanceof Lifecycle)
+                    ((Lifecycle) mapper).stop();
+            }
+            stopListener();
+            if (getResources() != null) getResources().stop();
+            if (getLoader() instanceof Lifecycle) ((Lifecycle) getLoader()).stop();
+        } finally {
+            // 还原至调用此方法的线程的类加载器
+            unbindThread(oldCL);
+        }
+        applicationContext = null;
+        logger.info("context : {} stopped succeed", getName());
+        setAvailable(false);
+        lifecycleHelper.fireLifecycleEvent(AFTER_STOP_EVENT, null);
     }
 
     //</editor-fold>
@@ -302,7 +369,9 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
                 for (Object obj : applicationListenersObjects) {
                     if (obj == null) continue;
                     if (!(obj instanceof ServletContextListener listener)) continue;
+                    logger.info("context : {} trying start listener : {} ",getName(),obj);
                     listener.contextInitialized(e);
+                    logger.info("context : {} start listener : {} succeed",getName(),obj);
                 }
             } catch (Exception exception) {
                 logger.error("context : {} start listener : {} failed",
@@ -313,25 +382,25 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
         return noProblem;
     }
 
-    private boolean stopListener() {
+    private void stopListener() {
         logger.info("context : {} stop listeners...", getName());
-        boolean noProblem = true;
         Object[] listeners = getApplicationListeners();
-        if (listeners == null) return true;
+        if (listeners == null) return;
         ServletContext servletContext = getServletContext();
         ServletContextEvent e = new ServletContextEvent(servletContext);
         try {
             for (Object obj : listeners) {
                 if (obj == null) continue;
                 if (!(obj instanceof ServletContextListener listener)) continue;
+                logger.info("context : {} trying stop listener : {} ",getName(),obj);
                 listener.contextDestroyed(e);
+                logger.info("context : {} stop listener : {} succeed",getName(),obj);
             }
         } catch (Exception exception) {
             logger.error("context : {} stop listener failed", getName(), exception);
-            noProblem = false;
         }
         setApplicationListeners(null);
-        return noProblem;
+        logger.info("context : {} stop listeners succeed", getName());
     }
 
     private boolean startFilter() {
@@ -342,7 +411,8 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
                 ApplicationFilterConfig filterConfig = null;
                 try {
                     filterConfig = new ApplicationFilterConfig
-                            (this, (FilterDef) filterDefs.get(o));
+                            (this, filterDefs.get(o));
+                    logger.info("context : {} start filter : {} succeed",getName(),o);
                     filterConfigs.put(o, filterConfig);
                 } catch (Throwable t) {
                     logger.error("context : {} start filter : {} failed", getName(), o, t);
@@ -353,16 +423,18 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
         return noProblem;
     }
 
-    private boolean stopFilter() {
+    private void stopFilter() {
         logger.info("context : {} stop filters...", getName());
         synchronized (filterConfigs) {
             for (String o : filterConfigs.keySet()) {
                 ApplicationFilterConfig filterConfig = filterConfigs.get(o);
+                logger.info("context : {} trying stop filter : {} ",getName(),o);
                 filterConfig.destroy();
+                logger.info("context : {} stop filter : {} succeed",getName(),o);
             }
             filterConfigs.clear();
+            logger.info("context : {} stop filters succeed", getName());
         }
-        return true;
     }
     //</editor-fold>
 }
