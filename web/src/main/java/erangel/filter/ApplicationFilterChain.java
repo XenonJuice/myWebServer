@@ -11,6 +11,7 @@ public class ApplicationFilterChain implements FilterChain {
     private Servlet servlet = null;
     private Iterator<ApplicationFilterConfig> filterIterator = null;
     private List<ApplicationFilterConfig> filters = new ArrayList<>();
+
     //</editor-fold>
     //<editor-fold desc = "接口方法实现">
     @Override
@@ -19,23 +20,25 @@ public class ApplicationFilterChain implements FilterChain {
             filterIterator = filters.iterator();
         }
         if (filterIterator.hasNext()) {
-            ApplicationFilterConfig filterConfig = (ApplicationFilterConfig) filterIterator.next();
+            ApplicationFilterConfig filterConfig = filterIterator.next();
             Filter filter = filterConfig.getFilter();
             filter.doFilter(request, response, this);
         } else {
             servlet.service(request, response);
         }
     }
+
     //</editor-fold>
     //<editor-fold desc = "其他方法">
     public void addFilter(ApplicationFilterConfig filterConfig) {
         this.filters.add(filterConfig);
     }
+
     public void setServlet(Servlet servlet) {
         this.servlet = servlet;
     }
 
-    public void destroy(){
+    public void destroy() {
         this.filters.clear();
         this.servlet = null;
         this.filterIterator = null;
