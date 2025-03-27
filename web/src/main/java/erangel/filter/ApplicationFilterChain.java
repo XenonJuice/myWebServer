@@ -10,7 +10,7 @@ public class ApplicationFilterChain implements FilterChain {
     //<editor-fold desc = "attr">
     private Servlet servlet = null;
     private Iterator<ApplicationFilterConfig> filterIterator = null;
-    private List<ApplicationFilterConfig> filters = new ArrayList<>();
+    private final List<ApplicationFilterConfig> filters = new ArrayList<>();
 
     //</editor-fold>
     //<editor-fold desc = "接口方法实现">
@@ -44,4 +44,5 @@ public class ApplicationFilterChain implements FilterChain {
         this.filterIterator = null;
     }
     //</editor-fold>
+
 }

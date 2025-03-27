@@ -14,7 +14,7 @@ import java.util.Map;
 // 过滤器配置
 public class ApplicationFilterConfig implements FilterConfig {
     private static final Logger logger = LoggerFactory.getLogger(ApplicationFilterConfig.class);
-    private DefaultContext context;
+    private final DefaultContext context;
     private javax.servlet.Filter filter = null;
     private FilterDef filterDef = null;
 
