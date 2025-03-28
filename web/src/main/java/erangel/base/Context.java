@@ -103,7 +103,9 @@ public interface Context extends Vas {
      * 如果未找到映射，则返回 null。
      */
     String findServletMapping(String s);
+
     String[] findServletMappings();
+
     /**
      * 确定当前上下文是否可用。
      *
@@ -130,4 +132,11 @@ public interface Context extends Vas {
      */
     void setPath(String path);
 
+    /**
+     * 创建并返回一个与此上下文关联的新{@code Endpoint}实例。
+     * {@code Endpoint}用于管理作为Web应用程序上下文一部分的servlet生命周期和配置。
+     *
+     * @return 一个用于管理servlet生命周期和配置的新{@code Endpoint}实例
+     */
+    Endpoint createEndpoint();
 }
