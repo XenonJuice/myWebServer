@@ -21,14 +21,14 @@ import java.util.HashMap;
  * @author LILINJIAN
  * @version 2025/3/23
  */
-public class DefaultContext extends VasBase implements Context, Lifecycle {
+public class DefaultContext extends VasBase implements Context{
     private static final Logger logger = LoggerFactory.getLogger(DefaultContext.class);
     //<editor-fold desc = "attr">
     private Channel channel = new DefaultChannel(this);
     private String basePath = "";
     // web.xml中配置的web程序的监听器
     private String[] applicationListeners = new String[0];
-    private Object applicationListenersObjects[] = new Object[0];
+    private Object[] applicationListenersObjects = new Object[0];
     // 过滤器
     private HashMap<String, String> filterMappings = new HashMap<>();
     private HashMap<String, FilterDef> filterDefs = new HashMap<>();
@@ -86,6 +86,10 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
         this.basePath = basePath;
     }
 
+    @Override
+    public Endpoint createEndpoint(){
+        return new DefaultEndpoint();
+    }
     @Override
     public boolean getReloadable() {
         return true;
@@ -226,6 +230,7 @@ public class DefaultContext extends VasBase implements Context, Lifecycle {
         if (started) throw new LifecycleException("context : " + getName() + " is already started");
         lifecycleHelper.fireLifecycleEvent(BEFORE_START_EVENT, null);
         logger.info("context : {} starting...", getName());
+        setConfigured(false);
         setAvailable(false);
         boolean noProblem = true;
         // 资源管理器设置
