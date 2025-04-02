@@ -107,6 +107,20 @@ public interface Context extends Vas {
     String[] findServletMappings();
 
     /**
+    * 将指定的URL模式与当前上下文中的一个servlet名称进行映射。
+     *
+     * @param urlPattern 要映射到servlet的URL。
+     * @param servletName 将处理与指定URL模式匹配的请求的servlet名称。
+     */
+    void addServletMapping(String urlPattern, String servletName);
+    /**
+    * 移除与指定的servlet名称或URL模式相关的servlet映射。
+     *
+     * @param urlPattern 要移除映射的servlet其URL
+     */
+    void removeServletMapping(String urlPattern);
+
+    /**
      * 确定当前上下文是否可用。
      *
      * @return 如果上下文可用则返回 true，否则返回 false。
