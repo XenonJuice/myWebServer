@@ -23,6 +23,7 @@ public final class Const {
     public static class webApp {
         public static final String DOTPROP = ".properties";
         public static final String WEB_INF = "/WEB-INF";
+        public static final String WEB_XML_PATH = "/WEB-INF/web.xml";
         public static final String DOTCLASS = ".class";
         public static final String DOTJAR = ".jar";
         public static final String DOTWAR = ".war";
