@@ -1,5 +1,7 @@
 package erangel.base;
 
+import erangel.filter.FilterDef;
+import erangel.filter.FilterMap;
 import erangel.resource.ResourceManager;
 
 import javax.servlet.ServletContext;
@@ -88,12 +90,27 @@ public interface Context extends Vas {
      */
     String[] findApplicationListeners();
 
+
+    /**
+     * 从当前上下文中移除一个webAPp监听器。
+     *
+     * @param listener 要移除的监听器的名称。
+     */
+    void removeApplicationListener(String listener);
+
     /**
      * 获取与此上下文相关联的显示名称。
      *
      * @return 表示上下文显示名称的字符串。
      */
     String getDisplayName();
+
+    /**
+     * 设置与此上下文相关联的显示名称。
+     *
+     * @param displayName 可读名称
+     */
+    void setDisplayName(String displayName);
 
     /**
      * 查找给定的 servlet 名称或模式的 servlet 映射。
@@ -107,18 +124,76 @@ public interface Context extends Vas {
     String[] findServletMappings();
 
     /**
-    * 将指定的URL模式与当前上下文中的一个servlet名称进行映射。
+     * 将指定的URL模式与当前上下文中的一个servlet名称进行映射。
      *
-     * @param urlPattern 要映射到servlet的URL。
+     * @param urlPattern  要映射到servlet的URL。
      * @param servletName 将处理与指定URL模式匹配的请求的servlet名称。
      */
     void addServletMapping(String urlPattern, String servletName);
+
     /**
-    * 移除与指定的servlet名称或URL模式相关的servlet映射。
+     * 移除与指定的servlet名称或URL模式相关的servlet映射。
      *
      * @param urlPattern 要移除映射的servlet其URL
      */
     void removeServletMapping(String urlPattern);
+
+    /**
+     * 搜索并检索与指定过滤器名称关联的 {@code FilterDef} 实例。
+     *
+     * @param filterName 要搜索的过滤器名称。这应该与过滤器配置中定义的名称相对应。
+     * @return 与提供的过滤器名称关联的 {@code FilterDef}，如果未找到这样的 {@code FilterDef}，则返回 {@code null}。
+     */
+    FilterDef findFilterDef(String filterName);
+
+    /**
+     * 检索与当前上下文关联的所有 {@code FilterDef} 实例。
+     * 每个 {@code FilterDef} 表示一个过滤器的定义，包括其名称、
+     * 类以及任何相关的初始化参数。
+     *
+     * @return 一个 {@code FilterDef} 对象数组，表示上下文中定义的所有过滤器。
+     * 如果没有定义过滤器，则返回一个空数组。
+     */
+    FilterDef[] findFilterDefs();
+
+    /**
+     * 添加过滤器映射到数组中
+     *
+     * @param filterMap 要添加到过滤器映射
+     */
+    void addFilterMap(FilterMap filterMap);
+
+    /**
+     * 返回与当前context关联的所有过滤器映射的集合
+     *
+     * @return 与当前context关联的所有过滤器映射的集合
+     */
+    FilterMap[] findFilterMaps();
+
+    /**
+     * 将一个 {@code FilterDef} 实例添加到当前上下文中。
+     *
+     * @param filterDef 要添加的 {@code FilterDef} 对象。它代表了过滤器的定义，包括其相关的类、名称和参数。
+     */
+    void addFilterDef(FilterDef filterDef);
+
+    /**
+     * 从上下文中移除指定的 {@code FilterDef} 实例。
+     * {@code FilterDef} 代表过滤器的定义，包括其名称、相关类和初始化参数。
+     *
+     * @param filterDef 要移除的 {@code FilterDef}。该参数应包含要从当前上下文中解除链接的过滤器配置。
+     */
+    void removeFilterDef(FilterDef filterDef);
+
+    /**
+     * 从当前上下文中移除给定的 {@code FilterMap}。
+     * {@code FilterMap} 表示过滤器与相关的 URL 模式或 Servlet 名称之间的映射。
+     *
+     * @param filterMap 要移除的 {@code FilterMap} 实例。
+     *                  它指定要移除的映射的过滤器名称、URL 模式
+     *                  和/或 Servlet 名称。
+     */
+    void removeFilterMap(FilterMap filterMap);
 
     /**
      * 确定当前上下文是否可用。
