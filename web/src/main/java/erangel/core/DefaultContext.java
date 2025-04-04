@@ -3,16 +3,18 @@ package erangel.core;
 import erangel.base.*;
 import erangel.filter.ApplicationFilterConfig;
 import erangel.filter.FilterDef;
+import erangel.filter.FilterMap;
 import erangel.loader.WebAppLoader;
 import erangel.mapper.ContextMapper;
 import erangel.resource.ResourceManager;
+import erangel.utils.Decoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.Servlet;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 
 /**
@@ -21,7 +23,7 @@ import java.util.HashMap;
  * @author LILINJIAN
  * @version 2025/3/23
  */
-public class DefaultContext extends VasBase implements Context{
+public class DefaultContext extends VasBase implements Context {
     private static final Logger logger = LoggerFactory.getLogger(DefaultContext.class);
     //<editor-fold desc = "attr">
     private Channel channel = new DefaultChannel(this);
@@ -29,14 +31,16 @@ public class DefaultContext extends VasBase implements Context{
     // web.xml中配置的web程序的监听器
     private String[] applicationListeners = new String[0];
     private Object[] applicationListenersObjects = new Object[0];
-    // 过滤器
-    private HashMap<String, String> filterMappings = new HashMap<>();
+    // 过滤器映射信息
+    private FilterMap filterMaps[] = new FilterMap[0];
+    // 过滤器定义，key为过滤器的名字
     private HashMap<String, FilterDef> filterDefs = new HashMap<>();
+    // 加载过后的过滤器集合，key为过滤器的名字
     private HashMap<String, ApplicationFilterConfig> filterConfigs = new HashMap<>();
     // servlet map
     private HashMap<String, String> servletMappings = new HashMap<>();
     // mime map
-    private  HashMap<String, String> mimeMappings = new HashMap<>();
+    private HashMap<String, String> mimeMappings = new HashMap<>();
     // 展示名
     private String displayName = "";
     // 当前上下文是否可使用flag
@@ -87,9 +91,10 @@ public class DefaultContext extends VasBase implements Context{
     }
 
     @Override
-    public Endpoint createEndpoint(){
+    public Endpoint createEndpoint() {
         return new DefaultEndpoint();
     }
+
     @Override
     public boolean getReloadable() {
         return true;
@@ -97,7 +102,7 @@ public class DefaultContext extends VasBase implements Context{
 
     @Override
     public ServletContext getServletContext() {
-        if (applicationContext == null){
+        if (applicationContext == null) {
             applicationContext = new WebApplicationContext(getBasePath(), this);
         }
         return null;
@@ -129,9 +134,9 @@ public class DefaultContext extends VasBase implements Context{
 
     @Override
     public String findMimeMapping(String ext) {
-       synchronized (mimeMappings) {
-           return mimeMappings.get(ext);
-       }
+        synchronized (mimeMappings) {
+            return mimeMappings.get(ext);
+        }
     }
 
     @Override
@@ -147,12 +152,12 @@ public class DefaultContext extends VasBase implements Context{
     @Override
     public void addApplicationListener(String listener) {
         synchronized (applicationListenersObjects) {
-            String [] newListeners = new String[applicationListenersObjects.length + 1];
+            String[] newListeners = new String[applicationListenersObjects.length + 1];
             for (int i = 0; i < applicationListenersObjects.length; i++) {
                 if (listener.equals(applicationListenersObjects[i])) return;
-                newListeners [i] = applicationListeners[i];
+                newListeners[i] = applicationListeners[i];
             }
-            newListeners [newListeners.length - 1] = listener;
+            newListeners[newListeners.length - 1] = listener;
             applicationListeners = newListeners;
         }
     }
@@ -163,8 +168,34 @@ public class DefaultContext extends VasBase implements Context{
     }
 
     @Override
+    public void removeApplicationListener(String listener) {
+        synchronized (applicationListeners) {
+            int listenerIndex = -1;
+            for (int i = 0; i < applicationListeners.length; i++) {
+                if (applicationListeners[i].equals(listener)) {
+                    listenerIndex = i;
+                    break;
+                }
+            }
+            if (listenerIndex < 0) {
+                return;
+            }
+            String[] updatedListeners = new String[applicationListeners.length - 1];
+            System.arraycopy(applicationListeners, 0, updatedListeners, 0, listenerIndex);
+            System.arraycopy(applicationListeners, listenerIndex + 1, updatedListeners, listenerIndex,
+                    applicationListeners.length - listenerIndex - 1);
+            applicationListeners = updatedListeners;
+        }
+    }
+
+    @Override
     public String getDisplayName() {
         return displayName;
+    }
+
+    @Override
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 
     @Override
@@ -179,6 +210,103 @@ public class DefaultContext extends VasBase implements Context{
     public String[] findServletMappings() {
         synchronized (servletMappings) {
             return servletMappings.keySet().toArray(new String[0]);
+        }
+    }
+
+    @Override
+    public void addServletMapping(String urlPattern, String servletName) {
+        if (servletName == null) throw new NullPointerException("servletName is null");
+        if (findChild(servletName) == null)
+            throw new IllegalArgumentException("servletName : " + servletName + " is not found");
+        urlPattern = Decoder.decode(urlPattern, StandardCharsets.UTF_8);
+        synchronized (servletMappings) {
+            servletMappings.put(urlPattern, servletName);
+        }
+    }
+
+    @Override
+    public void removeServletMapping(String urlPattern) {
+        synchronized (servletMappings) {
+            servletMappings.remove(urlPattern);
+        }
+    }
+
+    @Override
+    public void addFilterMap(FilterMap filterMap) {
+        String filterName = filterMap.getFilterName();
+        String servletName = filterMap.getServletName();
+        String urlPattern = filterMap.getUrlPattern();
+        if (findFilterDef(filterName) == null) {
+            throw new IllegalArgumentException("filterName : " + filterName + " is not found");
+        }
+        if (servletName == null && urlPattern == null) {
+            throw new IllegalArgumentException("filterMap : " + filterMap + " is invalid ：all blank");
+        }
+        if (servletName != null && urlPattern != null) {
+            throw new IllegalArgumentException("filterMap : " + filterMap + " is invalid ：cant be both servletName and urlPattern");
+        }
+        synchronized (filterMaps) {
+            FilterMap[] newFilterMaps = new FilterMap[filterMaps.length + 1];
+            System.arraycopy(filterMaps, 0, newFilterMaps, 0, filterMaps.length);
+            newFilterMaps[newFilterMaps.length - 1] = filterMap;
+            filterMaps = newFilterMaps;
+        }
+    }
+
+    @Override
+    public FilterMap[] findFilterMaps() {
+        return filterMaps;
+
+    }
+
+    @Override
+    public FilterDef findFilterDef(String filterName) {
+        synchronized (filterDefs) {
+            return filterDefs.get(filterName);
+        }
+    }
+
+    @Override
+    public FilterDef[] findFilterDefs() {
+        synchronized (filterDefs) {
+            FilterDef[] newArray = new FilterDef[filterDefs.size()];
+            return filterDefs.values().toArray(newArray);
+        }
+    }
+
+    @Override
+    public void removeFilterDef(FilterDef filterDef) {
+        synchronized (filterDefs) {
+            filterDefs.remove(filterDef.getFilterName());
+        }
+    }
+
+    @Override
+    public void addFilterDef(FilterDef filterDef) {
+        synchronized (filterDefs) {
+            filterDefs.put(filterDef.getFilterName(), filterDef);
+        }
+    }
+
+    @Override
+    public void removeFilterMap(FilterMap filterMap) {
+        synchronized (filterMaps) {
+            int indexToRemove = -1;
+            for (int i = 0; i < filterMaps.length; i++) {
+                if (filterMaps[i] == filterMap) {
+                    indexToRemove = i;
+                    break;
+                }
+            }
+            if (indexToRemove < 0) {
+                return;
+            }
+            int newLength = filterMaps.length - 1;
+            FilterMap[] updatedFilterMaps = new FilterMap[newLength];
+            System.arraycopy(filterMaps, 0, updatedFilterMaps, 0, indexToRemove);
+            System.arraycopy(filterMaps, indexToRemove + 1, updatedFilterMaps, indexToRemove,
+                    newLength - indexToRemove);
+            filterMaps = updatedFilterMaps;
         }
     }
 
@@ -374,9 +502,9 @@ public class DefaultContext extends VasBase implements Context{
                 for (Object obj : applicationListenersObjects) {
                     if (obj == null) continue;
                     if (!(obj instanceof ServletContextListener listener)) continue;
-                    logger.info("context : {} trying start listener : {} ",getName(),obj);
+                    logger.info("context : {} trying start listener : {} ", getName(), obj);
                     listener.contextInitialized(e);
-                    logger.info("context : {} start listener : {} succeed",getName(),obj);
+                    logger.info("context : {} start listener : {} succeed", getName(), obj);
                 }
             } catch (Exception exception) {
                 logger.error("context : {} start listener : {} failed",
@@ -397,9 +525,9 @@ public class DefaultContext extends VasBase implements Context{
             for (Object obj : listeners) {
                 if (obj == null) continue;
                 if (!(obj instanceof ServletContextListener listener)) continue;
-                logger.info("context : {} trying stop listener : {} ",getName(),obj);
+                logger.info("context : {} trying stop listener : {} ", getName(), obj);
                 listener.contextDestroyed(e);
-                logger.info("context : {} stop listener : {} succeed",getName(),obj);
+                logger.info("context : {} stop listener : {} succeed", getName(), obj);
             }
         } catch (Exception exception) {
             logger.error("context : {} stop listener failed", getName(), exception);
@@ -417,7 +545,7 @@ public class DefaultContext extends VasBase implements Context{
                 try {
                     filterConfig = new ApplicationFilterConfig
                             (this, filterDefs.get(o));
-                    logger.info("context : {} start filter : {} succeed",getName(),o);
+                    logger.info("context : {} start filter : {} succeed", getName(), o);
                     filterConfigs.put(o, filterConfig);
                 } catch (Throwable t) {
                     logger.error("context : {} start filter : {} failed", getName(), o, t);
@@ -433,9 +561,9 @@ public class DefaultContext extends VasBase implements Context{
         synchronized (filterConfigs) {
             for (String o : filterConfigs.keySet()) {
                 ApplicationFilterConfig filterConfig = filterConfigs.get(o);
-                logger.info("context : {} trying stop filter : {} ",getName(),o);
+                logger.info("context : {} trying stop filter : {} ", getName(), o);
                 filterConfig.destroy();
-                logger.info("context : {} stop filter : {} succeed",getName(),o);
+                logger.info("context : {} stop filter : {} succeed", getName(), o);
             }
             filterConfigs.clear();
             logger.info("context : {} stop filters succeed", getName());
