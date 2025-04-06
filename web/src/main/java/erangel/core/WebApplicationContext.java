@@ -315,8 +315,7 @@ public class WebApplicationContext implements ServletContext {
 
     @Override
     public void log(String msg) {
-        logger.info(context.getDisplayName() +
-                Const.PunctuationMarks.COLON + msg);
+        logger.info("{}" + Const.PunctuationMarks.COLON + "{}", context.getDisplayName(), msg);
     }
 
     @Override
