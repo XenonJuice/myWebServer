@@ -1,11 +1,14 @@
 package erangel.xml;
 
+import erangel.core.DefaultContext;
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.DefaultHandler;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -99,33 +102,44 @@ public class MiniDigester {
     }
 
     static Object convert(Class<?> type, String value) {
+        if (value == null) return null;
         return switch (type.getName()) {
             case "int", "java.lang.Integer" -> Integer.valueOf(value);
             case "long", "java.lang.Long" -> Long.valueOf(value);
             case "boolean", "java.lang.Boolean" -> Boolean.valueOf(value);
+            case "double", "java.lang.Double" -> Double.valueOf(value);
             default -> value;
         };
     }
 
     public static void main(String[] args) throws Exception {
-        String xml = """
-                <server class='erangel.xml.testXML$Server'>
-                  <service class='erangel.xml.testXML$Service' name='http'>
-                    <connector class='erangel.xml.testXML$Connector' port='8080'/>
-                  </service>
-                </server>""";
+//        String xml = """
+//                <server class='erangel.xml.testXML$Server'>
+//                  <service class='erangel.xml.testXML$Service' name='http'>
+//                    <connector class='erangel.xml.testXML$Connector' port='8080'/>
+//                  </service>
+//                </server>""";
+//
+//        MiniDigester d = new MiniDigester();
+//        d.addRule("server", new ObjectCreateRule());
+//        d.addRule("server/service", new ObjectCreateRule());
+//        d.addRule("server/service", new SetPropertiesRule());
+//        d.addRule("server/service", new SetNextRule("addService"));
+//        d.addRule("server/service/connector", new ObjectCreateRule());
+//        d.addRule("server/service/connector", new SetPropertiesRule());
+//        d.addRule("server/service/connector", new SetNextRule("addConnector"));
+//
+//        d.parse(new java.io.ByteArrayInputStream(xml.getBytes()));
+//        System.out.println(d.pop());
+        MiniDigester digester = new MiniDigester();
+        digester.setNamespaceAware(true);           // web.xml 通常带默认命名空间
+        new WebRuleSet().addRuleInstances(digester);
 
-        MiniDigester d = new MiniDigester();
-        d.addRule("server", new ObjectCreateRule());
-        d.addRule("server/service", new ObjectCreateRule());
-        d.addRule("server/service", new SetPropertiesRule());
-        d.addRule("server/service", new SetNextRule("addService"));
-        d.addRule("server/service/connector", new ObjectCreateRule());
-        d.addRule("server/service/connector", new SetPropertiesRule());
-        d.addRule("server/service/connector", new SetNextRule("addConnector"));
-
-        d.parse(new java.io.ByteArrayInputStream(xml.getBytes()));
-        System.out.println(d.pop());
+        try (InputStream in = Files.newInputStream(Path.of("/Users/lilinjian/IdeaProjects/myWebServer/web/src/main/java/erangel/xml/exampleWebXML.xml"))) {
+            digester.parse(in);
+            DefaultContext ctx = (DefaultContext) digester.pop();    // ctx 已含映射 / 过滤器 / 监听器信息
+            System.out.println();
+        }
     }
 
     /**
@@ -140,11 +154,51 @@ public class MiniDigester {
         ruleMap.computeIfAbsent(pattern, k -> new ArrayList<>()).add(rule);
     }
 
+    public void addCallMethod(String path, String methodName) {
+        addCallMethod(path, methodName, 1, new String[]{path}, String.class);
+    }
+
+
+    /**
+     * 便捷注册 “收集参数 → 调用目标方法” 的组合规则。
+     *
+     * @param path        父元素路径（在元素结束时调用目标方法）
+     * @param methodName  目标方法名
+     * @param paramCount  参数个数
+     * @param paramPaths  每个参数所在元素的完整路径数组，顺序需与方法参数顺序一致
+     * @param types       每个参数的 Java 类型（用于自动转换），长度必须等于 paramCount
+     */
+    public void addCallMethod(String path,
+                              String methodName,
+                              int paramCount,
+                              String[] paramPaths,
+                              Class<?>... types) {
+
+        if (paramPaths.length != paramCount || types.length != paramCount) {
+            throw new IllegalArgumentException("paramCount / paramPaths / types 数量不一致");
+        }
+
+
+
+        // 用来暂存参数文本
+        List<String> paramList = new ArrayList<>(Collections.nCopies(paramCount, null));
+
+        // 为每个参数路径注册 CallParamRule
+        for (int i = 0; i < paramCount; i++) {
+            addRule(paramPaths[i], new CallParamRule(paramList, i));
+        }
+
+        // 在父元素结束标签时调用目标方法
+        addRule(path, new CallMethodRule(methodName, paramList, types));
+    }
+
     public void parse(InputStream xml) throws Exception {
         SAXParserFactory factory = SAXParserFactory.newInstance();
+        factory.setValidating(false);
         factory.setNamespaceAware(namespaceAware);
-        factory.setFeature("http://javax.xml.XMLConstants/feature/secure-processing", true);
+        factory.setFeature("http://javax.xml.XMLConstants/feature/secure-processing", false);
         factory.setFeature("http://xml.org/sax/features/namespace-prefixes", true);
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
         SAXParser parser = factory.newSAXParser();
         parser.parse(xml, new Handler());
     }
