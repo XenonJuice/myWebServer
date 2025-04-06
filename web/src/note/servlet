@@ -1,0 +1,2 @@
+容器调用servlet的顺序；
+构造器 → init(ServletConfig) → init() → service() → destroy()
