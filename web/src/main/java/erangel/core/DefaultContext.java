@@ -216,7 +216,7 @@ public class DefaultContext extends VasBase implements Context {
     @Override
     public void addServletMapping(String urlPattern, String servletName) {
         if (servletName == null) throw new NullPointerException("servletName is null");
-        if (findChild(servletName) != null)
+        if (findChild(servletName) == null)
             throw new IllegalArgumentException("servletName : " + servletName + " is not found");
         urlPattern = Decoder.decode(urlPattern, StandardCharsets.UTF_8);
         synchronized (servletMappings) {
