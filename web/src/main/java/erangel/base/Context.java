@@ -228,4 +228,11 @@ public interface Context extends Vas {
      * @return 一个用于管理servlet生命周期和配置的新{@code Endpoint}实例
      */
     Endpoint createEndpoint();
+
+    /**
+     * 设置此上下文的配置状态。
+     *
+     * @param configured 一个布尔值，指示此上下文是否已被配置
+     */
+    void setConfigured(boolean configured);
 }
