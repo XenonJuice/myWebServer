@@ -217,6 +217,10 @@ public class MiniDigester {
         return stack.pop();
     }
 
+    public void clear() {
+        stack.clear();
+    }
+
     private void invokeRules(String path, RulePhase phase, Attributes attrs, String bodyText) {
         List<Rule> list = ruleMap.get(path);
         if (list == null) return;
