@@ -92,5 +92,8 @@ public interface Vas {
 
 
     Loader getLoader();
+
     void setLoader(Loader loader);
+
+
 }
