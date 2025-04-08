@@ -45,6 +45,7 @@ public class DefaultContext extends VasBase implements Context {
     private String displayName = "";
     // 当前上下文是否可使用flag
     private boolean available = false;
+    // applicationContext
     private WebApplicationContext applicationContext = null;
     // webResources
     private ResourceManager resources = null;
@@ -74,6 +75,7 @@ public class DefaultContext extends VasBase implements Context {
         return configured;
     }
 
+    @Override
     public void setConfigured(boolean configured) {
         this.configured = configured;
     }
