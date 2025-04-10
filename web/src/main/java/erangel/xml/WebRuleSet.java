@@ -13,7 +13,7 @@ public class WebRuleSet {
 
     public void addRuleInstances(MiniDigester d) {
         /* 0. <web-app> → DefaultContext 仅供测试*/
-        d.addRule("web-app", new ObjectCreateRule(DefaultContext.class));
+       //  d.addRule("web-app", new ObjectCreateRule(DefaultContext.class));
 
         /* ---------- <display‑name> ---------- */
         d.addCallMethod("web-app/display-name", "setDisplayName");
