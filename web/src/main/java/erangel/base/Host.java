@@ -1,6 +1,8 @@
 package erangel.base;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URL;
 
 public interface Host extends Vas {
     /**
@@ -36,7 +38,7 @@ public interface Host extends Vas {
          * @throws Exception 如果在安装过程中发生错误，例如
          *                   无效的上下文路径或部署程序失败。
          */
-        void install(String contextPath) throws Exception;
+        void install(String contextPath, URL webApp) throws Exception;
 
         /**
          * 查找并检索与指定上下文路径关联的已部署Web应用程序。
