@@ -18,7 +18,7 @@ public abstract class VasBase implements Vas, Lifecycle, Channel {
 
     //<editor-fold desc = "attr">
     // logger
-    private static final Logger logger = BaseLogger.getLogger(VasBase.class);
+    protected static final Logger logger = BaseLogger.getLogger(VasBase.class);
     // 本容器的子容器合集
     protected final Map<String, Vas> children = new HashMap<>();
     // 与此容器关联的映射器集合
