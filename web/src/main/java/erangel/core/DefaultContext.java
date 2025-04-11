@@ -324,12 +324,12 @@ public class DefaultContext extends VasBase implements Context {
 
     @Override
     public String getPath() {
-        return "";
+        return getName();
     }
 
     @Override
     public void setPath(String path) {
-
+        setName(Decoder.decode(path, StandardCharsets.UTF_8));
     }
 
     //</editor-fold>
