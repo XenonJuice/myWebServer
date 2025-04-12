@@ -6,6 +6,7 @@ import java.net.URL;
 
 /**
  * 本地资源的抽象
+ *
  * @author LILINJIAN
  * @version 2025/2/26
  */
@@ -17,13 +18,13 @@ public interface LocalResource {
 
     boolean canRead();
 
-    byte[] getContent() ;
+    byte[] getContent();
 
     String getName();
 
     long getLastModified();
 
-    URL getURL() ;
+    URL getURL();
 
     InputStream getInputStream();
 }

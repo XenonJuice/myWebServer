@@ -39,7 +39,7 @@ public class FileResource implements LocalResource {
     }
 
     @Override
-    public byte[] getContent()  {
+    public byte[] getContent() {
         try {
             return Files.readAllBytes(path);
         } catch (IOException e) {
@@ -62,7 +62,7 @@ public class FileResource implements LocalResource {
     }
 
     @Override
-    public URL getURL(){
+    public URL getURL() {
         try {
             return path.toUri().toURL();
         } catch (MalformedURLException e) {

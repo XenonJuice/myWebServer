@@ -15,6 +15,7 @@ public class FilterDef {
     public void setFilterName(String filterName) {
         this.filterName = filterName;
     }
+
     public String getFilterClass() {
         return filterClass;
     }
@@ -22,6 +23,7 @@ public class FilterDef {
     public void setFilterClass(String filterClass) {
         this.filterClass = filterClass;
     }
+
     public HashMap<String, String> getParams() {
         return params;
     }

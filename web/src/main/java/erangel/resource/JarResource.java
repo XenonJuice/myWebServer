@@ -63,7 +63,7 @@ public class JarResource implements LocalResource {
     }
 
     @Override
-    public URL getURL(){
+    public URL getURL() {
         // 实际路径 /Users/LLJ/projects/myapp/lib/myapp.jar，
         // 返回类似
         // jar:file:/Users/LLJ/projects/myapp/lib/myapp.jar!/com/example/LLJ.class
