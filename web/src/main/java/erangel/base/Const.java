@@ -21,6 +21,7 @@ public final class Const {
      * webApp关联
      */
     public static class webApp {
+        public static final String ROOT = "ROOT";
         public static final String DOTPROP = ".properties";
         public static final String WEB_INF = "/WEB-INF";
         public static final String WEB_XML_PATH = "/WEB-INF/web.xml";
