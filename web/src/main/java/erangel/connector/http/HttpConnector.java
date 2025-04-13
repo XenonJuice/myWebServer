@@ -1,9 +1,6 @@
 package erangel.connector.http;
 
-import erangel.base.Const;
-import erangel.base.Lifecycle;
-import erangel.base.LifecycleException;
-import erangel.base.LifecycleListener;
+import erangel.base.*;
 import erangel.log.BaseLogger;
 import erangel.net.DefaultServerSocketFactory;
 import erangel.net.ServerSocketFactory;
@@ -18,7 +15,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-public class HttpConnector extends BaseLogger implements Runnable, Lifecycle {
+public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Connector {
     //<editor-fold desc = "attr">
     // 描述信息
     private static final String info = "llj.erangel.connector.http.HttpConnector/1.0";
