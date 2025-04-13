@@ -55,6 +55,18 @@ public class ResourceManager implements Lifecycle, Runnable {
         this.context = context;
     }
 
+    public Map<String, List<LocalResource>> getConfigMap() {
+        return configMap;
+    }
+
+    public Map<String, List<LocalResource>> getStasticResMap() {
+        return stasticResMap;
+    }
+
+    public Map<String, List<LocalResource>> getClassLoaderResourceMap() {
+        return classLoaderResourceMap;
+    }
+
     //</editor-fold>
     //<editor-fold desc = "扫描资源">
     // 始终以斜杠开头 例如/com/example/LLJ.class  /web.xml
@@ -114,7 +126,7 @@ public class ResourceManager implements Lifecycle, Runnable {
                                     .toString()
                                     .replace(File.separatorChar, '/');
                             logger.debug("Found resource: {}", resourcePath);
-                            // 将扫描到的资源信息存入 propMap
+                            // 将扫描到的资源信息存入 configMap
                             LocalResource resource = new FileResource(path);
                             addConfigResources(resourcePath, resource);
                         }
