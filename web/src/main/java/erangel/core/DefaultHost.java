@@ -22,7 +22,7 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
     // 工作区
     private String workDir = "";
     // 部署器
-    private Deployer deployer = new HostDeployer(this);
+    private final Deployer deployer = new HostDeployer(this);
 
     //</editor-fold>
     //<editor-fold desc = "构造器">
@@ -33,7 +33,7 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
 
     //</editor-fold>
     //<editor-fold desc = "getter && setter">
-    public void setNamedHost(String name) {
+    public void setName(String name) {
         this.name = name;
     }
 
@@ -147,7 +147,7 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
     //</editor-fold>
     //<editor-fold desc = "内部类">
     public class HostDeployer implements Deployer {
-        private DefaultHost host = null;
+        private final DefaultHost host;
 
         public HostDeployer(DefaultHost host) {
             this.host = host;
@@ -190,27 +190,72 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
 
         @Override
         public Context findDeployedApp(String contextPath) {
-            return null;
+            return (Context) host.findChild(contextPath);
         }
 
         @Override
         public String[] findDeployedApps() {
-            return new String[0];
+            Vas[] children = host.findChildren();
+            String[] deployedApps = new String[children.length];
+            for (int i = 0; i < children.length; i++) {
+                deployedApps[i] = children[i].getName();
+            }
+            return deployedApps;
         }
 
         @Override
         public void remove(String contextPath) throws IOException {
-
+            if (contextPath == null)
+                throw new IllegalArgumentException("host : contextPath must not be null");
+            if (!(contextPath.isEmpty() || contextPath.startsWith(SOLIDUS)))
+                throw new IllegalArgumentException("host : contextPath must start with /");
+            // 找到要移除的webAPP
+            Context deployedApp = findDeployedApp(contextPath);
+            if (deployedApp == null) throw new IllegalArgumentException("host : contextPath has not been deployed");
+            logger.debug("Removing web app:{}", contextPath);
+            host.removeChild(deployedApp);
         }
+
 
         @Override
         public void start(String contextPath) throws IOException {
+            if (contextPath == null)
+                throw new IllegalArgumentException("host : contextPath must not be null");
+            if (!(contextPath.isEmpty() || contextPath.startsWith(SOLIDUS)))
+                throw new IllegalArgumentException("host : contextPath must start with /");
+            Context deployedApp = findDeployedApp(contextPath);
+            if (deployedApp == null) throw new IllegalArgumentException("host : contextPath has not been deployed");
+            logger.debug("Starting web app:{}", contextPath);
+            if (deployedApp instanceof Lifecycle) {
+                try {
+                    ((Lifecycle) deployedApp).start();
+                } catch (LifecycleException e) {
+                    logger.error("start web app failed", e);
+                    throw new IOException("start web app failed", e);
+                }
+            } else {
+                logger.warn("web app:{} is not Lifecycle", contextPath);
+            }
 
         }
 
         @Override
         public void stop(String contextPath) throws IOException {
-
+            if (contextPath == null)
+                throw new IllegalArgumentException("host : contextPath must not be null");
+            if (!(contextPath.isEmpty() || contextPath.startsWith(SOLIDUS)))
+                throw new IllegalArgumentException("host : contextPath must start with /");
+            Context deployedApp = findDeployedApp(contextPath);
+            if (deployedApp == null) throw new IllegalArgumentException("host : contextPath has not been deployed");
+            logger.debug("Stopping web app:{}", contextPath);
+            if (deployedApp instanceof Lifecycle) {
+                try {
+                    ((Lifecycle) deployedApp).stop();
+                } catch (LifecycleException e) {
+                    logger.error("stop web app failed", e);
+                    throw new IOException("stop web app failed", e);
+                }
+            }
         }
     }
     //</editor-fold>
