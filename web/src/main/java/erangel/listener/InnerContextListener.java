@@ -16,13 +16,13 @@ import java.io.InputStream;
 import static erangel.base.Const.webApp.WEB_XML_PATH;
 
 /**
- * 一个Context的生命周期监听器，用于监听启动和关闭Context容器的事件并调用相应的生命周期方法
+ * 一个<code>Context</code>的生命周期监听器，用于监听启动和关闭<code>Context</code>容器的事件并调用相应的生命周期方法
  */
-public class InnerContextListener implements LifecycleListener {
+public final class InnerContextListener implements LifecycleListener {
     //<editor-fold desc = "attr">
     private static final Logger logger = BaseLogger.getLogger(InnerContextListener.class);
     private Context context = null;
-    private MiniDigester digester = createDigester();
+    private final MiniDigester digester = createDigester();
     private boolean noProblem = false;
 
     //</editor-fold
@@ -53,48 +53,44 @@ public class InnerContextListener implements LifecycleListener {
         // 输出一下绑定的检查点列表
         Channel channel = ((VasBase) context).getChannel();
         if (channel != null) {
-        Checkpoint[] checkpoints = channel.getCheckpoints();
-        if (checkpoints != null) {
-            logger.debug("current checkpoint info start :");
-            for (Checkpoint c : checkpoints){
-                logger.debug(c.getInfo());
+            Checkpoint[] checkpoints = channel.getCheckpoints();
+            if (checkpoints != null) {
+                logger.debug("current checkpoint info start :");
+                for (Checkpoint c : checkpoints) {
+                    logger.debug(c.getInfo());
+                }
+                logger.debug("current checkpoint info end :");
             }
-            logger.debug("current checkpoint info end :");
         }
-        }
-        if (noProblem) {
-            context.setConfigured(true);
-        } else {
-            context.setConfigured(false);
-        }
+        context.setConfigured(noProblem);
 
     }
 
     private synchronized void stop() {
         logger.info("InnerContextListener : context stop");
         //
-        Vas [] children  = context.findChildren();
-        for (Vas c : children){
+        Vas[] children = context.findChildren();
+        for (Vas c : children) {
             context.removeChild(c);
         }
         //
-        String [] applicationListeners = context.findApplicationListeners();
+        String[] applicationListeners = context.findApplicationListeners();
         for (String l : applicationListeners) {
             context.removeApplicationListener(l);
         }
         //
-        FilterDef [] filterDefs = context.findFilterDefs();
-        for (FilterDef filterDef : filterDefs){
+        FilterDef[] filterDefs = context.findFilterDefs();
+        for (FilterDef filterDef : filterDefs) {
             context.removeFilterDef(filterDef);
         }
         //
-        FilterMap [] filterMaps = context.findFilterMaps();
-        for (FilterMap filterMap : filterMaps){
+        FilterMap[] filterMaps = context.findFilterMaps();
+        for (FilterMap filterMap : filterMaps) {
             context.removeFilterMap(filterMap);
         }
         //
-        String [] servletMappings = context.findServletMappings();
-        for (String s : servletMappings){
+        String[] servletMappings = context.findServletMappings();
+        for (String s : servletMappings) {
             context.removeServletMapping(s);
         }
         noProblem = true;

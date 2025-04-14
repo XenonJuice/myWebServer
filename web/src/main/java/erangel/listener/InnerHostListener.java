@@ -21,7 +21,10 @@ import static erangel.base.Const.webApp.ROOT;
 import static erangel.base.Lifecycle.START_EVENT;
 import static erangel.base.Lifecycle.STOP_EVENT;
 
-public class InnerHostListener implements LifecycleListener, Runnable {
+/**
+ * 一个<code>Host</code>的生命周期监听器，用于监听启动和关闭<code>Host</code>容器的事件并调用相应的生命周期方法
+ */
+public final class InnerHostListener implements LifecycleListener, Runnable {
     //<editor-fold desc = "attr">
     private static final Logger logger = BaseLogger.getLogger(InnerHostListener.class);
     // context容器监听器
@@ -133,13 +136,13 @@ public class InnerHostListener implements LifecycleListener, Runnable {
     }
 
     // 移除部署的webApp
-    private void undeployApps(){
+    private void undeployApps() {
         logger.info("InnerHostListener ：try to undeploy apps");
-        String [] contextPaths = ((Host.Deployer)host).findDeployedApps();
-        for (String cp : contextPaths){
+        String[] contextPaths = ((Host.Deployer) host).findDeployedApps();
+        for (String cp : contextPaths) {
             logger.info("undeploying app : {}", cp);
-            try{
-                ((Host.Deployer)host).remove(cp);
+            try {
+                ((Host.Deployer) host).remove(cp);
             } catch (IOException e) {
                 logger.error("undeploying app error", e);
             }
