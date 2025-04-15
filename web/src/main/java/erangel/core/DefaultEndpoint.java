@@ -4,6 +4,8 @@ import erangel.base.Context;
 import erangel.base.Endpoint;
 import erangel.base.LifecycleException;
 import erangel.base.Loader;
+import erangel.checkpoints.ContextCheckpoint;
+import erangel.checkpoints.EndpointCheckpoint;
 import erangel.loader.WebAppClassLoader;
 import erangel.log.BaseLogger;
 import org.slf4j.Logger;
@@ -17,6 +19,8 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
     //<editor-fold desc = "attr">
     // logger
     private static final Logger logger = BaseLogger.getLogger(DefaultEndpoint.class);
+    // 初始化param
+    private final HashMap<String, String> initParams = new HashMap<>();
     // 初始化后的servlet实例
     private Servlet sInstance = null;
     private String servletClass = null;
@@ -24,19 +28,17 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
     private volatile boolean initialized = false;
     // 内部类
     private InnerServletConfig innerServletConfig = new InnerServletConfig(this);
-    // 初始化param
-    private final HashMap<String, String> initParams = new HashMap<>();
-    // 已分配给请求使用的servlet数量
+    // 当前活跃访问数量
     private volatile int count = 0;
     // 正在卸载servlet标志位
     private boolean isUnloading = false;
     // 可用性：OL可用 INT MAXVALUE不可用
     private long available = 0L;
+
     //</editor-fold>
     //<editor-fold desc = "构造器">
     public DefaultEndpoint() {
-        // TODO:设置一个默认检查点
-        channel.setBasicCheckpoint(null);
+        channel.setBasicCheckpoint(new EndpointCheckpoint());
     }
 
     //</editor-fold>
@@ -201,7 +203,7 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
     }
 
     @Override
-    public void sfree(){
+    public void sfree() {
         logger.debug("endpoint : {} free servlet", getName());
         countDown();
     }
@@ -275,6 +277,7 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
             return Collections.enumeration(initParams.keySet());
         }
     }
+
     //</editor-fold>
     //<editor-fold desc = "线程安全算数">
     private synchronized void countUp() {
@@ -296,12 +299,13 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
     //</editor-fold>
     //<editor-fold desc = "生命周期">
     @Override
-    public  void start() throws LifecycleException {
+    public void start() throws LifecycleException {
         super.start();
     }
+
     @Override
-    public  void stop() throws LifecycleException {
-        try{
+    public void stop() throws LifecycleException {
+        try {
             unload();
         } catch (ServletException e) {
             logger.error("endpoint : {} unload failed", getName(), e);
