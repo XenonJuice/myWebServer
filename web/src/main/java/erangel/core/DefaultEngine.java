@@ -60,6 +60,7 @@ public class DefaultEngine extends VasBase implements Engine {
     }
     //</editor-fold>
     //<editor-fold desc = "生命周期相关">
+    @Override
     public void start() throws LifecycleException {
         System.out.println(ServerInfo.getServerInfo());
         super.start();
