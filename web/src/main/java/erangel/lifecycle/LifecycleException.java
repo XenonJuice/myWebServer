@@ -1,4 +1,4 @@
-package erangel.base;
+package erangel.lifecycle;
 
 /**
  * LifecycleException 表示一个与组件生命周期相关的通用异常，

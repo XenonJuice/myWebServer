@@ -1,4 +1,4 @@
-package erangel.base;
+package erangel.lifecycle;
 
 /**
  * Lifecycle 接口表示支持在其生命周期中具有明确定义的一系列事件的组件。

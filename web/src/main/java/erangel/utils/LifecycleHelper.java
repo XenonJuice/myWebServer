@@ -1,8 +1,8 @@
 package erangel.utils;
 
-import erangel.base.Lifecycle;
-import erangel.base.LifecycleEvent;
-import erangel.base.LifecycleListener;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleEvent;
+import erangel.lifecycle.LifecycleListener;
 
 /**
  * 用于帮助触发并分发 LifecycleEvent 事件给已注册的 LifecycleListener。
