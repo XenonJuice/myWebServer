@@ -1,6 +1,7 @@
 package erangel.core;
 
 import erangel.base.*;
+import erangel.lifecycle.LifecycleException;
 import erangel.utils.ServerInfo;
 
 public class DefaultEngine extends VasBase implements Engine {

@@ -1,6 +1,8 @@
 package erangel.core;
 
 import erangel.base.*;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleException;
 import erangel.checkpoints.ContextCheckpoint;
 import erangel.filter.ApplicationFilterConfig;
 import erangel.filter.FilterDef;

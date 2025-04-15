@@ -1,8 +1,8 @@
 package erangel.connector.http;
 
-import erangel.base.Lifecycle;
-import erangel.base.LifecycleException;
-import erangel.base.LifecycleListener;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleException;
+import erangel.lifecycle.LifecycleListener;
 import erangel.base.Const.*;
 import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;

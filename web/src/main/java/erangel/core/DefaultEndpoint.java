@@ -2,9 +2,8 @@ package erangel.core;
 
 import erangel.base.Context;
 import erangel.base.Endpoint;
-import erangel.base.LifecycleException;
+import erangel.lifecycle.LifecycleException;
 import erangel.base.Loader;
-import erangel.checkpoints.ContextCheckpoint;
 import erangel.checkpoints.EndpointCheckpoint;
 import erangel.loader.WebAppClassLoader;
 import erangel.log.BaseLogger;

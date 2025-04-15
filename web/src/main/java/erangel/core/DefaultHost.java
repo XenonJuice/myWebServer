@@ -1,6 +1,9 @@
 package erangel.core;
 
 import erangel.base.*;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleException;
+import erangel.lifecycle.LifecycleListener;
 
 import java.io.IOException;
 import java.net.URL;
