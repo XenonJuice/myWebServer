@@ -1,6 +1,8 @@
 package erangel.listener;
 
 import erangel.base.*;
+import erangel.lifecycle.LifecycleEvent;
+import erangel.lifecycle.LifecycleListener;
 import erangel.log.BaseLogger;
 import erangel.resource.LocalResource;
 import erangel.resource.ResourceManager;
@@ -18,8 +20,8 @@ import java.util.Map;
 import static erangel.base.Const.commonCharacters.EMPTY;
 import static erangel.base.Const.commonCharacters.SOLIDUS;
 import static erangel.base.Const.webApp.ROOT;
-import static erangel.base.Lifecycle.START_EVENT;
-import static erangel.base.Lifecycle.STOP_EVENT;
+import static erangel.lifecycle.Lifecycle.START_EVENT;
+import static erangel.lifecycle.Lifecycle.STOP_EVENT;
 
 /**
  * 一个<code>Host</code>的生命周期监听器，用于监听启动和关闭<code>Host</code>容器的事件并调用相应的生命周期方法
