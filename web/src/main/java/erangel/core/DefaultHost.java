@@ -1,6 +1,7 @@
 package erangel.core;
 
 import erangel.base.*;
+import erangel.checkpoints.HostCheckpoint;
 import erangel.lifecycle.Lifecycle;
 import erangel.lifecycle.LifecycleException;
 import erangel.lifecycle.LifecycleListener;
@@ -30,8 +31,7 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
     //</editor-fold>
     //<editor-fold desc = "构造器">
     public DefaultHost() {
-        // TODO 设置一个host的基本检查点
-        // channel.setBasicCheckpoint(XXX);
+        channel.setBasicCheckpoint(new HostCheckpoint());
     }
 
     //</editor-fold>
