@@ -2,8 +2,8 @@ package erangel.loader;
 
 
 import erangel.base.Const;
-import erangel.base.Lifecycle;
-import erangel.base.LifecycleListener;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleListener;
 import erangel.log.BaseLogger;
 import erangel.resource.LocalResource;
 import erangel.resource.ResourceManager;
