@@ -6,12 +6,22 @@ import erangel.utils.ServerInfo;
 public class DefaultEngine extends VasBase implements Engine {
     //<editor-fold desc = "attr">
     private static final String info = "llj.erangel.core.DefaultEngine";
-    // TODO
-    private final String mapperClass = "llj.erangel.mapper.DefaultEngineMapper";
+    private final String mapperClass = "erangel.mapper.EngineMapper";
+    private String defaultHostName = "";
     // 包含次Engine的Service
     private Service service = null;
     //</editor-fold>
     //<editor-fold desc = "接口实现">
+    @Override
+    public String getDefaultHostName() {
+        return defaultHostName;
+    }
+
+    @Override
+    public void setDefaultHostName(String name) {
+        this.defaultHostName = name;
+    }
+
     @Override
     public Service getService() {
         return service;
