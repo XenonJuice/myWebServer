@@ -1,6 +1,9 @@
 package erangel.connector.http;
 
-import erangel.base.*;
+import erangel.base.Connector;
+import erangel.base.Const;
+import erangel.base.Service;
+import erangel.base.Vas;
 import erangel.lifecycle.Lifecycle;
 import erangel.lifecycle.LifecycleException;
 import erangel.lifecycle.LifecycleListener;
@@ -30,6 +33,8 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
     private final Object lock = new Object();
     // 当前解析器数量
     private final int currentProcessors = 0;
+    // 生米周期助手
+    protected LifecycleHelper helper = new LifecycleHelper(this);
     // 经过本连接器处理的所有请求的协议名
     private String scheme = "http";
     // 最大连接数
@@ -65,13 +70,23 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
     private boolean started = false;
     // 连接器初始化标志位
     private boolean initialized = false;
-    // 生米周期助手
-    protected LifecycleHelper helper = new LifecycleHelper(this);
+    // 绑定的容器
+    private Vas vas = null;
+    // 绑定的Service
+    private Service service = null;
     // logger FIXME
     // protected Logger logger = connector.getVas().getLogger();
 
     //</editor-fold>
     //<editor-fold desc="getter & setter">
+    public void setVas(Vas vas) {
+        this.vas = vas;
+    }
+
+    public void setService(Service service) {
+        this.service = service;
+    }
+
     public int getConnectionTimeOut() {
         return connectionTimeOut;
     }
@@ -308,8 +323,8 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
         // 关闭所有和当前连接器关联的解析器
         for (HttpProcessor processor : created) {
             if (processor != null) {
-                try{
-                processor.stop();
+                try {
+                    processor.stop();
                 } catch (LifecycleException e) {
                     logger.error("HttpConnector：关闭解析器时失败");
                 }
@@ -412,5 +427,9 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
     void recycle(HttpProcessor processor) {
         processors.offer(processor);
     }
+
+
+
+
     //</editor-fold>
 }
