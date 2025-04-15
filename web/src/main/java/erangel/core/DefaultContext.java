@@ -1,6 +1,7 @@
 package erangel.core;
 
 import erangel.base.*;
+import erangel.checkpoints.ContextCheckpoint;
 import erangel.filter.ApplicationFilterConfig;
 import erangel.filter.FilterDef;
 import erangel.filter.FilterMap;
@@ -11,6 +12,7 @@ import erangel.utils.Decoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -32,7 +34,7 @@ public class DefaultContext extends VasBase implements Context {
     private String[] applicationListeners = new String[0];
     private Object[] applicationListenersObjects = new Object[0];
     // 过滤器映射信息
-    private FilterMap filterMaps[] = new FilterMap[0];
+    private FilterMap[] filterMaps = new FilterMap[0];
     // 过滤器定义，key为过滤器的名字
     private HashMap<String, FilterDef> filterDefs = new HashMap<>();
     // 加载过后的过滤器集合，key为过滤器的名字
@@ -53,12 +55,11 @@ public class DefaultContext extends VasBase implements Context {
     private boolean paused = false;
     // 配置文件加载状态标志位
     private boolean configured = false;
-
     //</editor-fold>
     //<editor-fold desc = "构造器">
     public DefaultContext() {
-        // TODO 设置一个上下文检查点
-        // channel.setBasicCheckpoint();
+        ContextCheckpoint basicCP = new ContextCheckpoint();
+        channel.setBasicCheckpoint(basicCP);
     }
 
     //</editor-fold>
@@ -259,6 +260,12 @@ public class DefaultContext extends VasBase implements Context {
     public FilterMap[] findFilterMaps() {
         return filterMaps;
 
+    }
+    @Override
+    public FilterConfig findFilterConfig(String name) {
+        synchronized (filterConfigs) {
+            return filterConfigs.get(name);
+        }
     }
 
     @Override
