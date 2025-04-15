@@ -4,6 +4,7 @@ import erangel.filter.FilterDef;
 import erangel.filter.FilterMap;
 import erangel.resource.ResourceManager;
 
+import javax.servlet.FilterConfig;
 import javax.servlet.ServletContext;
 
 /**
@@ -137,6 +138,16 @@ public interface Context extends Vas {
      * @param urlPattern 要移除映射的servlet其URL
      */
     void removeServletMapping(String urlPattern);
+
+    /**
+     * 检索与指定过滤器名称相关的 {@code FilterConfig} 实例。
+     *
+     * @param name 要检索其配置的过滤器名称。
+     *             这应该与过滤器配置中定义的名称匹配。
+     * @return 与指定过滤器名称关联的 {@code FilterConfig} 对象，
+     * 如果未找到这样的配置，则返回 {@code null}。
+     */
+    FilterConfig findFilterConfig(String name);
 
     /**
      * 搜索并检索与指定过滤器名称关联的 {@code FilterDef} 实例。
