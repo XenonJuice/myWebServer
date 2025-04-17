@@ -1,7 +1,9 @@
 package erangel.connector.http;
 
+import erangel.base.CheckpointContext;
 import erangel.base.Const.Header;
 import erangel.base.Const.PunctuationMarks;
+import erangel.base.Context;
 import erangel.log.BaseLogger;
 
 import javax.servlet.ServletOutputStream;
@@ -37,7 +39,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     private boolean writerUsed = false;
     private boolean outputStreamUsed = false;
     private boolean allowChunking = false;
-
+    private Context context;
     /**
      * 用指定的字符编码创建/重置 PrintWriter
      */
@@ -163,7 +165,13 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
 
     //</editor-fold>
     //<editor-fold desc="内容类型与编码">
+    public void setContext(Context context) {
+        this.context = context;
+    }
 
+    public Context getContext() {
+        return context;
+    }
     @Override
     public void setContentType(String type) {
         // 1. 如果已经提交响应，就按照 Servlet 规范的通常做法：禁止再修改内容类型
@@ -626,5 +634,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
         String connectionValue = getHeader(Header.CONNECTION);
         return (connectionValue != null && connectionValue.equals(Header.CLOSE));
     }
+
+
     //</editor-fold>
 }
