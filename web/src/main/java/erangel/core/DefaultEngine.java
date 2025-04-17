@@ -1,6 +1,7 @@
 package erangel.core;
 
 import erangel.base.*;
+import erangel.checkpoints.EngineCheckpoint;
 import erangel.lifecycle.LifecycleException;
 import erangel.utils.ServerInfo;
 
@@ -41,8 +42,7 @@ public class DefaultEngine extends VasBase implements Engine {
     //</editor-fold>
     //<editor-fold desc = "构造器">
     public DefaultEngine() {
-        // TODO add a basicCheckPoint!
-        // channel.setBasicCheckpoint(XXX);
+        channel.setBasicCheckpoint(new EngineCheckpoint());
     }
     //</editor-fold>
     //<editor-fold desc = "重写抽象类的部分方法">
