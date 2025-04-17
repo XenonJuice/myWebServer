@@ -1,5 +1,7 @@
 package erangel.base;
 
+import erangel.lifecycle.LifecycleException;
+
 /**
  * 包含连接器的容器
  */
@@ -7,6 +9,7 @@ public interface Service {
 
     /**
      * 返回一个负责处理与该<code>Service</code>相关联的所有<code>Connector</code>所接收到请求的容器（也就是<code>Engine</code>）
+     *
      * @return 一个<code>Engine</code>实例
      * @see Engine
      */
@@ -14,6 +17,7 @@ public interface Service {
 
     /**
      * 设置一个负责处理与该<code>Service</code>相关联的所有<code>Connector</code>所接收到请求的容器（也就是<code>Engine</code>）
+     *
      * @param vas 一个容器，也就是<code>Engine</code>
      * @see Engine
      */
@@ -66,7 +70,7 @@ public interface Service {
     /**
      * 找到并返回与此<code>Service</code>相关的连接器集合。
      */
-    Connector findConnectors();
+    Connector[] findConnectors();
 
 
     /**
@@ -77,7 +81,8 @@ public interface Service {
 
     /**
      * 初始化连接器
-     * @exception LifecycleException 如果在初始化过程中出现问题
+     *
+     * @throws LifecycleException 如果在初始化过程中出现问题
      */
     void initialize() throws LifecycleException;
 }
