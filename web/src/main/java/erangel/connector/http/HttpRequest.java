@@ -410,7 +410,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     }
 
     public ServletInputStream createInputStream() {
-        return new HttpRequestStream(response, this);
+        return new HttpRequestStream(this, response);
     }
 
     @Override
