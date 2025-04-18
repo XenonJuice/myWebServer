@@ -1,12 +1,13 @@
 package erangel.connector.http;
 
+import erangel.base.Const.*;
 import erangel.lifecycle.Lifecycle;
 import erangel.lifecycle.LifecycleException;
 import erangel.lifecycle.LifecycleListener;
-import erangel.base.Const.*;
 import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;
 import org.slf4j.Logger;
+import org.testng.internal.protocols.Input;
 
 import javax.servlet.ServletException;
 import javax.servlet.ServletInputStream;
@@ -60,8 +61,9 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private final int proxyPort;
     // 对象锁
     private final Object lock = new Object();
+    private final Logger logger = BaseLogger.getLogger(this.getClass());
     // 从请求中获得的 InputStream
-    public HttpRequestStream servletInputStream;
+    public InputStream socketInputStream;
     // 从请求中获得的字符编码
     public String characterEncoding;
     // 存储HTTP头的映射
@@ -74,6 +76,8 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     public String fullUri;
     public String protocol;
     public String uri;
+    // 生命周期助手
+    protected LifecycleHelper helper = new LifecycleHelper(this);
     // 是否可以发送响应标志位
     boolean finishResponse = true;
     // 服务器实际端口
@@ -100,9 +104,6 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private String threadName = null;
     // 线程启动标志位
     private boolean started = false;
-    // 生命周期助手
-    protected LifecycleHelper helper = new LifecycleHelper(this);
-    private final Logger logger = BaseLogger.getLogger(this.getClass());
 
     //</editor-fold>
     //<editor-fold desc = "constructor">
@@ -118,7 +119,6 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     }
     //</editor-fold>
     //<editor-fold desc = "解析相关">
-
     private void parseRequestAndConnection(Socket socket) throws IOException, ServletException {
         parseConnection(socket);
         parseRequest();
@@ -144,7 +144,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
      * 使用字节读取一行数据，直到遇到 \r\n 为止。
      * 如果到达流的末尾返回 null。
      */
-    private String readLine(ServletInputStream in, String charset) throws IOException {
+    private String readLine(InputStream in, String charset) throws IOException {
         byte[] buffer = new byte[1024]; // 每次最多读取1024个字节
         StringBuilder lineBuilder = new StringBuilder(); // 用于存储结果
         boolean lastWasCR = false; // 标识上一个字节是否是 CR
@@ -186,7 +186,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
      */
     private void parseRequest() throws IOException, ServletException {
         // 1. 读取并解析请求行
-        String requestLine = readLine(servletInputStream, characterEncoding);
+        String requestLine = readLine(socketInputStream, characterEncoding);
         status = Processor.PROCESSOR_ACTIVE;
         if (requestLine == null || requestLine.isEmpty()) {
             throw new ServletException("Empty request");
@@ -208,7 +208,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
         }
         if (protocol.equals(HttpProtocol.HTTP_1_1)) {
             http11 = true;
-            servletInputStream.setHttp11(true);
+            ((HttpRequestStream)request.getInputStream()).setHttp11(true);
         }
 
         logger.info("请求方法: {}", method);
@@ -233,7 +233,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             String contentType = null;
 
             String headerLine;
-            while ((headerLine = readLine(servletInputStream, characterEncoding)) != null && !headerLine.isEmpty()) {
+            while ((headerLine = readLine(socketInputStream, characterEncoding)) != null && !headerLine.isEmpty()) {
                 int separatorIndex = headerLine.indexOf(PunctuationMarks.COLON_SPACE);
                 if (separatorIndex == -1) {
                     logger.info("格式错误的头部: {}", headerLine);
@@ -267,7 +267,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                 }
                 // 处理chunked的情况
                 if (Header.TRANSFER_ENCODING.equalsIgnoreCase(key) && Header.CHUNKED.equalsIgnoreCase(value)) {
-                    servletInputStream.setUseChunkedEncoding(true);
+                    ((HttpRequestStream)request.getInputStream()).setUseChunkedEncoding(true);
                 }
                 // 解析Cookies
                 if (Header.COOKIE.equalsIgnoreCase(key)) {
@@ -276,16 +276,15 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             }
 
             // 3.从流中按字节读取请求体
-            if (contentLength > 0 ||
-                    Header.TRANSFER_ENCODING.equalsIgnoreCase(
-                            headers.get(Header.TRANSFER_ENCODING).getFirst())) {
+            if (contentLength > 0 || headers.containsKey(Header.TRANSFER_ENCODING
+                    )) {
                 byte[] body = null;
                 if (contentLength > 0) {
                     logger.debug("开始读取请求体, 长度: {}", contentLength);
                     body = new byte[contentLength];
                     int bytesRead = 0;
                     while (bytesRead < contentLength) {
-                        int readCount = servletInputStream.read(body, bytesRead, contentLength - bytesRead);
+                        int readCount = socketInputStream.read(body, bytesRead, contentLength - bytesRead);
                         if (readCount == -1) {
                             break;
                         }
@@ -297,17 +296,18 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                     }
                     request.setBody(body);
 
-                } else if (Header.TRANSFER_ENCODING.equalsIgnoreCase(
+                } else if (Header.CHUNKED.equalsIgnoreCase(
                         headers.get(Header.TRANSFER_ENCODING).getFirst())) {
                     logger.debug("开始读取CHUNKED请求体");
                     ByteArrayOutputStream buf = new ByteArrayOutputStream();
                     body = new byte[1024];
                     int readCount;
-                    while ((readCount = servletInputStream.read(body)) != -1) {
+                    while ((readCount = socketInputStream.read(body)) != -1) {
                         buf.write(body, 0, readCount);
                     }
                     request.setBody(buf.toByteArray());
                 }
+
                 logger.debug("成功读取请求体");
                 // 如果Content-Type是application/x-www-form-urlencoded，则对body进行解码并解析参数
                 if (contentType != null && contentType.startsWith("application/x-www-form-urlencoded")) {
@@ -525,10 +525,12 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     //</editor-fold>
     //<editor-fold desc = "其他方法">
     private void initializeRequestAndResponse(Socket socket) throws IOException {
-        request.setStream(servletInputStream);
+        socketInputStream = socket.getInputStream();
+        request.setStream(socketInputStream);
+        socketInputStream =request.getInputStream();
         request.setResponse(response);
-        OutputStream output = socket.getOutputStream();
-        response.setStream(output);
+        BufferedOutputStream socketOutputtStream = new BufferedOutputStream(socket.getOutputStream());
+        response.setStream(socketOutputtStream);
         response.setRequest(request);
     }
 
@@ -684,7 +686,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
 
     @Override
     public LifecycleListener[] findLifecycleListener() {
-       return  helper.findLifecycleListeners();
+        return helper.findLifecycleListeners();
     }
 
     public void start() throws LifecycleException {
@@ -710,7 +712,6 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     //</editor-fold>
     //<editor-fold desc = "process">
     public void process(Socket socket) {
-        servletInputStream = new HttpRequestStream(response, request);
         keepAlive = true;
         while (!stopped && noProblem && keepAlive) {
             finishResponse = true;
