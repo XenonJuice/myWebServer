@@ -22,7 +22,7 @@ public class HttpRequestStream extends ServletInputStream {
     }
 
     private  Boolean http11 =false;
-    private int bufferSize;
+    private final int bufferSize = 8192;
     private boolean closed = false;
 
     public boolean isUseChunkedEncoding() {
@@ -39,7 +39,7 @@ public class HttpRequestStream extends ServletInputStream {
     /**
      * 构造函数，初始化 BufferedInputStream。
      */
-    public HttpRequestStream(HttpResponse response, HttpRequest request) {
+    public HttpRequestStream(HttpRequest request,HttpResponse response) {
         this.inputStream = request.getStream();
         this.bufferedInputStream = new BufferedInputStream(inputStream, bufferSize);
     }
