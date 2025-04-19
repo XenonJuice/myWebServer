@@ -7,6 +7,18 @@ import static erangel.base.Const.PunctuationMarks.CRLF;
 
 public final class Const {
     /**
+     * 配置信息
+     */
+    public static class confInfo {
+        public static final String CORE_DIR = "CORE_DIR";
+        public static final String CORE = "core";
+        public static final String USER_DIR = "user_dir";
+        public static final String DEPLOY_DIR = "DEPLOY_DIR";
+        public static final String COMMON = "common";
+        public static final String LIB_LOWERCASE_ONLY_ = "lib";
+    }
+
+    /**
      * 常用字符
      */
     public static class commonCharacters {
