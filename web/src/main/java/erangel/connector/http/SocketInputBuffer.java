@@ -27,6 +27,7 @@ public class SocketInputBuffer extends InputStream {
     //<editor-fold desc = "读取请求头">
     //</editor-fold>
     //<editor-fold desc = "读取，填充，非阻塞字节数">
+
     /**
      * 从内部缓冲区或底层输入流读取下一个字节的数据。
      * 如果内部缓冲区耗尽，它会尝试从输入流重新填充缓冲区。
@@ -63,22 +64,42 @@ public class SocketInputBuffer extends InputStream {
         if (off < 0 || len < 0 || off + len > buffer.length) {
             throw new IndexOutOfBoundsException();
         }
+//        // 标记相对于需要获取长度之中的当前位置。
+//        int i = 0;
+//        // 如果当前位置依然小于需要获取的长度，则继续读。
+//        while (i < len) {
+//            int count = read();
+//            // 若读取到的流的末尾
+//            if (count < 0) {
+//                // 判断一开始就读到末尾和读到一部分之后才读到末尾的情况，若i=0 则说明
+//                // 一开始就读到了流的末尾；若i不为0，则说明读到了一部分数据才达到流的末尾。
+//                return i == 0 ? -1 : i;
+//            }
+//            buffer[off + i] = (byte) count;
+//            i++;
+//        }
 
-        // 标记相对于需要获取长度之中的当前位置。
-        int i = 0;
-        // 如果当前位置依然小于需要获取的长度，则继续读。
-        while (i < len) {
-            int count = read();
-            // 若读取到的流的末尾
-            if (count < 0) {
-                // 判断一开始就读到末尾和读到一部分之后才读到末尾的情况，若i=0 则说明
-                // 一开始就读到了流的末尾；若i不为0，则说明读到了一部分数据才达到流的末尾。
-                return i == 0 ? -1 : i;
+        // 更高效的做法，既然我们需要取出一块较大数据。那么直接先判断内部缓冲区和所需数据的大小
+        // 如果缓冲区的可用字节大于等于所需大小，可以直接把所需大小复制到容器数组中
+        int available = available();
+        if ( available> 0) {
+            if (available >= len) {
+                //                src,      srcPos, dest, destPos,length
+                System.arraycopy(innerBuffer, pos, buffer, off, len);
+                // 更新内部缓冲中下一次读取的位置
+                pos += len;
+                return len;
             }
-            buffer[off + i] = (byte) count;
-            i++;
+            // 如果数据不够用，则把先把内部缓冲中的数据取出来
+            System.arraycopy(innerBuffer, pos, buffer, off, available);
+            pos += available;
+            // 然后再把需要的大小读进来
+            int i = socketInputStream.read(buffer, off, len - available);
+            if (i == -1) return available;
+            return available + i;
         }
-        return i;
+        // 若内部缓存没有数据，则直接从底层读取
+        return socketInputStream.read(buffer, off, len);
     }
 
     // 填充缓冲区，从底层流读取数据
@@ -89,6 +110,7 @@ public class SocketInputBuffer extends InputStream {
 
     /**
      * 返回可以从此输入流读取（或跳过）不会阻塞的可用字节数。
+     *
      * @return 不会阻塞的可以读取或跳过的字节数。
      * @throws IOException 如果发生 I/O 错误。
      **/
