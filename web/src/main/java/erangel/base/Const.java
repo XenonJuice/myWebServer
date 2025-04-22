@@ -47,8 +47,6 @@ public final class Const {
         public static final String LIB_ONLY = "lib";
         public static final String LIB = "/WEB-INF/lib";
         public static final String WEB_XML = "web.xml";
-        public static final String JAR = ".jar";
-        public static final String WAR = ".war";
         public static final SimpleDateFormat[] DATE_FORMATS = {
                 new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US),
                 new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy", Locale.US),
