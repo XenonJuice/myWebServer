@@ -1,8 +1,11 @@
 package erangel.core;
 
 import erangel.base.*;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleException;
 import erangel.connector.http.HttpRequest;
 import erangel.connector.http.HttpResponse;
+import erangel.lifecycle.LifecycleListener;
 import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;
 import org.slf4j.Logger;
@@ -324,6 +327,7 @@ public abstract class VasBase implements Vas, Lifecycle, Channel {
      * @param writeRequest 一个标志，指示是否应写入请求详细信息。
      * @return 映射的容器或资源作为Vas对象，如果未找到映射则返回null。
      */
+    // TODO
     @Override
     public Vas map(HttpRequest req, boolean writeRequest) {
         Mapper mapper = findMapper(req.getUri());
@@ -335,6 +339,10 @@ public abstract class VasBase implements Vas, Lifecycle, Channel {
      */
     @Override
     public void addMapper(Mapper mapper) {
+        synchronized (mappers) {
+            mapper.setVas(this);
+            mappers.put(this.name, mapper);
+        }
         this.mapper = mapper;
     }
 
