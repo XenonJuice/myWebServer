@@ -4,17 +4,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.lang.reflect.Method;
 import java.net.URL;
-import java.util.ArrayList;
+import java.net.URLClassLoader;
+import java.util.HashSet;
+import java.util.Set;
 
 import static erangel.base.Const.confInfo.*;
 import static erangel.base.Const.webApp.CLASSES_ONLY;
+import static erangel.base.Const.webApp.DOTJAR;
 import static java.io.File.separator;
 
+// JVM 的启动入口，负责构建启动环境
 public class Bootstrap {
     //<editor-fold desc = "attr">]
     // logger
     private static final Logger logger = LoggerFactory.getLogger(Bootstrap.class);
+    // 服务器真正的启动类
+    private static final String ERANGEL = "erangel.startup.Erangel";
+    private static final String PROCESS = "process";
 
     //</editor-fold>
     //<editor-fold desc = "MAIN">
@@ -22,17 +30,42 @@ public class Bootstrap {
         // 用于加载服务器和webapp共享的类的loder，例如加载javax servlet
         ClassLoader commonLoader = null;
         // 只加载服务器的loader
-        ClassLoader coreLoader = null;
+        ClassLoader coreLoader;
         // 配置部署目录
         configureDeploymentDir();
         // 创建类加载器
         ClassLoader[] commonAndCore = allocateClassLoader();
+        if (commonAndCore == null) throw new RuntimeException("allocate class loader error");
         commonLoader = commonAndCore[0];
         coreLoader = commonAndCore[1];
 
+        // 将当前上下文的类加载器切换到已经做好的核心类加载器
+        Thread.currentThread().setContextClassLoader(coreLoader);
+        try {
+            // 通过类加载器加载启动类
+            Class<?> ergClass = coreLoader.loadClass(ERANGEL);
+            Object ergInstance = ergClass.getDeclaredConstructor().newInstance();
+            logger.debug("erangel class loaded");
+
+            // 存储启动时的命令的类型
+            Class<?>[] paramTypes = new Class[1];
+            // 存储启动时命令的具体值
+            Object[] paramValues = new Object[1];
+            // 要调用的方法
+            Method method;
+            paramTypes[0] = args.getClass();
+            paramValues[0] = args;
+            method = ergInstance.getClass().getMethod(PROCESS, paramTypes);
+            method.invoke(ergInstance, paramValues);
+            logger.debug("erangel process success");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            System.exit(2);
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.exit(3);
+        }
     }
-
-
     //</editor-fold>
     //<editor-fold desc = "获取核心目录和部署目录">
 
@@ -60,31 +93,33 @@ public class Bootstrap {
     private static ClassLoader[] allocateClassLoader() {
         ClassLoader[] ret = new ClassLoader[2];
         try {
-            // 指向共有资源的File对象
-            File[] commonRes = new File[2];
+            File[] unpacked = new File[1];
+            File[] packed = new File[1];
+
             File common = new File(getCoreDir(), COMMON + separator + LIB_LOWERCASE_ONLY_);
             File unpackedCommon = new File(getCoreDir(), COMMON + separator + CLASSES_ONLY);// 方便测试
-            commonRes[0] = common;
-            commonRes[1] = unpackedCommon;
-            // 创建类加载器 TODO
-            // ClassLoaderFactory.createClassLoader();
+            unpacked[0] = unpackedCommon;
+            packed[0] = common;
+            // 创建类加载器
+            ClassLoader commonLoader = ClassLoaderFactory.createClassLoader(packed, unpacked, null);
             // 指向服务器核心类的File对象
-            File[] coreRes = new File[2];
             File core = new File(getCoreDir(), CORE + separator + LIB_LOWERCASE_ONLY_);
             File unpackedCore = new File(getCoreDir(), CORE + separator + CLASSES_ONLY);// 方便测试
-            coreRes[0] = core;
-            coreRes[1] = unpackedCore;
-            // 创建类加载器 TODO
-
+            unpacked[0] = unpackedCore;
+            packed[0] = core;
+            // 创建类加载器
+            ClassLoader coreLoader = ClassLoaderFactory.createClassLoader(packed, unpacked, commonLoader);
+            ret[0] = commonLoader;
+            ret[1] = coreLoader;
+            logger.info("allocateClassLoader success");
         } catch (Exception e) {
             logger.error("allocateClassLoader error", e);
             System.exit(1);
         }
-        return ret;
+        if (ret[1] != null && ret[0] != null) return ret;
+        else return null;
     }
 
-    //</editor-fold>
-    //<editor-fold desc = "">
     //</editor-fold>
     //<editor-fold desc = "">
     //</editor-fold>
@@ -95,23 +130,53 @@ public class Bootstrap {
         }
 
         public static ClassLoader createClassLoader(File[] packed, File[] unpacked, ClassLoader parent) {
-            ArrayList<String> classPath = new ArrayList<>();
+            // 用于收集要被loader加载的路径
+            Set<URL> classPathList = new HashSet<URL>();
 
             // 构建测试用的 未打包的class的class path
             if (unpacked != null) {
+                // 将每一个未打包class作为File对象
                 for (File dir : unpacked) {
+                    // 验证正常性
                     if (!isValidDirectory(dir)) continue;
-                    logger.info("unpacked class path : {}", dir.getAbsolutePath());
-                    URL url = null;
+                    logger.debug("unpacked class path : {}", dir.getAbsolutePath());
+                    URL url;
                     try {
                         url = dir.getCanonicalFile().toURI().toURL();
+                        classPathList.add(url);
                     } catch (Exception e) {
                         logger.error("createClassLoader error", e);
                     }
                 }
 
             }
-            return null;
+
+            // 构建一般的压缩的class 的class path
+            if (packed != null) {
+                for (File dir : packed) {
+                    if (!isValidDirectory(dir)) continue;
+                    logger.debug("packed class path : {}", dir.getAbsolutePath());
+                    String[] fileNames = dir.list();
+                    if (fileNames == null) continue;
+                    for (String fileName : fileNames) {
+                        if (fileName.endsWith(DOTJAR)) {
+                            File jarFile = new File(dir, fileName);
+                            logger.debug("packed jar file : {}", jarFile.getAbsolutePath());
+                            URL url;
+                            try {
+                                url = jarFile.getCanonicalFile().toURI().toURL();
+                                classPathList.add(url);
+                            } catch (Exception e) {
+                                logger.error("createClassLoader error", e);
+                            }
+                        }
+                    }
+                }
+            }
+            if (classPathList.isEmpty()) return null;
+            URL[] classPathArray = classPathList.toArray(new URL[0]);
+            if (parent == null) return new URLClassLoader(classPathArray);
+            else return new URLClassLoader(classPathArray, parent);
         }
     }
     //</editor-fold>
