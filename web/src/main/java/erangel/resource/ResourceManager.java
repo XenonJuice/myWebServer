@@ -21,7 +21,7 @@ import java.util.jar.JarFile;
 import static erangel.base.Const.commonCharacters.SOLIDUS;
 import static erangel.base.Const.webApp.*;
 
-public class ResourceManager implements Lifecycle, Runnable {
+public class ResourceManager implements Lifecycle {
     //<editor-fold desc = "attr">
     // logger
     private static final Logger logger = BaseLogger.getLogger(ResourceManager.class);
@@ -399,16 +399,27 @@ public class ResourceManager implements Lifecycle, Runnable {
         logger.debug("LifeCycle : ResourceManager is starting");
         lifecycleHelper.fireLifecycleEvent(START_EVENT, null);
         isStarted = true;
-        threadStart();
+        isRunning = true;
+        classLoaderResourceMap.clear();
+        if (context == null) throw new IllegalStateException("ResourceManager ：context is null！");
+        basePath = context.getBasePath();
+        // /Users/lilinjian/workspace/webapp/WEB-INF/
+        //    ├── classes/          // 存放解压后的 .class 文件
+        //    │      └── com/example/MyClass.class
+        //    └── lib/              // 存放 jar 包
+        //           └── llj.jar    // jar 包内部可能包含 com/example/LLJClass.class 等
+        logger.debug("basePath ：{}", basePath);
+        createResourceMapping();
     }
 
-    private void threadStart() {
-        logger.debug("ResourceManager is starting");
-        threadName = this.getClass().getSimpleName();
-        thread = new Thread(this, threadName);
-        thread.setDaemon(true);
-        thread.start();
-    }
+//    private void threadStart() {
+//        logger.debug("ResourceManager is starting");
+//        threadName = this.getClass().getSimpleName();
+//        thread = new Thread(this, threadName);
+//        thread.setDaemon(true);
+//        isRunning = true;
+//        thread.start();
+//    }
 
 
     @Override
@@ -417,50 +428,49 @@ public class ResourceManager implements Lifecycle, Runnable {
         logger.debug("LifeCycle : ResourceManager is stopping");
         lifecycleHelper.fireLifecycleEvent(STOP_EVENT, null);
         isStarted = false;
-        threadStop();
+        isRunning = false;
         logger.debug("LifeCycle : ResourceManager is stopped");
     }
 
-    private void threadStop() {
-        if (thread == null) return;
-        logger.debug("ResourceManager is stopping");
-        isRunning = false;
-        synchronized (lock) {
-            lock.notifyAll();
-        }
-        thread = null;
-    }
+//    private void threadStop() {
+//        if (thread == null) return;
+//        logger.debug("ResourceManager is stopping");
+//        isRunning = false;
+//        synchronized (lock) {
+//            lock.notifyAll();
+//        }
+//        thread = null;
+//    }
 
-    @Override
-    public void run() {
-        while (isRunning) {
-            classLoaderResourceMap.clear();
-            if (context == null) throw new IllegalStateException("ResourceManager ：context is null！");
-            basePath = context.getBasePath();
-            // /Users/lilinjian/workspace/webapp/WEB-INF/
-            //    ├── classes/          // 存放解压后的 .class 文件
-            //    │      └── com/example/MyClass.class
-            //    └── lib/              // 存放 jar 包
-            //           └── llj.jar    // jar 包内部可能包含 com/example/LLJClass.class 等
-            logger.debug("basePath ：{}", basePath);
-            createResourceMapping();
-            synchronized (lock) {
-                try {
-                    lock.wait();
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    isRunning = false;
-                }
-            }
-        }
+//    @Override
+//    public void run() {
+//        while (isRunning) {
+//            classLoaderResourceMap.clear();
+//            if (context == null) throw new IllegalStateException("ResourceManager ：context is null！");
+//            basePath = context.getBasePath();
+//            // /Users/lilinjian/workspace/webapp/WEB-INF/
+//            //    ├── classes/          // 存放解压后的 .class 文件
+//            //    │      └── com/example/MyClass.class
+//            //    └── lib/              // 存放 jar 包
+//            //           └── llj.jar    // jar 包内部可能包含 com/example/LLJClass.class 等
+//            logger.debug("basePath ：{}", basePath);
+//            createResourceMapping();
+//            synchronized (lock) {
+//                try {
+//                    lock.wait();
+//                } catch (InterruptedException e) {
+//                    Thread.currentThread().interrupt();
+//                }
+//            }
+//        }
+//
+//    }
 
-    }
-
-    public void reload() {
-        synchronized (lock) {
-            lock.notifyAll();
-        }
-    }
+//    public void reload() {
+//        synchronized (lock) {
+//            lock.notifyAll();
+//        }
+//    }
 
 
     //</editor-fold>
