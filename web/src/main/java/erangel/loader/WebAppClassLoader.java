@@ -25,6 +25,12 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
     //<editor-fold desc = "attr">
     // logger
     private static final Logger logger = BaseLogger.getLogger(WebAppClassLoader.class);
+
+    static {
+        System.out.println("WebAppClassLoader init");
+        registerAsParallelCapable();
+    }
+
     // 资源条目
     private final Map<String, ResourceEntry> entries = new ConcurrentHashMap<>();
     // jar文件修改时刻
@@ -50,14 +56,14 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
     //<editor-fold desc = "构造器">
     public WebAppClassLoader() {
         super(new URL[0]);
-        if (getParentClassLoader() == null)
+        if (getParent() == null)
             this.parentClassLoader = getSystemClassLoader();
         this.sysLoader = getSystemClassLoader();
     }
 
     public WebAppClassLoader(ClassLoader parent) {
         super(new URL[0], parent);
-        if (getParentClassLoader() == null)
+        if (getParent() == null)
             this.parentClassLoader = getSystemClassLoader();
         this.sysLoader = getSystemClassLoader();
     }
@@ -129,12 +135,12 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
             // 如果这时有另一线程试图向Map中添加特定的类，无锁状态下
             // 这里可能获得与被添加的特定类的实例不同的实例
             synchronized (entries) {
-                // 确定在此操作之前是否由其他线程从此MAP中移除了实例
+                // 确定在此操作之前是否由其他线程从此MAP中添加了实例
                 ResourceEntry oldEntry = entries.get(path);
-                // 如果被移除，则再次添加到MAP中
+                // 如果未被添加，则添加到MAP中
                 if (oldEntry == null) {
                     entries.put(path, entry);
-                    // 如果未被移除，则将获取的对象指向已经在MAP中存在的entry
+                    // 如果已经被移除，则将获取的对象指向已经在MAP中存在的entry
                 } else {
                     entry = oldEntry;
                 }
@@ -154,7 +160,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
             // 若本地磁盘中字眼不存在，则返回null
             if (!loadableResource.exists()) return null;
             // 获取字节对象
-            byte[] bytes = null;
+            byte[] bytes;
             bytes = loadableResource.getContent();
             //             处理包名
 //            String packageName = null;
@@ -230,17 +236,16 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
             if (jar.getName().endsWith(Const.webApp.DOTJAR) && jar.canRead()) {
                 Long oldTime = jarTimes.get(jar.getName());
                 if (oldTime == null) {
-                    logger.info("webAppClassLoader modified jar has been added: {} in Context : {}", jar.getName(), localResource.getContext().getName());
-                }
-                if (oldTime != jar.getLastModified()) {
-                    logger.info("webAppClassLoader modified jar has been modified: {} in Context : {}", jar.getName(), localResource.getContext().getName());
+                    logger.info("webAppClassLoader modified ：jar has been added: {} in Context : {}", jar.getName(), localResource.getContext().getName());
+                } else if (oldTime != jar.getLastModified()) {
+                    logger.info("webAppClassLoader modified ：jar has been modified: {} in Context : {}", jar.getName(), localResource.getContext().getName());
                     return true;
                 }
 
             }
         }
         if (jarsSize < jarTimes.size()) {
-            logger.info("webAppClassLoader modified jar has been deleted: {} ", localResource.getContext().getName());
+            logger.info("webAppClassLoader modified ：jar has been deleted: {} ", localResource.getContext().getName());
             return true;
         }
         return false;
@@ -330,8 +335,10 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
                 try {
                     clazz = loader.loadClass(name);
                     logger.debug("loadClass: parentClassLoader.loadClass: {}", clazz);
-                    if (resolve) resolveClass(clazz);
-                    return clazz;
+                    if (clazz != null) {
+                        if (resolve) resolveClass(clazz);
+                        return clazz;
+                    }
                 } catch (ClassNotFoundException _) {
                 }
             }
