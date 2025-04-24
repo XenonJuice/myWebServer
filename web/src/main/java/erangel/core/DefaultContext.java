@@ -1,12 +1,14 @@
 package erangel.core;
 
 import erangel.base.*;
-import erangel.lifecycle.Lifecycle;
-import erangel.lifecycle.LifecycleException;
 import erangel.checkpoints.ContextCheckpoint;
+import erangel.connector.http.HttpRequest;
+import erangel.connector.http.HttpResponse;
 import erangel.filter.ApplicationFilterConfig;
 import erangel.filter.FilterDef;
 import erangel.filter.FilterMap;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleException;
 import erangel.loader.WebAppLoader;
 import erangel.mapper.ContextMapper;
 import erangel.resource.ResourceManager;
@@ -30,7 +32,6 @@ import java.util.HashMap;
 public class DefaultContext extends VasBase implements Context {
     private static final Logger logger = LoggerFactory.getLogger(DefaultContext.class);
     //<editor-fold desc = "attr">
-    private Channel channel = new DefaultChannel(this);
     private String basePath = "";
     // web.xml中配置的web程序的监听器
     private String[] applicationListeners = new String[0];
@@ -38,13 +39,13 @@ public class DefaultContext extends VasBase implements Context {
     // 过滤器映射信息
     private FilterMap[] filterMaps = new FilterMap[0];
     // 过滤器定义，key为过滤器的名字
-    private HashMap<String, FilterDef> filterDefs = new HashMap<>();
+    private final HashMap<String, FilterDef> filterDefs = new HashMap<>();
     // 加载过后的过滤器集合，key为过滤器的名字
-    private HashMap<String, ApplicationFilterConfig> filterConfigs = new HashMap<>();
+    private final HashMap<String, ApplicationFilterConfig> filterConfigs = new HashMap<>();
     // servlet map
-    private HashMap<String, String> servletMappings = new HashMap<>();
+    private final HashMap<String, String> servletMappings = new HashMap<>();
     // mime map
-    private HashMap<String, String> mimeMappings = new HashMap<>();
+    private final HashMap<String, String> mimeMappings = new HashMap<>();
     // 展示名
     private String displayName = "";
     // 当前上下文是否可使用flag
@@ -57,6 +58,7 @@ public class DefaultContext extends VasBase implements Context {
     private boolean paused = false;
     // 配置文件加载状态标志位
     private boolean configured = false;
+
     //</editor-fold>
     //<editor-fold desc = "构造器">
     public DefaultContext() {
@@ -110,7 +112,7 @@ public class DefaultContext extends VasBase implements Context {
         if (applicationContext == null) {
             applicationContext = new WebApplicationContext(getBasePath(), this);
         }
-        return null;
+        return applicationContext;
     }
 
     @Override
@@ -263,6 +265,7 @@ public class DefaultContext extends VasBase implements Context {
         return filterMaps;
 
     }
+
     @Override
     public FilterConfig findFilterConfig(String name) {
         synchronized (filterConfigs) {
@@ -364,6 +367,18 @@ public class DefaultContext extends VasBase implements Context {
 
     //</editor-fold>
     //<editor-fold desc = "生命周期">
+    public void process(HttpRequest request, HttpResponse response) throws Exception {
+        while (isPaused()) {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        super.process(request, response);
+    }
+
     @Override
     public synchronized void start() throws LifecycleException {
         if (started) throw new LifecycleException("context : " + getName() + " is already started");
@@ -383,6 +398,7 @@ public class DefaultContext extends VasBase implements Context {
         // 设置自定义类加载器
         if (noProblem && getLoader() == null) {
             WebAppLoader webAppLoader = new WebAppLoader(getParentClassLoader());
+            webAppLoader.setContext(this);
             setLoader(webAppLoader);
         }
         // 接下来切换类加载器，在这时候context使用的还是生命周期函数所在线程的类加载器，先保存引用
@@ -410,7 +426,7 @@ public class DefaultContext extends VasBase implements Context {
                 lifecycleHelper.fireLifecycleEvent(START_EVENT, null);
             } catch (Exception e) {
                 noProblem = false;
-                logger.error("waringing : context : {} start failed", getName(), e);
+                logger.error("warning : context : {} start failed", getName(), e);
             } finally {
                 // 恢复到原先线程的类加载器
                 unbindThread(oldCL);
