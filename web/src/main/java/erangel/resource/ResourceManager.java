@@ -29,16 +29,13 @@ public class ResourceManager implements Lifecycle {
     private final Map<String, List<LocalResource>> classLoaderResourceMap = new HashMap<>();
     private final Map<String, List<LocalResource>> configMap = new HashMap<>();
     private final Map<String, List<LocalResource>> stasticResMap = new HashMap<>();
-    private final Object lock = new Object();
+    // 缓存 .class 的相对路径到绝对 Path
+    private final Map<String ,Path> classesPaths = new HashMap<>();
     // 生命周期助手
     protected LifecycleHelper lifecycleHelper = new LifecycleHelper(this);
     private Map<String, List<LocalResource>> allResources = new HashMap<>();
     // 根目录
     private String basePath = null;
-    // 线程
-    private Thread thread = null;
-    private String threadName = null;
-    private volatile boolean isRunning = true;
     // 绑定的Context
     private Context context = null;
     // 组件启动标志位
@@ -72,8 +69,7 @@ public class ResourceManager implements Lifecycle {
 
     //</editor-fold>
     //<editor-fold desc = "扫描资源">
-    // 始终以斜杠开头 例如/com/example/LLJ.class  /web.xml
-    // 扫描WEB-INF/classes
+    // 始终以斜杠开头 例如/com/example/
     public void scanFileSystem(Path rootDir) {
         // 递归遍历整个目录树
         try {
@@ -92,6 +88,18 @@ public class ResourceManager implements Lifecycle {
         }
     }
 
+    public void scanClassDir(Path classesDir) {
+        try {
+            Files.walk(classesDir)
+                    .filter(p -> p.toString().endsWith(DOTCLASS))
+                    .forEach(p -> {
+                        String key = classesDir.relativize(p).toString();
+                        classesPaths.put(key, p);
+                    });
+        } catch (IOException e) {
+            logger.error("初始化 class 路径失败: {}", classesDir, e);
+        }
+    }
 
     // 扫描 jar 文件
     public void scanJarFile(File jarFile) {
@@ -237,6 +245,14 @@ public class ResourceManager implements Lifecycle {
         return null;
     }
 
+    public LocalResource getClassResource(String path){
+        Path p = classesPaths.get(path);
+        if(p == null){
+            return null;
+        }
+        return new FileResource(p);
+    }
+
     public LocalResource[] getLoaderResources(String path) {
         String normalizedPath = normalizePath(path);
         List<LocalResource> resources = classLoaderResourceMap.get(normalizedPath);
@@ -262,6 +278,7 @@ public class ResourceManager implements Lifecycle {
         List<LocalResource> list = classLoaderResourceMap.get(normalizedPath);
         if (list == null) {
             list = new ArrayList<>();
+            list.add(resource);
             classLoaderResourceMap.put(normalizedPath, list);
         }
         list.add(resource);
@@ -272,8 +289,10 @@ public class ResourceManager implements Lifecycle {
         List<LocalResource> list = configMap.get(normalizedPath);
         if (list == null) {
             list = new ArrayList<>();
+            list.add(resource);
             configMap.put(normalizedPath, list);
         }
+        list.add(resource);
     }
 
     public void addStaticResources(String path, LocalResource resource) {
@@ -281,8 +300,10 @@ public class ResourceManager implements Lifecycle {
         List<LocalResource> list = stasticResMap.get(normalizedPath);
         if (list == null) {
             list = new ArrayList<>();
+            list.add(resource);
             stasticResMap.put(normalizedPath, list);
         }
+        list.add(resource);
     }
 
     //</editor-fold>
@@ -295,7 +316,9 @@ public class ResourceManager implements Lifecycle {
         Path libDir = webInfRoot.resolve(LIB_ONLY);
         Path staticDir = webInfRoot.resolve(RESOURCES_ONLY);
         // 扫描WEB-INF/classes下的所有 class 文件
-        scanFileSystem(classesDir);
+        scanClassDir(classesDir);
+        // 扫描静态资源
+        scanFileSystem(staticDir);
         // 扫描 WEB-INF/lib 下的所有 jar 文件
         try (DirectoryStream<Path> jarStream = Files.newDirectoryStream(libDir, "*.jar")) {
             for (Path jarPath : jarStream) {
@@ -399,7 +422,6 @@ public class ResourceManager implements Lifecycle {
         logger.debug("LifeCycle : ResourceManager is starting");
         lifecycleHelper.fireLifecycleEvent(START_EVENT, null);
         isStarted = true;
-        isRunning = true;
         classLoaderResourceMap.clear();
         if (context == null) throw new IllegalStateException("ResourceManager ：context is null！");
         basePath = context.getBasePath();
@@ -412,15 +434,6 @@ public class ResourceManager implements Lifecycle {
         createResourceMapping();
     }
 
-//    private void threadStart() {
-//        logger.debug("ResourceManager is starting");
-//        threadName = this.getClass().getSimpleName();
-//        thread = new Thread(this, threadName);
-//        thread.setDaemon(true);
-//        isRunning = true;
-//        thread.start();
-//    }
-
 
     @Override
     public void stop() throws LifecycleException {
@@ -428,50 +441,7 @@ public class ResourceManager implements Lifecycle {
         logger.debug("LifeCycle : ResourceManager is stopping");
         lifecycleHelper.fireLifecycleEvent(STOP_EVENT, null);
         isStarted = false;
-        isRunning = false;
         logger.debug("LifeCycle : ResourceManager is stopped");
     }
-
-//    private void threadStop() {
-//        if (thread == null) return;
-//        logger.debug("ResourceManager is stopping");
-//        isRunning = false;
-//        synchronized (lock) {
-//            lock.notifyAll();
-//        }
-//        thread = null;
-//    }
-
-//    @Override
-//    public void run() {
-//        while (isRunning) {
-//            classLoaderResourceMap.clear();
-//            if (context == null) throw new IllegalStateException("ResourceManager ：context is null！");
-//            basePath = context.getBasePath();
-//            // /Users/lilinjian/workspace/webapp/WEB-INF/
-//            //    ├── classes/          // 存放解压后的 .class 文件
-//            //    │      └── com/example/MyClass.class
-//            //    └── lib/              // 存放 jar 包
-//            //           └── llj.jar    // jar 包内部可能包含 com/example/LLJClass.class 等
-//            logger.debug("basePath ：{}", basePath);
-//            createResourceMapping();
-//            synchronized (lock) {
-//                try {
-//                    lock.wait();
-//                } catch (InterruptedException e) {
-//                    Thread.currentThread().interrupt();
-//                }
-//            }
-//        }
-//
-//    }
-
-//    public void reload() {
-//        synchronized (lock) {
-//            lock.notifyAll();
-//        }
-//    }
-
-
     //</editor-fold>
 }
