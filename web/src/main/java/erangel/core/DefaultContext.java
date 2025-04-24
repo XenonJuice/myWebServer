@@ -124,7 +124,7 @@ public class DefaultContext extends VasBase implements Context {
     }
 
     @Override
-    public void reload() {
+    public synchronized void reload() {
         if (!started) throw new IllegalStateException("context : " + getName() + " is not started");
         setPaused(true);
         try {
