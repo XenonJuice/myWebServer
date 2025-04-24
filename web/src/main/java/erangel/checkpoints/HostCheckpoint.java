@@ -13,6 +13,7 @@ public class HostCheckpoint extends CheckpointBase {
     //<editor-fold desc = "attr">
     private static final String info = "erangel.base.lifecycle.HostCheckpoint";
     private static final Logger logger = BaseLogger.getLogger(HostCheckpoint.class);
+
     //</editor-fold>
     //<editor-fold desc = "抽象方法实现">
     @Override
@@ -22,7 +23,7 @@ public class HostCheckpoint extends CheckpointBase {
 
     @Override
     public void process(HttpRequest request, HttpResponse response, CheckpointContext context) throws Exception {
-        logger.info("HostCheckpoint : process in {}",getVas().getName());
+        logger.info("HostCheckpoint : process in {}", getVas().getName());
         DefaultHost host = (DefaultHost) getVas();
         Context innerContext = (Context) host.map(request, true);
         if (innerContext == null) {
@@ -33,7 +34,7 @@ public class HostCheckpoint extends CheckpointBase {
         }
         // 切换到map到的context的上下文线程的类加载器
         Thread.currentThread().setContextClassLoader(innerContext.getLoader().getClassLoader());
-        context.process(request,response);
+        innerContext.process(request, response);
     }
     //</editor-fold>
 
