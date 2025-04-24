@@ -1,10 +1,10 @@
 package erangel.core;
 
 import erangel.base.*;
-import erangel.lifecycle.Lifecycle;
-import erangel.lifecycle.LifecycleException;
 import erangel.connector.http.HttpRequest;
 import erangel.connector.http.HttpResponse;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleException;
 import erangel.lifecycle.LifecycleListener;
 import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;
@@ -51,7 +51,7 @@ public class DefaultChannel implements Channel, Lifecycle, VasManager {
         lifecycleHelper.fireLifecycleEvent(Lifecycle.BEFORE_STOP_EVENT, null);
         lifecycleHelper.fireLifecycleEvent(Lifecycle.STOP_EVENT, null);
         stared = false;
-        if (basicCheckpoint instanceof VasManager) ((Lifecycle) basicCheckpoint).stop();
+        if (basicCheckpoint != null && basicCheckpoint instanceof Lifecycle) ((Lifecycle) basicCheckpoint).stop();
         for (Checkpoint cp : checkpoints) {
             if (cp instanceof Lifecycle) ((Lifecycle) cp).stop();
         }
