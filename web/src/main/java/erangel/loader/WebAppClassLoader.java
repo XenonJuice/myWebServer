@@ -140,7 +140,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
                 // 如果未被添加，则添加到MAP中
                 if (oldEntry == null) {
                     entries.put(path, entry);
-                    // 如果已经被移除，则将获取的对象指向已经在MAP中存在的entry
+                    // 如果已存在，则将获取的对象指向已经在MAP中存在的entry
                 } else {
                     entry = oldEntry;
                 }
@@ -162,20 +162,20 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
             // 获取字节对象
             byte[] bytes;
             bytes = loadableResource.getContent();
-            //             处理包名
-//            String packageName = null;
-//            int dotPos = name.lastIndexOf(DOT);
-//            if (dotPos!=-1) packageName = name.substring(0, dotPos);
-//                        Package pkg;
-//            // 若截取后的包名不为空，则获取指定包的信息对象
-//            if (packageName!=null){
-//                pkg =getDefinedPackage(packageName);
-//                if (pkg == null){
-//                    definePackage(packageName, null, null, null,
-//                            null, null, null, null);
-//                    pkg=getDefinedPackage(packageName);
-//                }
-//            }
+            // 处理包名
+            // String packageName = null;
+            // int dotPos = name.lastIndexOf(DOT);
+            // if (dotPos!=-1) packageName = name.substring(0, dotPos);
+            //                        Package pkg;
+            // // 若截取后的包名不为空，则获取指定包的信息对象
+            // if (packageName!=null){
+            //                pkg =getDefinedPackage(packageName);
+            //                if (pkg == null){
+            //                    definePackage(packageName, null, null, null,
+            //                            null, null, null, null);
+            //                    pkg=getDefinedPackage(packageName);
+            //                }
+            // }
             // defineClass
             clazz = defineClass(name, bytes, 0, bytes.length, (CodeSource) null);
             entry.loadedClass = clazz;
@@ -223,7 +223,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
         logger.debug("modified: {}", entries.size());
         for (Map.Entry<String, ResourceEntry> entry : entries.entrySet()) {
             long oldTime = entry.getValue().lastModified;
-            long newTime = localResource.getLoaderResource(entry.getKey()).getLastModified();
+            long newTime = localResource.getClassResource(entry.getKey()).getLastModified();
             if (oldTime != newTime) {
                 logger.debug("modified: {} , oldTime: {} , newTime: {}",
                         entry.getKey(), new Date(oldTime), new Date(newTime));
@@ -302,7 +302,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
                 return clazz;
             }
 
-            // 检查JVM方法区，如果已经加载过则直接返回
+            // 检查JVM，如果已经加载过则直接返回
             clazz = findLoadedClass(name);
             if (clazz != null) {
                 logger.debug("loadClass: findLoadedClass: {}", clazz);
@@ -418,9 +418,8 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
         }
         // 从本地仓库寻找
         url = findResource(name);
-        if (url != null) return url;
+        return url;
         // 都找不到时返回空
-        return null;
     }
 
     @Override
@@ -481,7 +480,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                if (inputStream != null) return inputStream;
+                return inputStream;
             }
         }
         // 都找不到的话就返回null
