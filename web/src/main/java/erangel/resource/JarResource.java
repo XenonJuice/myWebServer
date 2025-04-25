@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -22,10 +24,13 @@ public class JarResource implements LocalResource {
     private final JarFile jarFile;
     // 表示 jar 包内的一个具体资源（例如一个 .class 文件或其他文件）
     private final JarEntry jarEntry;
+    // 指向JAR 文件在磁盘上的实际位置
+    private final Path jarPath;
 
-    public JarResource(JarFile jarFile, JarEntry jarEntry) {
+    public JarResource(JarFile jarFile, JarEntry jarEntry, Path jarPath) {
         this.jarFile = jarFile;
         this.jarEntry = jarEntry;
+        this.jarPath = jarPath;
     }
 
     @Override
@@ -40,7 +45,7 @@ public class JarResource implements LocalResource {
 
     @Override
     public boolean canRead() {
-        return true;
+        return jarEntry.getSize() > 0 && !jarEntry.isDirectory();
     }
 
     @Override
@@ -59,7 +64,13 @@ public class JarResource implements LocalResource {
 
     @Override
     public long getLastModified() {
-        return jarEntry.getTime();
+        // 实时去文件系统读 JAR 本身的最后修改时间
+        try {
+            return Files.getLastModifiedTime(jarPath).toMillis();
+        } catch (IOException e) {
+            // 回退到条目时间戳
+            return jarEntry.getTime();
+        }
     }
 
     @Override
