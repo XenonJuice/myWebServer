@@ -1,6 +1,7 @@
 package erangel.resource;
 
-import erangel.base.*;
+import erangel.base.Const;
+import erangel.base.Context;
 import erangel.lifecycle.Lifecycle;
 import erangel.lifecycle.LifecycleException;
 import erangel.lifecycle.LifecycleListener;
@@ -18,6 +19,7 @@ import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+import static erangel.base.Const.CharPunctuationMarks.CHAR_SOLIDUS;
 import static erangel.base.Const.commonCharacters.SOLIDUS;
 import static erangel.base.Const.webApp.*;
 
@@ -30,7 +32,7 @@ public class ResourceManager implements Lifecycle {
     private final Map<String, List<LocalResource>> configMap = new HashMap<>();
     private final Map<String, List<LocalResource>> stasticResMap = new HashMap<>();
     // 缓存 .class 的相对路径到绝对 Path
-    private final Map<String ,Path> classesPaths = new HashMap<>();
+    private final Map<String, Path> classesPaths = new HashMap<>();
     // 生命周期助手
     protected LifecycleHelper lifecycleHelper = new LifecycleHelper(this);
     private Map<String, List<LocalResource>> allResources = new HashMap<>();
@@ -77,7 +79,7 @@ public class ResourceManager implements Lifecycle {
                     .filter(Files::isRegularFile)
                     .forEach(path -> {
                         String relative = rootDir.relativize(path).toString().replace(
-                                File.separatorChar, '/');
+                                File.separatorChar, CHAR_SOLIDUS);
                         String resourcePath = SOLIDUS + relative;
                         // 构造 FileResource 对象
                         LocalResource resource = new FileResource(path);
@@ -93,30 +95,71 @@ public class ResourceManager implements Lifecycle {
             Files.walk(classesDir)
                     .filter(p -> p.toString().endsWith(DOTCLASS))
                     .forEach(p -> {
-                        String key = classesDir.relativize(p).toString();
-                        classesPaths.put(key, p);
+                        // 计算相对路径，并统一为/分隔
+                        String rel = classesDir.relativize(p)
+                                .toString()
+                                .replace(File.separatorChar, CHAR_SOLIDUS);
+                        // 跳过受保护的包
+                        if (isProtectedClass(rel)) {
+                            logger.info("跳过受保护的类文件: {}", rel);
+                            return;
+                        }
+                        // 正常注册
+                        classesPaths.put(SOLIDUS + rel, p);
                     });
         } catch (IOException e) {
             logger.error("初始化 class 路径失败: {}", classesDir, e);
         }
     }
 
+    // 过滤规范API包
+    private boolean isProtectedClass(String relPath) {
+        // 去掉末尾 ".class"
+        String pkg = relPath.substring(0, relPath.length() - 6);
+        // 以 '/' 分隔的包名
+        return pkg.startsWith("javax/servlet/") || pkg.startsWith("jakarta/servlet/");
+    }
+
     // 扫描 jar 文件
     public void scanJarFile(File jarFile) {
-        JarFile jf = null;
-        try {
-            jf = new JarFile(jarFile);
+        // 打开 JarFile，并把所有条目读到一个列表中，方便两次遍历
+        List<JarEntry> entries;
+        try (JarFile jf = new JarFile(jarFile)) {
+            entries = Collections.list(jf.entries());
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            logger.warn("无法打开 JAR 进行校验，跳过扫描: {}", jarFile, e);
+            return;
         }
-        Enumeration<JarEntry> entries = jf.entries();
-        while (entries.hasMoreElements()) {
-            JarEntry je = entries.nextElement();
-            if (!je.isDirectory()) {
-                String resourcePath = normalizePath(je.getName());
-                LocalResource resource = new JarResource(jf, je);
-                addClassLoaderResources(resourcePath, resource);
+
+        // 校验阶段：如果包含 Servlet API、Jakarta Servlet、Catalina 核心等类，就 skip
+        for (JarEntry je : entries) {
+            String name = je.getName();
+            // Servlet API
+            if (name.equals("javax/servlet/Servlet.class")
+                    || name.startsWith("javax/servlet/")) {
+                logger.info("跳过 servlet-api JAR: {}", jarFile.getName());
+                return;
             }
+            if (name.equals("jakarta/servlet/Servlet.class")
+                    || name.startsWith("jakarta/servlet/")) {
+                logger.info("跳过 jakarta servlet-api JAR: {}", jarFile.getName());
+                return;
+            }
+        }
+
+        // 真正扫描阶段：所有校验通过的 JAR 才做全量索引
+        try (JarFile jf = new JarFile(jarFile)) {
+            Enumeration<JarEntry> e = jf.entries();
+            while (e.hasMoreElements()) {
+                JarEntry je = e.nextElement();
+                if (!je.isDirectory()) {
+                    String resourcePath = normalizePath(je.getName());
+                    LocalResource resource = new JarResource(jf, je, Path.of(resourcePath));
+                    addClassLoaderResources(resourcePath, resource);
+                }
+            }
+        } catch (IOException ex) {
+            throw new RuntimeException("扫描 JAR 失败: " + jarFile, ex);
         }
     }
 
@@ -245,9 +288,9 @@ public class ResourceManager implements Lifecycle {
         return null;
     }
 
-    public LocalResource getClassResource(String path){
+    public LocalResource getClassResource(String path) {
         Path p = classesPaths.get(path);
-        if(p == null){
+        if (p == null) {
             return null;
         }
         return new FileResource(p);
