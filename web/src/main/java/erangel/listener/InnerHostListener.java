@@ -88,6 +88,7 @@ public final class InnerHostListener implements LifecycleListener, Runnable {
     private void deployApps() {
         logger.info("InnerHostListener ：try to deploy apps");
         Path appBase = appBase();
+        logger.debug("InnerHostListener : appBase is " + appBase);
         if (!appBase.toFile().exists() || !appBase.toFile().isDirectory()) {
             return;
         }
