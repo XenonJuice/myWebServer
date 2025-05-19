@@ -31,8 +31,8 @@ public class Bootstrap {
         ClassLoader commonLoader = null;
         // 只加载服务器的loader
         ClassLoader coreLoader;
-        // 配置部署目录
-        configureDeploymentDir();
+        // 配置运行实例目录
+        getInstanceDir();
         // 创建类加载器
         ClassLoader[] commonAndCore = allocateClassLoader();
         if (commonAndCore == null) throw new RuntimeException("allocate class loader error");
@@ -76,7 +76,7 @@ public class Bootstrap {
      * 此方法将使用 {@code getCoreDir} 方法返回的值初始化它。
      * 这确保在进一步操作之前，部署目录被正确建立。
      */
-    private static void configureDeploymentDir() {
+    private static void getInstanceDir() {
         if (System.getProperty(DEPLOY_DIR) == null)
             System.setProperty(DEPLOY_DIR, getCoreDir());
     }
@@ -95,7 +95,7 @@ public class Bootstrap {
         try {
             File[] unpacked = new File[1];
             File[] packed = new File[1];
-
+            // 指向servlet包的File对象
             File common = new File(getCoreDir(), COMMON + separator + LIB_LOWERCASE_ONLY_);
             File unpackedCommon = new File(getCoreDir(), COMMON + separator + CLASSES_ONLY);// 方便测试
             unpacked[0] = unpackedCommon;
