@@ -3,10 +3,9 @@ package erangel.startup;
 import java.io.File;
 
 import static erangel.base.Const.confInfo.*;
+import static erangel.utils.ServerInfo.getServerInfo;
 
 public class Erangel {
-    //<editor-fold desc = "配置二进制目录和实例运行目录">
-
     private static final String HELP_MESSAGE =
             """
                     Usage: Erangel
@@ -16,10 +15,13 @@ public class Erangel {
                       -v,--version    Show version information
                       start           Start the server
                       stop            Stop the server""";
-    //</editor-fold>
     //<editor-fold desc = "attr">
     private boolean debugMode = false;
     private String serverXMLPath = null;
+    private boolean isStarting = false;
+    private boolean isStopping = false;
+    //</editor-fold>]
+    //<editor-fold desc = "配置二进制目录和实例运行目录">
 
     /**
      * 通过设置 {@code CORE_DIR} 系统属性来配置应用程序的核心目录。
@@ -45,6 +47,7 @@ public class Erangel {
         }
     }
 
+
     //</editor-fold>
     //<editor-fold desc = "运行">
     public void process(String[] args) {
@@ -52,22 +55,56 @@ public class Erangel {
         setCoreDir();
         // 设置实例部署目录
         setInstanceDir();
+        // 检测命令输入内容以判断是否启动服务
+        try {
+            if (readCommand(args)) work();
+        } catch (Exception e) {
+            e.printStackTrace(System.out);
+        }
     }
 
+    private void work(){
+        if (isStarting) start();
+        else if (isStopping) stop();
+    }
     //</editor-fold>
     //<editor-fold desc = "读取输入的命令以设置flag">
     private boolean readCommand(String[] args) {
-        if (args == null || args.length == 0) help();
-        return false;
+        boolean isServerXMLPath = false;
+        if (args == null || args.length == 0) {
+            help();
+            return false;
+        }
+        for (String arg : args) {
+            if (isServerXMLPath) {
+                serverXMLPath = arg;
+                isServerXMLPath = false;
+            } else if (arg.equals("-c") || arg.equals("--config")) {
+                isServerXMLPath = true;
+            } else if (arg.equals("-h") || arg.equals("--help")) {
+                help();
+                return false;
+            } else if (arg.equals("-d") || arg.equals("--debug")) {
+                debugMode = true;
+            } else if (arg.equals("-v") || arg.equals("--version")) {
+                System.out.println(getServerInfo());
+                return false;
+            } else if (arg.equals("start")) {
+                isStarting = true;
+            } else if (arg.equals("stop")) {
+                isStopping = true;
+            }
+        }
+        return true;
     }
 
     //</editor-fold>
-    //<editor-fold desc = "说明信息>
+    //<editor-fold desc = "说明信息">
     private void help() {
         System.out.println(HELP_MESSAGE);
     }
-    //</editor-fold>
 
+    //</editor-fold>]
     //<editor-fold desc = "服务器配置文件">
     private File serverXML() {
         File file = new File(serverXMLPath);
@@ -76,6 +113,15 @@ public class Erangel {
             file = new File(System.getProperty(DEPLOY_DIR), serverXMLPath);
         }
         return file;
+    }
+
+    //</editor-fold>
+    //<editor-fold desc = "生命周期">
+    // TODO
+    private void start() {
+    }
+
+    private void stop() {
     }
     //</editor-fold>
 }
