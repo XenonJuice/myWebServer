@@ -15,7 +15,7 @@ public class SetNextRuleAccessible implements Rule {
     @Override
     public void end(String path, MiniDigester d) {
         Object child = d.pop();
-        Object parent = d.peek(Object.class);
+        Object parent = d.peek();
         Class<?> childClass = child.getClass();
 
         try {

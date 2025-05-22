@@ -57,7 +57,7 @@ public class WebRuleSet {
         @Override
         public void begin(String path, Attributes attrs, MiniDigester d) {
             // 栈底是外部 push 的 DefaultContext
-            DefaultContext ctx = d.peek(DefaultContext.class);
+            DefaultContext ctx = d.peek();
             DefaultEndpoint endpoint = (DefaultEndpoint) ctx.createEndpoint();
             d.push(endpoint);
         }

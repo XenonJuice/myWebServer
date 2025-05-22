@@ -13,7 +13,7 @@ import static erangel.xml.MiniDigester.convert;
 public  class SetPropertiesRule implements Rule {
     @Override
     public void begin(String path, Attributes attrs, MiniDigester d) {
-        Object bean = d.peek(Object.class);
+        Object bean = d.peek();
         for (int i = 0; i < attrs.getLength(); i++) {
             String name = attrs.getQName(i);
             if (name == null || name.isEmpty()) name = attrs.getLocalName(i);

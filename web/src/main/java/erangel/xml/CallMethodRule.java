@@ -19,7 +19,7 @@ public class CallMethodRule implements Rule {
 
     @Override
     public void end(String path, MiniDigester d) {
-        Object target = d.peek(Object.class);
+        Object target = d.peek();
         try {
             Method m = target.getClass().getMethod(method, paramTypes);
             Object[] args = new Object[paramList.size()];
