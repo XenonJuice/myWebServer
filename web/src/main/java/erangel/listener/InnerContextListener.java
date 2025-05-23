@@ -8,8 +8,8 @@ import erangel.filter.FilterDef;
 import erangel.filter.FilterMap;
 import erangel.lifecycle.LifecycleListener;
 import erangel.log.BaseLogger;
-import erangel.xml.MiniDigester;
-import erangel.xml.WebRuleSet;
+import erangel.XMLParse.MiniDigester;
+import erangel.XMLParse.WebRuleSet;
 import org.slf4j.Logger;
 
 import javax.servlet.ServletContext;
