@@ -1,4 +1,4 @@
-package erangel.xml;
+package erangel.XMLParse;
 
 import erangel.core.DefaultContext;
 import org.xml.sax.Attributes;
@@ -154,6 +154,9 @@ public class MiniDigester {
         ruleMap.computeIfAbsent(pattern, k -> new ArrayList<>()).add(rule);
     }
 
+    public void addRuleSet(RuleSet ruleSet) {
+        ruleSet.addRuleInstances(this);
+    }
     public void addCallMethod(String path, String methodName) {
         addCallMethod(path, methodName, 1, new String[]{path}, String.class);
     }
@@ -209,7 +212,7 @@ public class MiniDigester {
     }
 
     @SuppressWarnings("unchecked")
-    public <T> T peek(Class<T> type) {
+    public <T> T peek() {
         return (T) stack.peek();
     }
 

@@ -1,4 +1,4 @@
-package erangel.xml;
+package erangel.XMLParse;
 
 import org.xml.sax.Attributes;
 

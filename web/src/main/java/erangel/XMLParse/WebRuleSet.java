@@ -1,4 +1,4 @@
-package erangel.xml;
+package erangel.XMLParse;
 
 import erangel.core.DefaultContext;
 import erangel.core.DefaultEndpoint;
@@ -9,7 +9,7 @@ import org.xml.sax.Attributes;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WebRuleSet {
+public class WebRuleSet extends RuleSet{
 
     public void addRuleInstances(MiniDigester d) {
         /* 0. <web-app> → DefaultContext 仅供测试*/

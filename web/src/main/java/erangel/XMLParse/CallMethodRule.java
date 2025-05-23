@@ -1,10 +1,9 @@
-package erangel.xml;
+package erangel.XMLParse;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.List;
 
-import static erangel.xml.MiniDigester.convert;
+import static erangel.XMLParse.MiniDigester.convert;
 
 public class CallMethodRule implements Rule {
     private final String method;

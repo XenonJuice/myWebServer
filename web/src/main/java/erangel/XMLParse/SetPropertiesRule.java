@@ -1,11 +1,11 @@
-package erangel.xml;
+package erangel.XMLParse;
 
 import org.xml.sax.Attributes;
 
 import java.beans.Introspector;
 import java.util.Arrays;
 
-import static erangel.xml.MiniDigester.convert;
+import static erangel.XMLParse.MiniDigester.convert;
 
 /**
  * 把当前xml元素的属性，自动通过setter注入当前对象中
