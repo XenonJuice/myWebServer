@@ -16,6 +16,12 @@ public final class Const {
         public static final String DEPLOY_DIR = "DEPLOY_DIR";
         public static final String COMMON = "common";
         public static final String LIB_LOWERCASE_ONLY_ = "lib";
+        public static final String SERVER = "Server";
+        public static final String SERVICE = "Service";
+        public static final String CONTEXT = "Context";
+        public static final String CONNECTOR = "Connector";
+        public static final String HOST = "Host";
+        public static final String ENGINE = "Engine";
     }
 
     /**
