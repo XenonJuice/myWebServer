@@ -1,7 +1,10 @@
 package erangel.startup;
 
+import erangel.XMLParse.*;
+
 import java.io.File;
 
+import static erangel.base.Const.commonCharacters.SOLIDUS;
 import static erangel.base.Const.confInfo.*;
 import static erangel.utils.ServerInfo.getServerInfo;
 
@@ -63,10 +66,11 @@ public class Erangel {
         }
     }
 
-    private void work(){
+    private void work() {
         if (isStarting) start();
         else if (isStopping) stop();
     }
+
     //</editor-fold>
     //<editor-fold desc = "读取输入的命令以设置flag">
     private boolean readCommand(String[] args) {
@@ -123,6 +127,31 @@ public class Erangel {
 
     private void stop() {
     }
+    //</editor-fold>
+
+    //<editor-fold desc = "XML解析">
+    // TODO
+    private MiniDigester parseXMLStarting() {
+        MiniDigester d = new MiniDigester();
+        d.setNamespaceAware(true);
+        d.addRuleSet(new ServerRuleSet());
+        d.addRuleSet(new EngineRuleSet(SERVER + SOLIDUS + SERVICE));
+        d.addRuleSet(new HostRuleSet(SERVER + SOLIDUS + SERVICE + SOLIDUS + ENGINE));
+        d.addRuleSet(new ContextRuleSet(SERVER + SOLIDUS + SERVICE + SOLIDUS + ENGINE + SOLIDUS + HOST));
+        d.addRule(SERVER + SOLIDUS + SERVICE + SOLIDUS +, new ClassLoaderRule(parentClassLoader));
+        return d;
+    }
+
+    private void parseXMLStopping() {
+    }
+
+    //</editor-fold>
+    //<editor-fold desc = "栈顶类加载器设置">
+    final class SetTopParentClassLoaderRule implements Rule {
+
+    }
+
+    ;
     //</editor-fold>
 }
 
