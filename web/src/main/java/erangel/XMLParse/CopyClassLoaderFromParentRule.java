@@ -4,14 +4,21 @@ import erangel.base.Vas;
 import org.xml.sax.Attributes;
 
 import java.lang.reflect.Method;
+
 //  Host 和 Context 是运行时动态添加的
-public class CopyClassLoaderRule implements Rule {
+public class CopyClassLoaderFromParentRule implements Rule {
+    private final MiniDigester digester;
+
+    public CopyClassLoaderFromParentRule(MiniDigester digester) {
+        this.digester = digester;
+    }
+
     @Override
-    public void begin(String path, Attributes attributes, MiniDigester d) {
+    public void begin(String path, Attributes attrs, MiniDigester d) {
         try {
             // 从stack中取出父容器与子容器（stack顶部为子容器）
-            Vas child = d.peek(0);
-            Vas parent = d.peek(1);
+            Vas child = digester.peek(0);
+            Vas parent = digester.peek(1);
             // 通过反射调用 parent.getParentClassLoader()
             Method m = parent.getClass().getMethod("getParentClassLoader");
             ClassLoader cl = (ClassLoader) m.invoke(parent);
