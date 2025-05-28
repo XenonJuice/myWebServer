@@ -82,7 +82,7 @@ public class SocketInputBuffer extends InputStream {
         // 更高效的做法，既然我们需要取出一块较大数据。那么直接先判断内部缓冲区和所需数据的大小
         // 如果缓冲区的可用字节大于等于所需大小，可以直接把所需大小复制到容器数组中
         int available = available();
-        if ( available> 0) {
+        if (available > 0) {
             if (available >= len) {
                 //                src,      srcPos, dest, destPos,length
                 System.arraycopy(innerBuffer, pos, buffer, off, len);

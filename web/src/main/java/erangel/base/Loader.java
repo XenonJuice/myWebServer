@@ -47,7 +47,7 @@ public interface Loader {
     /**
      * 返回此加载器的可重新加载标志。
      */
-    public boolean getReloadable();
+    boolean getReloadable();
 
 
     /**
@@ -62,6 +62,7 @@ public interface Loader {
      * 以至于加载的类需要重新加载？
      */
     boolean modified();
+
     /**
      * 向组件添加属性变化监听器。
      * 监听器将在实施对象的属性发生任何变化时被通知。

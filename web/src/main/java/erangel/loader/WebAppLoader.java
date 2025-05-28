@@ -1,7 +1,10 @@
 package erangel.loader;
 
 
-import erangel.base.*;
+import erangel.base.Const;
+import erangel.base.Context;
+import erangel.base.Loader;
+import erangel.base.Vas;
 import erangel.lifecycle.Lifecycle;
 import erangel.lifecycle.LifecycleException;
 import erangel.lifecycle.LifecycleListener;
@@ -178,6 +181,7 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
                 ", threadName='" + threadName + '\'' +
                 '}';
     }
+
     /**
      * 创建并返回一个用于加载webapp的类加载器
      *
@@ -212,7 +216,9 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
     }
 
     @Override
-    public boolean modified() {return webAppClassLoader.modified();}
+    public boolean modified() {
+        return webAppClassLoader.modified();
+    }
 
 
     //</editor-fold>
@@ -232,7 +238,6 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
                  NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
-        if (webAppClassLoader != null) webAppClassLoader.start();
         if (reloadable) threadStart();
     }
 

@@ -1,6 +1,8 @@
 package erangel.startup;
 
 import erangel.XMLParse.*;
+import erangel.base.Vas;
+import org.xml.sax.Attributes;
 
 import java.io.File;
 
@@ -9,6 +11,7 @@ import static erangel.base.Const.confInfo.*;
 import static erangel.utils.ServerInfo.getServerInfo;
 
 public class Erangel {
+    //<editor-fold desc = "helpMessage">
     private static final String HELP_MESSAGE =
             """
                     Usage: Erangel
@@ -18,12 +21,14 @@ public class Erangel {
                       -v,--version    Show version information
                       start           Start the server
                       stop            Stop the server""";
+    //</editor-fold>
     //<editor-fold desc = "attr">
     private boolean debugMode = false;
     private String serverXMLPath = null;
     private boolean isStarting = false;
     private boolean isStopping = false;
-    //</editor-fold>]
+    private final ClassLoader parentClassLoader = null;
+    //</editor-fold>
     //<editor-fold desc = "配置二进制目录和实例运行目录">
 
     /**
@@ -130,28 +135,49 @@ public class Erangel {
     //</editor-fold>
 
     //<editor-fold desc = "XML解析">
-    // TODO
     private MiniDigester parseXMLStarting() {
         MiniDigester d = new MiniDigester();
         d.setNamespaceAware(true);
         d.addRuleSet(new ServerRuleSet());
-        d.addRuleSet(new EngineRuleSet(SERVER + SOLIDUS + SERVICE));
-        d.addRuleSet(new HostRuleSet(SERVER + SOLIDUS + SERVICE + SOLIDUS + ENGINE));
-        d.addRuleSet(new ContextRuleSet(SERVER + SOLIDUS + SERVICE + SOLIDUS + ENGINE + SOLIDUS + HOST));
-        d.addRule(SERVER + SOLIDUS + SERVICE + SOLIDUS +, new ClassLoaderRule(parentClassLoader));
+        d.addRuleSet(new EngineRuleSet(SERVER + SOLIDUS +
+                SERVICE));
+        d.addRuleSet(new HostRuleSet(SERVER + SOLIDUS +
+                SERVICE +
+                SOLIDUS + ENGINE));
+        d.addRuleSet(new ContextRuleSet(SERVER + SOLIDUS +
+                SERVICE + SOLIDUS +
+                ENGINE +
+                SOLIDUS + HOST));
+        d.addRule(SERVER + SOLIDUS +
+                        SERVICE + SOLIDUS +
+                        ENGINE,
+                new SetTopParentClassLoaderRule(d, parentClassLoader));
         return d;
     }
 
+    // TODO
     private void parseXMLStopping() {
     }
 
     //</editor-fold>
     //<editor-fold desc = "栈顶类加载器设置">
-    final class SetTopParentClassLoaderRule implements Rule {
+    static final class SetTopParentClassLoaderRule implements Rule {
+        private final MiniDigester digester;
+        private final ClassLoader parentClassLoader;
+
+        public SetTopParentClassLoaderRule(MiniDigester digester, ClassLoader parent) {
+            this.parentClassLoader = parent;
+            this.digester = digester;
+        }
+
+        @Override
+        public void begin(String path, Attributes attrs, MiniDigester d) {
+            Vas vas = digester.peek();
+            vas.setParentClassLoader(parentClassLoader);
+        }
 
     }
 
-    ;
     //</editor-fold>
 }
 

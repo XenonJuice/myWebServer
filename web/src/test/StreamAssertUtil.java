@@ -1,6 +1,7 @@
 import org.junit.jupiter.api.Assertions;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 public class StreamAssertUtil {
     public static void assertStreamClosed(MockClientOutputStream clientStream) {
@@ -8,7 +9,7 @@ public class StreamAssertUtil {
     }
 
     public static void assertOutputData(MockClientOutputStream clientStream, String expectedOutput) {
-        assertEquals(clientStream.getData(),expectedOutput,"Output written to the client does not match expected data.");
+        assertEquals(clientStream.getData(), expectedOutput, "Output written to the client does not match expected data.");
     }
 
     public static void assertInputStreamClosed(MockClientInputStream clientStream) {

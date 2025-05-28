@@ -1,6 +1,5 @@
 package erangel.connector.http;
 
-import erangel.base.CheckpointContext;
 import erangel.base.Const.Header;
 import erangel.base.Const.PunctuationMarks;
 import erangel.base.Context;
@@ -40,6 +39,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     private boolean outputStreamUsed = false;
     private boolean allowChunking = false;
     private Context context;
+
     /**
      * 用指定的字符编码创建/重置 PrintWriter
      */
@@ -172,6 +172,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
     public Context getContext() {
         return context;
     }
+
     @Override
     public void setContentType(String type) {
         // 1. 如果已经提交响应，就按照 Servlet 规范的通常做法：禁止再修改内容类型

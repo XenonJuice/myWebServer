@@ -27,7 +27,7 @@ public class EndpointCheckpoint extends CheckpointBase {
     private static final String info = "erangel.checkpoints.EndpointCheckpoint";
     private static final Logger logger = BaseLogger.getLogger(EndpointCheckpoint.class);
     // servlet配置的过滤器定抽象定义
-    private FilterDef filterDef = null;
+    private final FilterDef filterDef = null;
 
     //</editor-fold>
     //<editor-fold desc = "抽象方法实现">

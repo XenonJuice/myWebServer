@@ -1,6 +1,9 @@
 package erangel.mapper;
 
-import erangel.base.*;
+import erangel.base.Context;
+import erangel.base.Endpoint;
+import erangel.base.Mapper;
+import erangel.base.Vas;
 import erangel.connector.http.HttpRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

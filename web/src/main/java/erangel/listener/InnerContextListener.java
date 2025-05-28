@@ -1,15 +1,18 @@
 package erangel.listener;
 
-import erangel.base.*;
-import erangel.lifecycle.Lifecycle;
-import erangel.lifecycle.LifecycleEvent;
+import erangel.XMLParse.MiniDigester;
+import erangel.XMLParse.WebRuleSet;
+import erangel.base.Channel;
+import erangel.base.Checkpoint;
+import erangel.base.Context;
+import erangel.base.Vas;
 import erangel.core.VasBase;
 import erangel.filter.FilterDef;
 import erangel.filter.FilterMap;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleEvent;
 import erangel.lifecycle.LifecycleListener;
 import erangel.log.BaseLogger;
-import erangel.XMLParse.MiniDigester;
-import erangel.XMLParse.WebRuleSet;
 import org.slf4j.Logger;
 
 import javax.servlet.ServletContext;
@@ -27,6 +30,7 @@ public final class InnerContextListener implements LifecycleListener {
     private Context context = null;
     private final MiniDigester digester = createDigester();
     private boolean noProblem = false;
+
     //</editor-fold
     //<editor-fold desc = "接口实现">
     @Override

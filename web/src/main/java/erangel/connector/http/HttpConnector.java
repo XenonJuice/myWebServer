@@ -429,7 +429,5 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
     }
 
 
-
-
     //</editor-fold>
 }

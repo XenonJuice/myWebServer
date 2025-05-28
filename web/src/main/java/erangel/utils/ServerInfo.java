@@ -21,6 +21,7 @@ public final class ServerInfo {
             if (SERVER_INFO == null) SERVER_INFO = "LILINJIAN/1.0";
         }
     }
+
     public static String getServerInfo() {
         return SERVER_INFO;
     }

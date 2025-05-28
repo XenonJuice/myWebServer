@@ -1,14 +1,14 @@
 package erangel.XMLParse;
 
 import erangel.connector.http.HttpConnector;
-import erangel.core.*;
-
+import erangel.core.DefaultServer;
+import erangel.core.DefaultService;
 import erangel.net.DefaultServerSocketFactory;
 import org.xml.sax.Attributes;
 
 import java.lang.reflect.Method;
 
-public class ServerRuleSet extends RuleSet{
+public class ServerRuleSet extends RuleSet {
 
     public void addRuleInstances(MiniDigester d) {
 

@@ -13,7 +13,6 @@ import javax.servlet.descriptor.JspConfigDescriptor;
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -291,8 +290,6 @@ public class WebApplicationContext implements ServletContext {
      * @param path 一个 <code>String</code>，指定资源的路径
      * @return 位于指定路径的资源，
      * 或者在该路径没有资源时返回 <code>null</code>
-     * @throws MalformedURLException 如果路径名没有以
-     *                               正确的形式给出
      */
     @Override
     public URL getResource(String path) {

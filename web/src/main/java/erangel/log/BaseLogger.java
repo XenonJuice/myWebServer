@@ -1,4 +1,5 @@
 package erangel.log;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -7,6 +8,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class BaseLogger {
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
+
     public static Logger getLogger(Class<?> clazz) {
         return LoggerFactory.getLogger(clazz);
     }

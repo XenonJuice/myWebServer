@@ -10,12 +10,12 @@ import erangel.log.BaseLogger;
 import org.slf4j.Logger;
 
 import static javax.servlet.http.HttpServletResponse.*;
-import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
 
-public abstract class CheckpointBase implements Checkpoint,VasManager {
+public abstract class CheckpointBase implements Checkpoint, VasManager {
     //<editor-fold desc = "attr">
     private static final Logger logger = BaseLogger.getLogger(CheckpointBase.class);
     protected Vas vas = null;
+
     //</editor-fold>
     //<editor-fold desc = "一次实现">
     @Override

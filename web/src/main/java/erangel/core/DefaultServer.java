@@ -25,7 +25,7 @@ public class DefaultServer implements Server, Lifecycle {
     // 本地回环地址
     private final static String LOOPBACK_ADDRESS = "127.0.0.1";
     // 生命周期助手
-    private LifecycleHelper helper = new LifecycleHelper(this);
+    private final LifecycleHelper helper = new LifecycleHelper(this);
     // 关闭端口
     private int shutdownPort = 114514;
     // 此Server持有的Service
@@ -42,7 +42,7 @@ public class DefaultServer implements Server, Lifecycle {
     @Override
     public void initialize() throws LifecycleException {
         if (initialized) throw new LifecycleException("DefaultServer : already initialized");
-        initialized =true;
+        initialized = true;
         // 初始化Service
         synchronized (services) {
             for (Service service : services) {
@@ -98,8 +98,8 @@ public class DefaultServer implements Server, Lifecycle {
     public void stop() throws LifecycleException {
         if (!started) throw new LifecycleException("DefaultServer : not started");
         helper.fireLifecycleEvent(BEFORE_START_EVENT, null);
-        helper.fireLifecycleEvent(STOP_EVENT,null);
-        started =false;
+        helper.fireLifecycleEvent(STOP_EVENT, null);
+        started = false;
         // 停止Service
         synchronized (services) {
             for (Service service : services) {
@@ -270,7 +270,7 @@ public class DefaultServer implements Server, Lifecycle {
             }
 
             // 接受完关闭指令后 关闭socket 这里是关闭某客户端的链接，其实就是自己
-            try{
+            try {
                 socket.close();
             } catch (IOException e) {
                 logger.error("waitForShutdown went wrong when close socket ", e);
@@ -282,14 +282,14 @@ public class DefaultServer implements Server, Lifecycle {
                 logger.info("DefaultServer waitForShutdown : shutdown command received");
                 break;
             } else {
-                System.err.println("DefaultServer waitForShutdown : shutdown command ["+shutdownCommand1+"] is not correct, please try again");
+                System.err.println("DefaultServer waitForShutdown : shutdown command [" + shutdownCommand1 + "] is not correct, please try again");
             }
         }
 
         // 关闭服务器套接字 这里是关闭整个服务器监听端口
-        try{
+        try {
             serverSocket.close();
-        } catch (IOException e){
+        } catch (IOException e) {
             logger.error("waitForShutdown went wrong when close server socket ", e);
         }
     }

@@ -7,10 +7,8 @@ import erangel.lifecycle.LifecycleListener;
 import erangel.log.BaseLogger;
 import erangel.utils.LifecycleHelper;
 import org.slf4j.Logger;
-import org.testng.internal.protocols.Input;
 
 import javax.servlet.ServletException;
-import javax.servlet.ServletInputStream;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
@@ -18,6 +16,9 @@ import java.net.Socket;
 import java.net.URLDecoder;
 import java.util.*;
 
+import static erangel.base.Const.CharPunctuationMarks.CR;
+import static erangel.base.Const.CharPunctuationMarks.LF;
+import static erangel.base.Const.HttpProtocol.HTTP_0_9;
 import static erangel.utils.CookieUtils.convertToCookieArray;
 import static erangel.utils.CookieUtils.convertToCookieList;
 
@@ -62,8 +63,14 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     // 对象锁
     private final Object lock = new Object();
     private final Logger logger = BaseLogger.getLogger(this.getClass());
-    // 从请求中获得的 InputStream
+    // 从socket中获得的 InputStream
     public InputStream socketInputStream;
+    // 从socket中获得的 OutputStream
+    public OutputStream socketOutputStream;
+    // 用于读取请求头和请求行的buffer
+    public SocketInputBuffer socketInputBuffer;
+    // 缓冲区大小
+    private final int bufferSize = 8192;
     // 从请求中获得的字符编码
     public String characterEncoding;
     // 存储HTTP头的映射
@@ -117,6 +124,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
         this.characterEncoding = request.getCharacterEncoding() != null ? request.getCharacterEncoding() : "UTF-8";
         this.threadName = "HttpProcessor[" + connector.getPort() + "][" + id + "]";
     }
+
     //</editor-fold>
     //<editor-fold desc = "解析相关">
     private void parseRequestAndConnection(Socket socket) throws IOException, ServletException {
@@ -153,9 +161,9 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
         while ((bytesRead = in.read(buffer)) != -1) {
             for (int i = 0; i < bytesRead; i++) {
                 byte b = buffer[i];
-                if (b == CharPunctuationMarks.CR) { // 检测到 CR
+                if (b == CR) { // 检测到 CR
                     lastWasCR = true;
-                } else if (b == CharPunctuationMarks.LF) { // 检测到 LF
+                } else if (b == LF) { // 检测到 LF
                     if (lastWasCR) {
                         // 如果前一个是 CR，现在是 LF，说明一行结束
                         return lineBuilder.toString(); // 返回当前行
@@ -163,7 +171,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                 } else {
                     // 如果前一位是CR，但现在不是LF，则将CR加入结果
                     if (lastWasCR) {
-                        lineBuilder.append(CharPunctuationMarks.CR);
+                        lineBuilder.append(CR);
                         lastWasCR = false; // 重置状态
                     }
                     // 将当前字节加入结果
@@ -186,7 +194,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
      */
     private void parseRequest() throws IOException, ServletException {
         // 1. 读取并解析请求行
-        String requestLine = readLine(socketInputStream, characterEncoding);
+        String requestLine = readLine(socketInputBuffer, characterEncoding);
         status = Processor.PROCESSOR_ACTIVE;
         if (requestLine == null || requestLine.isEmpty()) {
             throw new ServletException("Empty request");
@@ -197,7 +205,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             // HTTP/0.9
             method = requestLineParts[0];
             fullUri = requestLineParts[1];
-            protocol = HttpProtocol.HTTP_0_9;  // 设置默认协议版本
+            protocol = HTTP_0_9;  // 设置默认协议版本
         } else if (requestLineParts.length == 3) {
             // HTTP/1.0
             method = requestLineParts[0];
@@ -208,7 +216,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
         }
         if (protocol.equals(HttpProtocol.HTTP_1_1)) {
             http11 = true;
-            ((HttpRequestStream)request.getInputStream()).setHttp11(true);
+            ((HttpRequestStream) request.getInputStream()).setHttp11(true);
         }
 
         logger.info("请求方法: {}", method);
@@ -226,14 +234,13 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             uri = fullUri;
         }
 
-        if (!this.protocol.startsWith(HttpProtocol.HTTP_0_9.substring(0, 6))) {
-
+        if (!this.protocol.startsWith(HTTP_0_9.substring(0, 6))) {
             // 2. 解析请求头
             int contentLength = 0;
             String contentType = null;
 
             String headerLine;
-            while ((headerLine = readLine(socketInputStream, characterEncoding)) != null && !headerLine.isEmpty()) {
+            while ((headerLine = readLine(socketInputBuffer, characterEncoding)) != null && !headerLine.isEmpty()) {
                 int separatorIndex = headerLine.indexOf(PunctuationMarks.COLON_SPACE);
                 if (separatorIndex == -1) {
                     logger.info("格式错误的头部: {}", headerLine);
@@ -267,7 +274,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                 }
                 // 处理chunked的情况
                 if (Header.TRANSFER_ENCODING.equalsIgnoreCase(key) && Header.CHUNKED.equalsIgnoreCase(value)) {
-                    ((HttpRequestStream)request.getInputStream()).setUseChunkedEncoding(true);
+                    ((HttpRequestStream) request.getInputStream()).setUseChunkedEncoding(true);
                 }
                 // 解析Cookies
                 if (Header.COOKIE.equalsIgnoreCase(key)) {
@@ -277,7 +284,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
 
             // 3.从流中按字节读取请求体
             if (contentLength > 0 || headers.containsKey(Header.TRANSFER_ENCODING
-                    )) {
+            )) {
                 byte[] body = null;
                 if (contentLength > 0) {
                     logger.debug("开始读取请求体, 长度: {}", contentLength);
@@ -527,10 +534,11 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private void initializeRequestAndResponse(Socket socket) throws IOException {
         socketInputStream = socket.getInputStream();
         request.setStream(socketInputStream);
-        socketInputStream =request.getInputStream();
+        socketInputStream = request.getInputStream();
         request.setResponse(response);
-        BufferedOutputStream socketOutputtStream = new BufferedOutputStream(socket.getOutputStream());
-        response.setStream(socketOutputtStream);
+        socketInputBuffer = new SocketInputBuffer(socketInputStream, bufferSize);
+        socketOutputStream = socket.getOutputStream();
+        response.setStream(socketOutputStream);
         response.setRequest(request);
     }
 

@@ -10,7 +10,7 @@ import static erangel.XMLParse.MiniDigester.convert;
 /**
  * 把当前xml元素的属性，自动通过setter注入当前对象中
  */
-public  class SetPropertiesRule implements Rule {
+public class SetPropertiesRule implements Rule {
     @Override
     public void begin(String path, Attributes attrs, MiniDigester d) {
         Object bean = d.peek();
@@ -29,9 +29,12 @@ public  class SetPropertiesRule implements Rule {
                     .filter(p -> p.getName().equals(name) && p.getWriteMethod() != null)
                     .findFirst()
                     .ifPresent(p -> {
-                        try { p.getWriteMethod().invoke(bean, convert(p.getPropertyType(), value)); }
-                        catch (Exception ignored) {}
+                        try {
+                            p.getWriteMethod().invoke(bean, convert(p.getPropertyType(), value));
+                        } catch (Exception ignored) {
+                        }
                     });
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 }

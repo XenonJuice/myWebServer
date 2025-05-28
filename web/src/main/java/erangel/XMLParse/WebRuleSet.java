@@ -9,11 +9,11 @@ import org.xml.sax.Attributes;
 import java.util.ArrayList;
 import java.util.List;
 
-public class WebRuleSet extends RuleSet{
+public class WebRuleSet extends RuleSet {
 
     public void addRuleInstances(MiniDigester d) {
         /* 0. <web-app> → DefaultContext 仅供测试*/
-       //  d.addRule("web-app", new ObjectCreateRule(DefaultContext.class));
+        //  d.addRule("web-app", new ObjectCreateRule(DefaultContext.class));
 
         /* ---------- <display‑name> ---------- */
         d.addCallMethod("web-app/display-name", "setDisplayName");

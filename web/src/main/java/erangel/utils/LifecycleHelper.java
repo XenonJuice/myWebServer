@@ -47,7 +47,7 @@ public final class LifecycleHelper {
     /**
      * 已注册的 LifecycleListener 列表。
      */
-    private  LifecycleListener[] listeners = new LifecycleListener[0];
+    private LifecycleListener[] listeners = new LifecycleListener[0];
 
     /**
      * 使用指定的 Lifecycle 实例构造一个 LifecycleHelper，后者作为事件源。

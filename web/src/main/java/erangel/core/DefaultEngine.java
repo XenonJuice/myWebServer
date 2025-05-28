@@ -1,6 +1,9 @@
 package erangel.core;
 
-import erangel.base.*;
+import erangel.base.Engine;
+import erangel.base.Host;
+import erangel.base.Service;
+import erangel.base.Vas;
 import erangel.checkpoints.EngineCheckpoint;
 import erangel.lifecycle.LifecycleException;
 import erangel.utils.ServerInfo;
@@ -13,6 +16,7 @@ public class DefaultEngine extends VasBase implements Engine {
     private String defaultHostName = "";
     // 包含次Engine的Service
     private Service service = null;
+
     //</editor-fold>
     //<editor-fold desc = "接口实现">
     @Override
@@ -39,11 +43,13 @@ public class DefaultEngine extends VasBase implements Engine {
     public String getInfo() {
         return info;
     }
+
     //</editor-fold>
     //<editor-fold desc = "构造器">
     public DefaultEngine() {
         channel.setBasicCheckpoint(new EngineCheckpoint());
     }
+
     //</editor-fold>
     //<editor-fold desc = "重写抽象类的部分方法">
     /*
@@ -59,6 +65,7 @@ public class DefaultEngine extends VasBase implements Engine {
     public void setParent(Vas parent) {
         throw new UnsupportedOperationException("Engine can not have parent!");
     }
+
     //</editor-fold>
     //<editor-fold desc = "生命周期相关">
     @Override

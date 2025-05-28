@@ -5,5 +5,6 @@ package erangel.base;
  */
 public interface VasManager {
     Vas getVas();
+
     void setVas(Vas vas);
 }

@@ -24,7 +24,7 @@ public class DefaultService implements Service, Lifecycle {
     // 此Service名
     private String name = "";
     // 生命周期助手
-    private LifecycleHelper helper = new LifecycleHelper(this);
+    private final LifecycleHelper helper = new LifecycleHelper(this);
     // 持有此Service的Server
     private Server server = null;
     // 此Service持有的连接器集合

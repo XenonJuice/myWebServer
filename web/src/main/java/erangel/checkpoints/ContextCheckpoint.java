@@ -23,6 +23,7 @@ public class ContextCheckpoint extends CheckpointBase {
     private static final List<String> deniedPrefix = List.of(
             "/.", WEB_INF, META_INF
     );
+
     //</editor-fold>
     //<editor-fold desc = "抽象方法实现">
     @Override
@@ -32,7 +33,7 @@ public class ContextCheckpoint extends CheckpointBase {
 
     @Override
     public void process(HttpRequest request, HttpResponse response, CheckpointContext context) throws Exception {
-        logger.info("ContextCheckpoint : process in {}",getVas().getName());
+        logger.info("ContextCheckpoint : process in {}", getVas().getName());
         // 拒绝对受限资源的直接访问
         String requestURI = Decoder.decode(request.getRequestURI(), StandardCharsets.UTF_8);
         String contextPath = request.getContextPath();

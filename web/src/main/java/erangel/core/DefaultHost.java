@@ -1,6 +1,8 @@
 package erangel.core;
 
-import erangel.base.*;
+import erangel.base.Context;
+import erangel.base.Host;
+import erangel.base.Vas;
 import erangel.checkpoints.HostCheckpoint;
 import erangel.lifecycle.Lifecycle;
 import erangel.lifecycle.LifecycleException;

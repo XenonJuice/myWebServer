@@ -50,7 +50,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     // 封装后的 ServletInputStream
     private HttpRequestStream servletInputStream;
     private InputStream clientInputStream;
-    private BufferedInputStream bufferedInputStream;
     // reader
     private BufferedReader reader;
     //存储远程客户端的IP 地址

@@ -2,9 +2,9 @@ package erangel.core;
 
 import erangel.base.Context;
 import erangel.base.Endpoint;
-import erangel.lifecycle.LifecycleException;
 import erangel.base.Loader;
 import erangel.checkpoints.EndpointCheckpoint;
+import erangel.lifecycle.LifecycleException;
 import erangel.loader.WebAppClassLoader;
 import erangel.log.BaseLogger;
 import org.slf4j.Logger;
@@ -26,7 +26,7 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
     // 初始化标志位
     private volatile boolean initialized = false;
     // 内部类
-    private InnerServletConfig innerServletConfig = new InnerServletConfig(this);
+    private final InnerServletConfig innerServletConfig = new InnerServletConfig(this);
     // 当前活跃访问数量
     private volatile int count = 0;
     // 正在卸载servlet标志位
@@ -83,7 +83,7 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
             ClassLoader classLoader = loader.getClassLoader();
             Class<?> clazz;
             if (classLoader != null) {
-                logger.info("try loading servlet : {} using classloader : {} ", target, ((WebAppClassLoader) classLoader).toString());
+                logger.info("try loading servlet : {} using classloader : {} ", target, classLoader);
                 try {
                     clazz = classLoader.loadClass(target);
                 } catch (Exception e) {

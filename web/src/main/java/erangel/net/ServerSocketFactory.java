@@ -21,7 +21,7 @@ public interface ServerSocketFactory {
      * @param port 监听的端口
      * @throws IOException IO异常或者网络异常
      */
-    public ServerSocket createSocket(int port) throws IOException;
+    ServerSocket createSocket(int port) throws IOException;
 
     /**
      * 返回一个服务器套接字，该套接字使用主机上的所有网络接口，
@@ -32,7 +32,7 @@ public interface ServerSocketFactory {
      * @param backlog 多少连接可排队
      * @throws IOException IO异常或网络异常
      */
-    public ServerSocket createSocket(int port, int backlog) throws IOException;
+    ServerSocket createSocket(int port, int backlog) throws IOException;
 
     /**
      * 返回一个服务器套接字，该套接字仅使用本地主机上指定的网络接口，
@@ -44,5 +44,5 @@ public interface ServerSocketFactory {
      * @param ifAddress 要使用的网络接口地址
      * @throws IOException IO异常或网络异常
      */
-    public ServerSocket createSocket(int port, int backlog, InetAddress ifAddress) throws IOException;
+    ServerSocket createSocket(int port, int backlog, InetAddress ifAddress) throws IOException;
 }
