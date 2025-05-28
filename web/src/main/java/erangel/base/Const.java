@@ -19,6 +19,7 @@ public final class Const {
         public static final String SERVER = "Server";
         public static final String SERVICE = "Service";
         public static final String CONTEXT = "Context";
+        public static final String LOADER = "Loader";
         public static final String CONNECTOR = "Connector";
         public static final String HOST = "Host";
         public static final String ENGINE = "Engine";
