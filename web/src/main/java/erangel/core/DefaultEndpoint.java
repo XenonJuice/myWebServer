@@ -5,7 +5,6 @@ import erangel.base.Endpoint;
 import erangel.base.Loader;
 import erangel.checkpoints.EndpointCheckpoint;
 import erangel.lifecycle.LifecycleException;
-import erangel.loader.WebAppClassLoader;
 import erangel.log.BaseLogger;
 import org.slf4j.Logger;
 
@@ -20,13 +19,13 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
     private static final Logger logger = BaseLogger.getLogger(DefaultEndpoint.class);
     // 初始化param
     private final HashMap<String, String> initParams = new HashMap<>();
+    // 内部类
+    private final InnerServletConfig innerServletConfig = new InnerServletConfig(this);
     // 初始化后的servlet实例
     private Servlet sInstance = null;
     private String servletClass = null;
     // 初始化标志位
     private volatile boolean initialized = false;
-    // 内部类
-    private final InnerServletConfig innerServletConfig = new InnerServletConfig(this);
     // 当前活跃访问数量
     private volatile int count = 0;
     // 正在卸载servlet标志位
@@ -315,7 +314,7 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
     //</editor-fold>
     //<editor-fold desc = "内部类">
     public static final class InnerServletConfig implements ServletConfig {
-        private ServletConfig config = null;
+        private ServletConfig config;
 
         public InnerServletConfig(DefaultEndpoint endpoint) {
             this.config = endpoint;
