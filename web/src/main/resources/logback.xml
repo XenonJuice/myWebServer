@@ -15,7 +15,7 @@
     </root>
 
     <!-- 可以为特定的包或类设置不同的日志级别 -->
-    <logger name="erangel.connector.http" level="DEBUG" additivity="false">
+    <logger name="livonia.connector.http" level="DEBUG" additivity="false">
         <appender-ref ref="STDOUT" />
     </logger>
 

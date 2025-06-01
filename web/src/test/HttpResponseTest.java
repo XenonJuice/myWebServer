@@ -1,6 +1,6 @@
-import erangel.base.Const;
-import erangel.connector.http.HttpRequest;
-import erangel.connector.http.HttpResponse;
+import livonia.base.Const;
+import livonia.connector.http.HttpRequest;
+import livonia.connector.http.HttpResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

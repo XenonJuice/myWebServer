@@ -1,7 +1,7 @@
-import erangel.connector.http.HttpConnector;
-import erangel.connector.http.HttpRequest;
-import erangel.connector.http.HttpProcessor;
-import erangel.connector.http.HttpResponse;
+import livonia.connector.http.HttpConnector;
+import livonia.connector.http.HttpRequest;
+import livonia.connector.http.HttpProcessor;
+import livonia.connector.http.HttpResponse;
 import org.junit.jupiter.api.Test;
 
 import org.junit.jupiter.api.BeforeEach;
