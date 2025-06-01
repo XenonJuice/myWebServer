@@ -10,7 +10,6 @@ import erangel.filter.FilterMap;
 import erangel.lifecycle.Lifecycle;
 import erangel.lifecycle.LifecycleException;
 import erangel.loader.WebAppLoader;
-import erangel.mapper.ContextMapper;
 import erangel.resource.ResourceManager;
 import erangel.utils.Decoder;
 import org.slf4j.Logger;
@@ -32,6 +31,7 @@ import java.util.HashMap;
 public class DefaultContext extends VasBase implements Context {
     private static final Logger logger = LoggerFactory.getLogger(DefaultContext.class);
     //<editor-fold desc = "attr">
+    private String defaultContextMapper = "erangel.core.DefaultContextMapper";
     private String basePath = "";
     // web.xml中配置的web程序的监听器
     private String[] applicationListeners = new String[0];
@@ -68,6 +68,18 @@ public class DefaultContext extends VasBase implements Context {
 
     //</editor-fold>
     //<editor-fold desc = "getter & setter">
+
+    //<editor-fold desc = "映射器">
+    public void setMapper(Mapper mapper) {
+        this.mapper = mapper;
+        this.defaultContextMapper = mapper.getClass().getName();
+    }
+
+    public String getMapper() {
+        return defaultContextMapper;
+    }
+
+    //</editor-fold>
     public boolean isPaused() {
         return paused;
     }
@@ -405,7 +417,7 @@ public class DefaultContext extends VasBase implements Context {
         ClassLoader oldCL = bindThread();
         if (noProblem) {
             try {
-                addMapper(new ContextMapper());
+                // addMapper(new ContextMapper());
                 // 启动自定义的类加载器
                 Loader loader = getLoader();
                 // 启动自定义类加载器
