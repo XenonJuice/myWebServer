@@ -1,10 +1,17 @@
 package erangel.startup;
 
 import erangel.XMLParse.*;
+import erangel.base.Server;
 import erangel.base.Vas;
+import erangel.lifecycle.Lifecycle;
+import erangel.lifecycle.LifecycleException;
 import org.xml.sax.Attributes;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.Socket;
 
 import static erangel.base.Const.commonCharacters.SOLIDUS;
 import static erangel.base.Const.confInfo.*;
@@ -21,13 +28,15 @@ public class Erangel {
                       -v,--version    Show version information
                       start           Start the server
                       stop            Stop the server""";
+    private final ClassLoader parentClassLoader = null;
     //</editor-fold>
     //<editor-fold desc = "attr">
     private boolean debugMode = false;
     private String serverXMLPath = null;
     private boolean isStarting = false;
     private boolean isStopping = false;
-    private final ClassLoader parentClassLoader = null;
+    private Thread shutdownHook = null;
+    private final Server server = null;
     //</editor-fold>
     //<editor-fold desc = "配置二进制目录和实例运行目录">
 
@@ -95,10 +104,11 @@ public class Erangel {
                 return false;
             } else if (arg.equals("-d") || arg.equals("--debug")) {
                 debugMode = true;
+                System.setProperty("log.level", "DEBUG");
             } else if (arg.equals("-v") || arg.equals("--version")) {
                 System.out.println(getServerInfo());
                 return false;
-            } else if (arg.equals("start")) {
+            } else if (arg.equals("start") && !debugMode) {
                 isStarting = true;
             } else if (arg.equals("stop")) {
                 isStopping = true;
@@ -128,9 +138,79 @@ public class Erangel {
     //<editor-fold desc = "生命周期">
     // TODO
     private void start() {
+        // 开始解析serverXML
+        MiniDigester d = parseXMLStarting();
+        // 获取XML引用
+        File serverXML = serverXML();
+        try (FileInputStream fileInputStream = new FileInputStream(serverXML)) {
+            d.parse(fileInputStream);
+        } catch (Exception e) {
+            System.out.println("Exception occurred when starting  : " + e);
+            e.printStackTrace();
+            System.exit(1);
+        }
+        shutdownHook = new ShutdownHook();
+        // 启动服务器
+        try {
+            server.initialize();
+            ((Lifecycle) server).start();
+            try {
+                Runtime.getRuntime().addShutdownHook(shutdownHook);
+            } catch (IllegalStateException e) {
+                System.out.println("Exception occurred when Shutdown hook  added");
+            }
+            server.waitForShutdown();
+        } catch (LifecycleException e) {
+            System.out.println("Exception occurred when starting : " + e);
+            e.printStackTrace();
+        }
+        // 意外情况下会通过关闭钩子关闭
+        // ============================
+        // 关闭服务器
+        try {
+            try {
+                // 移除关闭钩子
+                Runtime.getRuntime().removeShutdownHook(shutdownHook);
+            } catch (IllegalStateException e) {
+                System.out.println("Exception occurred when Shutdown hook  removed");
+            }
+            ((Lifecycle) server).stop();
+        } catch (LifecycleException e) {
+            System.out.println("Exception occurred when stopping : " + e);
+            e.printStackTrace();
+        }
+
+
     }
 
+    // 正常的指令关闭
     private void stop() {
+        MiniDigester d = parseXMLStopping();
+        File serverXML = serverXML();
+        try (FileInputStream fileInputStream = new FileInputStream(serverXML)) {
+            d.parse(fileInputStream);
+        } catch (Exception e) {
+            System.out.println("Exception occurred when stopping  : " + e);
+            e.printStackTrace();
+            System.exit(1);
+        }
+        try {
+            // 获取回环地址对象
+            InetAddress shutDownHost = InetAddress.getLoopbackAddress();
+            // 创建Socket连接到回环地址
+            Socket closeSocket = new Socket(shutDownHost, server.getShutdownPort());
+            OutputStream outputStream = closeSocket.getOutputStream();
+            String shutdownCommand = server.getShutdownCommand();
+            for (int i = 0; i < shutdownCommand.length(); i++) {
+                outputStream.write(shutdownCommand.charAt(i));
+            }
+            outputStream.flush();
+            outputStream.close();
+            closeSocket.close();
+        } catch (Exception e) {
+            System.out.println("Exception occurred when stopping : " + e);
+            e.printStackTrace();
+        }
     }
     //</editor-fold>
 
@@ -138,6 +218,7 @@ public class Erangel {
     private MiniDigester parseXMLStarting() {
         MiniDigester d = new MiniDigester();
         d.setNamespaceAware(true);
+        d.push(this);
         d.addRuleSet(new ServerRuleSet());
         d.addRuleSet(new EngineRuleSet(SERVER + SOLIDUS +
                 SERVICE));
@@ -155,8 +236,11 @@ public class Erangel {
         return d;
     }
 
-    // TODO
-    private void parseXMLStopping() {
+    private MiniDigester parseXMLStopping() {
+        MiniDigester d = new MiniDigester();
+        d.setNamespaceAware(true);
+        d.addRuleSet(new ShutDownServerRuleSet());
+        return d;
     }
 
     //</editor-fold>
@@ -178,6 +262,22 @@ public class Erangel {
 
     }
 
+    //</editor-fold>
+
+    //<editor-fold desc = "关闭钩子">
+    private class ShutdownHook extends Thread {
+        @Override
+        public void run() {
+            if (server != null) {
+                try {
+                    ((Lifecycle) server).stop();
+                } catch (LifecycleException e) {
+                    System.out.println("Exception when stopping : " + e);
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
     //</editor-fold>
 }
 
