@@ -157,6 +157,7 @@ public class MiniDigester {
     public void addRuleSet(RuleSet ruleSet) {
         ruleSet.addRuleInstances(this);
     }
+
     public void addCallMethod(String path, String methodName) {
         addCallMethod(path, methodName, 1, new String[]{path}, String.class);
     }
@@ -165,11 +166,11 @@ public class MiniDigester {
     /**
      * 便捷注册 “收集参数 → 调用目标方法” 的组合规则。
      *
-     * @param path        父元素路径（在元素结束时调用目标方法）
-     * @param methodName  目标方法名
-     * @param paramCount  参数个数
-     * @param paramPaths  每个参数所在元素的完整路径数组，顺序需与方法参数顺序一致
-     * @param types       每个参数的 Java 类型（用于自动转换），长度必须等于 paramCount
+     * @param path       父元素路径（在元素结束时调用目标方法）
+     * @param methodName 目标方法名
+     * @param paramCount 参数个数
+     * @param paramPaths 每个参数所在元素的完整路径数组，顺序需与方法参数顺序一致
+     * @param types      每个参数的 Java 类型（用于自动转换），长度必须等于 paramCount
      */
     public void addCallMethod(String path,
                               String methodName,
@@ -180,7 +181,6 @@ public class MiniDigester {
         if (paramPaths.length != paramCount || types.length != paramCount) {
             throw new IllegalArgumentException("paramCount / paramPaths / types 数量不一致");
         }
-
 
 
         // 用来暂存参数文本
@@ -214,6 +214,22 @@ public class MiniDigester {
     @SuppressWarnings("unchecked")
     public <T> T peek() {
         return (T) stack.peek();
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T peek(int index) {
+        if (index < 0 || index >= stack.size()) {
+            throw new IndexOutOfBoundsException("Invalid index: " + index);
+        }
+        int i = 0;
+        for (Object obj : stack) {
+            if (i == index) {
+                return (T) obj;
+            }
+            i++;
+        }
+
+        throw new IllegalStateException("Unreachable code");
     }
 
     public Object pop() {
