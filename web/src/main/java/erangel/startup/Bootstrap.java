@@ -1,8 +1,5 @@
 package erangel.startup;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -18,8 +15,6 @@ import static java.io.File.separator;
 // JVM 的启动入口，负责构建启动环境
 public class Bootstrap {
     //<editor-fold desc = "attr">]
-    // logger
-    private static final Logger logger = LoggerFactory.getLogger(Bootstrap.class);
     // 服务器真正的启动类
     private static final String ERANGEL = "erangel.startup.Erangel";
     private static final String PROCESS = "process";
@@ -45,7 +40,7 @@ public class Bootstrap {
             // 通过类加载器加载启动类
             Class<?> ergClass = coreLoader.loadClass(ERANGEL);
             Object ergInstance = ergClass.getDeclaredConstructor().newInstance();
-            logger.debug("erangel class loaded");
+            System.out.println("erangel class loaded");
 
             // 存储启动时的命令的类型
             Class<?>[] paramTypes = new Class[1];
@@ -57,7 +52,7 @@ public class Bootstrap {
             paramValues[0] = args;
             method = ergInstance.getClass().getMethod(PROCESS, paramTypes);
             method.invoke(ergInstance, paramValues);
-            logger.debug("erangel process success");
+            System.out.println("erangel process success");
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             System.exit(2);
@@ -111,9 +106,10 @@ public class Bootstrap {
             ClassLoader coreLoader = ClassLoaderFactory.createClassLoader(packed, unpacked, commonLoader);
             ret[0] = commonLoader;
             ret[1] = coreLoader;
-            logger.info("allocateClassLoader success");
+            System.out.println("allocateClassLoader success");
         } catch (Exception e) {
-            logger.error("allocateClassLoader error", e);
+            e.printStackTrace();
+            System.out.println("allocateClassLoader error");
             System.exit(1);
         }
         if (ret[1] != null && ret[0] != null) return ret;
@@ -139,13 +135,14 @@ public class Bootstrap {
                 for (File dir : unpacked) {
                     // 验证正常性
                     if (!isValidDirectory(dir)) continue;
-                    logger.debug("unpacked class path : {}", dir.getAbsolutePath());
+                    System.out.println("unpacked class path : " + dir.getAbsolutePath());
                     URL url;
                     try {
                         url = dir.getCanonicalFile().toURI().toURL();
                         classPathList.add(url);
                     } catch (Exception e) {
-                        logger.error("createClassLoader error", e);
+                        System.out.println("createClassLoader error");
+                        e.printStackTrace();
                     }
                 }
 
@@ -155,19 +152,20 @@ public class Bootstrap {
             if (packed != null) {
                 for (File dir : packed) {
                     if (!isValidDirectory(dir)) continue;
-                    logger.debug("packed class path : {}", dir.getAbsolutePath());
+                    System.out.println("packed class path : " + dir.getAbsolutePath());
                     String[] fileNames = dir.list();
                     if (fileNames == null) continue;
                     for (String fileName : fileNames) {
                         if (fileName.endsWith(DOTJAR)) {
                             File jarFile = new File(dir, fileName);
-                            logger.debug("packed jar file : {}", jarFile.getAbsolutePath());
+                            System.out.println("packed jar file : " + jarFile.getAbsolutePath());
                             URL url;
                             try {
                                 url = jarFile.getCanonicalFile().toURI().toURL();
                                 classPathList.add(url);
                             } catch (Exception e) {
-                                logger.error("createClassLoader error", e);
+                                e.printStackTrace();
+                                System.out.println("createClassLoader error");
                             }
                         }
                     }
