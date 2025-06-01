@@ -327,11 +327,10 @@ public abstract class VasBase implements Vas, Lifecycle, Channel {
      * @param writeRequest 一个标志，指示是否应写入请求详细信息。
      * @return 映射的容器或资源作为Vas对象，如果未找到映射则返回null。
      */
-    // TODO
     @Override
     public Vas map(HttpRequest req, boolean writeRequest) {
         Mapper mapper = findMapper(req.getUri());
-        return null;
+        return mapper.map(req, writeRequest);
     }
 
     /**
@@ -343,7 +342,9 @@ public abstract class VasBase implements Vas, Lifecycle, Channel {
             mapper.setVas(this);
             mappers.put(this.name, mapper);
         }
-        this.mapper = mapper;
+        if (mappers.size() == 1) {
+            this.mapper = mapper;
+        } else this.mapper = null;
     }
 
     /**
