@@ -2,6 +2,7 @@ package erangel.core;
 
 import erangel.base.Context;
 import erangel.base.Host;
+import erangel.base.Mapper;
 import erangel.base.Vas;
 import erangel.checkpoints.HostCheckpoint;
 import erangel.lifecycle.Lifecycle;
@@ -16,8 +17,10 @@ import static erangel.base.Const.commonCharacters.SOLIDUS;
 public class DefaultHost extends VasBase implements Host, Host.Deployer {
     // context对象
     private final String defaultContextClass = "erangel.core.DefaultContext";
-    // 映射器对象 TODO
-    private final String defaultHostMapper = "erangel.core.DefaultHostMapper";
+    // 部署器
+    private final Deployer deployer = new HostDeployer(this);
+    // 映射器对象
+    private String defaultHostMapper = "erangel.core.DefaultHostMapper";
     //<editor-fold desc = "attr">
     // 程序根目录
     private String appBase = "";
@@ -27,8 +30,6 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
     private String innerContextListener = "erangel.listener.InnerContextListener";
     // 工作区
     private String workDir = "";
-    // 部署器
-    private final Deployer deployer = new HostDeployer(this);
 
     //</editor-fold>
     //<editor-fold desc = "构造器">
@@ -38,12 +39,24 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
 
     //</editor-fold>
     //<editor-fold desc = "getter && setter">
-    public void setName(String name) {
-        this.name = name;
+
+    public String getMapper() {
+        return defaultHostMapper;
     }
+
+    //<editor-fold desc = "映射器">
+    public void setMapper(Mapper mapper) {
+        this.mapper = mapper;
+        this.defaultHostMapper = mapper.getClass().getName();
+    }
+    //</editor-fold>
 
     public String getName() {
         return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getWorkDir() {
@@ -68,6 +81,18 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
 
     public void setInnerContextListener(String innerContextListener) {
         this.innerContextListener = innerContextListener;
+    }
+
+    //</editor-fold>
+    //<editor-fold desc = "生命周期">
+    @Override
+    public void start() throws LifecycleException {
+        super.start();
+    }
+
+    @Override
+    public void stop() throws LifecycleException {
+        super.stop();
     }
 
     //</editor-fold>
@@ -118,12 +143,12 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
         deployer.remove(contextPath);
     }
 
-    @Override
+
     public void start(String contextPath) throws IOException {
         deployer.start(contextPath);
     }
 
-    @Override
+
     public void stop(String contextPath) throws IOException {
         deployer.stop(contextPath);
     }
