@@ -1,9 +1,6 @@
 package erangel.core;
 
-import erangel.base.Engine;
-import erangel.base.Host;
-import erangel.base.Service;
-import erangel.base.Vas;
+import erangel.base.*;
 import erangel.checkpoints.EngineCheckpoint;
 import erangel.lifecycle.LifecycleException;
 import erangel.utils.ServerInfo;
@@ -11,14 +8,30 @@ import erangel.utils.ServerInfo;
 public class DefaultEngine extends VasBase implements Engine {
     //<editor-fold desc = "attr">
     private static final String info = "llj.erangel.core.DefaultEngine";
-    // todo
-    private final String mapperClass = "erangel.mapper.EngineMapper";
+    private String defaultEngineMapper = "erangel.mapper.EngineMapper";
     private String defaultHostName = "";
     // 包含次Engine的Service
     private Service service = null;
 
     //</editor-fold>
+    //<editor-fold desc = "构造器">
+    public DefaultEngine() {
+        channel.setBasicCheckpoint(new EngineCheckpoint());
+    }
+
+    public String getMapper() {
+        return defaultEngineMapper;
+    }
+    //</editor-fold>
     //<editor-fold desc = "接口实现">
+
+    //</editor-fold>
+    //<editor-fold desc = "映射器">
+    public void setMapper(Mapper mapper) {
+        this.mapper = mapper;
+        this.defaultEngineMapper = mapper.getClass().getName();
+    }
+
     @Override
     public String getDefaultHostName() {
         return defaultHostName;
@@ -45,12 +58,6 @@ public class DefaultEngine extends VasBase implements Engine {
     }
 
     //</editor-fold>
-    //<editor-fold desc = "构造器">
-    public DefaultEngine() {
-        channel.setBasicCheckpoint(new EngineCheckpoint());
-    }
-
-    //</editor-fold>
     //<editor-fold desc = "重写抽象类的部分方法">
     /*
      * 由于Engine的特殊性，其子容器必须是host，且不能再有上层的父容器了
@@ -69,7 +76,7 @@ public class DefaultEngine extends VasBase implements Engine {
     //</editor-fold>
     //<editor-fold desc = "生命周期相关">
     @Override
-    public void start() throws LifecycleException {
+    public synchronized void start() throws LifecycleException {
         System.out.println(ServerInfo.getServerInfo());
         super.start();
     }
