@@ -8,6 +8,8 @@ import org.xml.sax.Attributes;
 
 import java.lang.reflect.Method;
 
+import static erangel.XMLParse.ShutDownServerRuleSet.SetPropertiesRule.getObject;
+
 public class ServerRuleSet extends RuleSet {
 
     public void addRuleInstances(MiniDigester d) {
@@ -15,6 +17,9 @@ public class ServerRuleSet extends RuleSet {
         /* ===== <Server> ===== */
         d.addRule("Server", new ObjectCreateRule(DefaultServer.class));
         d.addRule("Server", new SetPropertiesRule());
+        // 这里之前放进了Erangel
+        d.addRule("Server", new SetNextRuleAccessible("setServer"));
+
         /* ===== <Service> ===== */
         d.addRule("Server/Service", new ObjectCreateRule(DefaultService.class));
         d.addRule("Server/Service", new SetPropertiesRule()); // name
@@ -66,20 +71,7 @@ public class ServerRuleSet extends RuleSet {
         }
 
         private Object convert(String value, Class<?> type) {
-            if (type == String.class) return value;
-            if (type == int.class || type == Integer.class) return Integer.parseInt(value);
-            if (type == boolean.class || type == Boolean.class) return Boolean.parseBoolean(value);
-            if (type == long.class || type == Long.class) return Long.parseLong(value);
-            if (type == double.class || type == Double.class) return Double.parseDouble(value);
-            if (type == float.class || type == Float.class) return Float.parseFloat(value);
-            if (type == Class.class) {
-                try {
-                    return Class.forName(value);
-                } catch (ClassNotFoundException e) {
-                    throw new RuntimeException("Failed to convert to Class: " + value, e);
-                }
-            }
-            throw new RuntimeException("Unsupported parameter type: " + type);
+            return getObject(value, type);
         }
 
         private String capitalize(String name) {
