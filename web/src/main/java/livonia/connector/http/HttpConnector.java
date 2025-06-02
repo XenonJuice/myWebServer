@@ -11,6 +11,7 @@ import livonia.log.BaseLogger;
 import livonia.net.DefaultServerSocketFactory;
 import livonia.net.ServerSocketFactory;
 import livonia.utils.LifecycleHelper;
+import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.BindException;
@@ -25,6 +26,8 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
     //<editor-fold desc = "attr">
     // 描述信息
     private static final String info = "llj.livonia.connector.http.HttpConnector/1.0";
+    // logger
+    private static final Logger logger = BaseLogger.getLogger(HttpConnector.class);
     // 线程容器
     private final Queue<HttpProcessor> processors = new ArrayDeque<>();
     // 已创建的解析器线程之容器
@@ -74,9 +77,6 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
     private Vas vas = null;
     // 绑定的Service
     private Service service = null;
-    // logger FIXME
-    // protected Logger logger = connector.getVas().getLogger();
-
     //</editor-fold>
     //<editor-fold desc="getter & setter">
     public void setVas(Vas vas) {
@@ -85,6 +85,10 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
 
     public void setService(Service service) {
         this.service = service;
+    }
+
+    public Vas getVas() {
+        return vas;
     }
 
     public int getConnectionTimeOut() {
