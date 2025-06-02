@@ -14,6 +14,8 @@ public class SocketInputBuffer extends InputStream {
     private final byte[] innerBuffer;
     // 缓冲区有效字节数
     public int bufferCount = 0;
+    // buffer中已填充的字节总数
+    public int count = 0;
     // 内部缓冲中下一个应该读取的位置
     private int pos = 0;
 
@@ -64,24 +66,9 @@ public class SocketInputBuffer extends InputStream {
         if (off < 0 || len < 0 || off + len > buffer.length) {
             throw new IndexOutOfBoundsException();
         }
-//        // 标记相对于需要获取长度之中的当前位置。
-//        int i = 0;
-//        // 如果当前位置依然小于需要获取的长度，则继续读。
-//        while (i < len) {
-//            int count = read();
-//            // 若读取到的流的末尾
-//            if (count < 0) {
-//                // 判断一开始就读到末尾和读到一部分之后才读到末尾的情况，若i=0 则说明
-//                // 一开始就读到了流的末尾；若i不为0，则说明读到了一部分数据才达到流的末尾。
-//                return i == 0 ? -1 : i;
-//            }
-//            buffer[off + i] = (byte) count;
-//            i++;
-//        }
-
         // 更高效的做法，既然我们需要取出一块较大数据。那么直接先判断内部缓冲区和所需数据的大小
         // 如果缓冲区的可用字节大于等于所需大小，可以直接把所需大小复制到容器数组中
-        int available = available();
+        int available = availableInnerBuffer();
         if (available > 0) {
             if (available >= len) {
                 //                src,      srcPos, dest, destPos,length
@@ -94,7 +81,7 @@ public class SocketInputBuffer extends InputStream {
             System.arraycopy(innerBuffer, pos, buffer, off, available);
             pos += available;
             // 然后再把需要的大小读进来
-            int i = socketInputStream.read(buffer, off, len - available);
+            int i = socketInputStream.read(buffer, off+available, len - available);
             if (i == -1) return available;
             return available + i;
         }
@@ -109,19 +96,38 @@ public class SocketInputBuffer extends InputStream {
     }
 
     /**
-     * 返回可以从此输入流读取（或跳过）不会阻塞的可用字节数。
+     * 返回缓冲区当前尚未消费的字节数，即 count - pos。
      *
-     * @return 不会阻塞的可以读取或跳过的字节数。
-     * @throws IOException 如果发生 I/O 错误。
-     **/
-    @Override
-    public int available() throws IOException {
-        return bufferCount - pos + socketInputStream.available();
+     * @return 缓冲区中可读取的字节数
+     */
+    public int availableInnerBuffer() {
+        return bufferCount - pos;
     }
-    //</editor-fold>
 
-    //<editor-fold desc = "XXXXXXX">
-    //</editor-fold>
-    //<editor-fold desc = "XXXXXXX">
+    /**
+     * 当需要直接把整个底层 InputStream 传给某些组件时（例如包装成 ChunkedFilter）
+     * 调用此方法返回一个 InputStream：它会优先从 buf[pos..count-1] 读，
+     * 然后才去真正调用底层 in.read(...)。这样就保证了读头时多读的字节不丢
+     *
+     * @return 一个新的 InputStream，先从当前 buf 读取，读完后继续由底层 in 提供数据
+     */
+    public InputStream getRemainingStream() {
+        return new InputStream() {
+            @Override
+            public int read() throws IOException {
+                return SocketInputBuffer.this.read();
+            }
+
+            @Override
+            public int read(byte[] b, int off, int l) throws IOException {
+                return SocketInputBuffer.this.read(b, off, l);
+            }
+
+            @Override
+            public int available() {
+                return availableInnerBuffer();
+            }
+        };
+    }
     //</editor-fold>
 }
