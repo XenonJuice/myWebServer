@@ -136,7 +136,6 @@ public class Livonia {
 
     //</editor-fold>
     //<editor-fold desc = "生命周期">
-    // TODO
     private void start() {
         // 开始解析serverXML
         MiniDigester d = parseXMLStarting();
