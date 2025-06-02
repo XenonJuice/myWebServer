@@ -50,6 +50,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     // 封装后的 ServletInputStream
     private HttpRequestStream servletInputStream;
     private InputStream clientInputStream;
+    private SocketInputBuffer socketInputBuffer;
     // reader
     private BufferedReader reader;
     //存储远程客户端的IP 地址
@@ -75,8 +76,17 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private Endpoint endpoint = null;
     private String contextPath;
 
+
     //</editor-fold>
     //<editor-fold desc="getter & setter">
+    public SocketInputBuffer getSocketInputBuffer() {
+        return socketInputBuffer;
+    }
+
+    public void setSocketInputBuffer(SocketInputBuffer socketInputBuffer) {
+        this.socketInputBuffer = socketInputBuffer;
+    }
+
     public HttpConnector getConnector() {
         return connector;
     }
@@ -107,6 +117,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     public void setStream(InputStream inputStream) {
         this.clientInputStream = inputStream;
+        this.socketInputBuffer = new SocketInputBuffer(inputStream, bufferSize);
     }
 
     @Override
@@ -156,6 +167,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     public void setHeaders(Map<String, List<String>> headers) {
         this.headers = headers;
+    }
+
+    public Map<String, List<String>> getHeaderMap() {
+        return headers;
     }
 
     @Override
@@ -665,6 +680,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         body = null;
         attributes.clear();
         servletInputStream = null;
+        socketInputBuffer = null;
         remoteAddr = null;
         remoteHost = null;
         locale = null;
