@@ -1,6 +1,9 @@
 package livonia.connector.http;
 
 import livonia.base.Const.*;
+import livonia.connector.http.streamFilter.ChunkedFilter;
+import livonia.connector.http.streamFilter.InputFilter;
+import livonia.connector.http.streamFilter.PassthroughFilter;
 import livonia.lifecycle.Lifecycle;
 import livonia.lifecycle.LifecycleException;
 import livonia.lifecycle.LifecycleListener;
@@ -63,14 +66,14 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     // 对象锁
     private final Object lock = new Object();
     private final Logger logger = BaseLogger.getLogger(this.getClass());
+    // 缓冲区大小
+    private final int bufferSize = 8192;
     // 从socket中获得的 InputStream
     public InputStream socketInputStream;
     // 从socket中获得的 OutputStream
     public OutputStream socketOutputStream;
     // 用于读取请求头和请求行的buffer
     public SocketInputBuffer socketInputBuffer;
-    // 缓冲区大小
-    private final int bufferSize = 8192;
     // 从请求中获得的字符编码
     public String characterEncoding;
     // 存储HTTP头的映射
@@ -216,7 +219,6 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
         }
         if (protocol.equals(HttpProtocol.HTTP_1_1)) {
             http11 = true;
-            ((HttpRequestStream) request.getInputStream()).setHttp11(true);
         }
 
         logger.info("请求方法: {}", method);
@@ -272,58 +274,9 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                         }
                     }
                 }
-                // 处理chunked的情况
-                if (Header.TRANSFER_ENCODING.equalsIgnoreCase(key) && Header.CHUNKED.equalsIgnoreCase(value)) {
-                    ((HttpRequestStream) request.getInputStream()).setUseChunkedEncoding(true);
-                }
                 // 解析Cookies
                 if (Header.COOKIE.equalsIgnoreCase(key)) {
                     parseCookies(value);
-                }
-            }
-
-            // 3.从流中按字节读取请求体
-            if (contentLength > 0 || headers.containsKey(Header.TRANSFER_ENCODING
-            )) {
-                byte[] body = null;
-                if (contentLength > 0) {
-                    logger.debug("开始读取请求体, 长度: {}", contentLength);
-                    body = new byte[contentLength];
-                    int bytesRead = 0;
-                    while (bytesRead < contentLength) {
-                        int readCount = socketInputStream.read(body, bytesRead, contentLength - bytesRead);
-                        if (readCount == -1) {
-                            break;
-                        }
-                        bytesRead += readCount;
-                    }
-                    if (bytesRead != contentLength) {
-                        logger.warn("请求体不完整: 已读 {} 字节, 期望 {} 字节", bytesRead, contentLength);
-                        throw new ServletException("Request body is incomplete");
-                    }
-                    request.setBody(body);
-
-                } else if (Header.CHUNKED.equalsIgnoreCase(
-                        headers.get(Header.TRANSFER_ENCODING).getFirst())) {
-                    logger.debug("开始读取CHUNKED请求体");
-                    ByteArrayOutputStream buf = new ByteArrayOutputStream();
-                    body = new byte[1024];
-                    int readCount;
-                    while ((readCount = socketInputStream.read(body)) != -1) {
-                        buf.write(body, 0, readCount);
-                    }
-                    request.setBody(buf.toByteArray());
-                }
-
-                logger.debug("成功读取请求体");
-                // 如果Content-Type是application/x-www-form-urlencoded，则对body进行解码并解析参数
-                if (contentType != null && contentType.startsWith("application/x-www-form-urlencoded")) {
-                    String bodyStr = null;
-                    if (body != null) {
-                        bodyStr = new String(body, characterEncoding);
-                    }
-                    parseParameters(bodyStr);
-                    logger.debug("解析后的请求体参数: {}", parameters);
                 }
             }
         }
@@ -532,11 +485,17 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     //</editor-fold>
     //<editor-fold desc = "其他方法">
     private void initializeRequestAndResponse(Socket socket) throws IOException {
+        // 编辑request的内部流
+        // 取得底层的InputStream
         socketInputStream = socket.getInputStream();
+        // 将底层流设置到request中
         request.setStream(socketInputStream);
-        socketInputStream = request.getInputStream();
+        // 取出包装过后的底层InputStream
+        socketInputBuffer = request.getSocketInputBuffer();
         request.setResponse(response);
-        socketInputBuffer = new SocketInputBuffer(socketInputStream, bufferSize);
+
+
+        // 编辑response的内部流
         socketOutputStream = socket.getOutputStream();
         response.setStream(socketOutputStream);
         response.setRequest(request);
@@ -745,11 +704,9 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             } catch (Exception e) {
                 handleUnknownException(e);
             }
-            // TODO servlet容器加载
             try {
                 if (noProblem) {
-                    // container.invoke(request,response)
-                    System.out.println("假装已经通过了servlet");
+                    connector.getVas().process(request, response);
                 }
                 // ---------------------------------------
             } catch (RuntimeException e) {
