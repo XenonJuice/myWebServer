@@ -4,6 +4,8 @@ package livonia.resource;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -78,12 +80,17 @@ public class JarResource implements LocalResource {
         // 实际路径 /Users/LLJ/projects/myapp/lib/myapp.jar，
         // 返回类似
         // jar:file:/Users/LLJ/projects/myapp/lib/myapp.jar!/com/example/LLJ.class
-        String jarPath = jarFile.getName();
+        // 获取JAR文件的实际文件系统路径
+        String jarFilePath = jarFile.getName();
         try {
-            return new URL("jar:file:" + jarPath + "!/" + jarEntry.getName());
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
+            // 构建标准格式的JAR URL: jar:file:/path/to/jarfile.jar!/path/inside/jar
+            return new URI("jar:file", null,
+                    "/" + jarFilePath + "!/" + jarEntry.getName(),
+                    null).toURL();
+        } catch (URISyntaxException | MalformedURLException e) {
+            throw new RuntimeException("无法为JAR资源创建URL", e);
         }
+
     }
 
     @Override
