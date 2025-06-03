@@ -15,6 +15,8 @@ public class DefaultService implements Service, Lifecycle {
     private static final Logger logger = BaseLogger.getLogger(DefaultService.class);
     // 描述信息
     private static final String info = "livonia.core.DefaultService";
+    // 生命周期助手
+    private final LifecycleHelper helper = new LifecycleHelper(this);
     // 与此Service关联的容器
     private Vas vas = null;
     // 是否完成了初始化
@@ -23,12 +25,11 @@ public class DefaultService implements Service, Lifecycle {
     private boolean started = false;
     // 此Service名
     private String name = "";
-    // 生命周期助手
-    private final LifecycleHelper helper = new LifecycleHelper(this);
     // 持有此Service的Server
     private Server server = null;
     // 此Service持有的连接器集合
-    private HttpConnector[] connectors = null;
+    private HttpConnector[] connectors = new HttpConnector[0];
+    ;
 
     //</editor-fold>
     //<editor-fold desc = "接口实现">
@@ -40,7 +41,9 @@ public class DefaultService implements Service, Lifecycle {
     @Override
     public void setVas(Vas vas) {
         Vas old = this.vas;
-        ((Engine) old).setService(null);
+        if (old != null) {
+            ((Engine) old).setService(null);
+        }
         this.vas = vas;
         ((Engine) vas).setService(this);
         if (started) {
