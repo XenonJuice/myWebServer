@@ -18,10 +18,12 @@ public class ContextRuleSet extends RuleSet {
         // todo i just forget what to do... wait for test and maybe add some more rules
         digester.addRule(prefix + CONTEXT, new ObjectCreateRule(DefaultContext.class));
         digester.addRule(prefix + CONTEXT, new SetPropertiesRule());
+
         digester.addRule(prefix + CONTEXT, new CopyClassLoaderFromParentRule(digester));
         digester.addRule(prefix + CONTEXT, new CreateWebAppLoaderRule("livonia.loader.WebAppLoader", digester));
         digester.addRule(prefix + CONTEXT + LOADER, new SetPropertiesRule());
         digester.addRule(prefix + CONTEXT + LOADER, new SetNextRuleAccessible("setLoader"));
+        digester.addRule(prefix + CONTEXT, new SetNextRuleAccessible("addChild"));
         // 添加默认监听器
         digester.addRule(prefix + CONTEXT, new InnerListenerRule("livonia.listener.InnerContextListener"));
 
