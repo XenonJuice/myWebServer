@@ -134,7 +134,7 @@ public class Bootstrap {
                 // 将每一个未打包class作为File对象
                 for (File dir : unpacked) {
                     // 验证正常性
-                    if (!isValidDirectory(dir)) continue;
+                    if (isValidDirectory(dir)) continue;
                     System.out.println("unpacked class path : " + dir.getAbsolutePath());
                     URL url;
                     try {
@@ -151,7 +151,7 @@ public class Bootstrap {
             // 构建一般的压缩的class 的class path
             if (packed != null) {
                 for (File dir : packed) {
-                    if (!isValidDirectory(dir)) continue;
+                    if (isValidDirectory(dir)) continue;
                     System.out.println("packed class path : " + dir.getAbsolutePath());
                     String[] fileNames = dir.list();
                     if (fileNames == null) continue;
