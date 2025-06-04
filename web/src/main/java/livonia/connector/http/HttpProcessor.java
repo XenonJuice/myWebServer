@@ -1,14 +1,12 @@
 package livonia.connector.http;
 
 import livonia.base.Const.*;
-import livonia.connector.http.streamFilter.ChunkedFilter;
-import livonia.connector.http.streamFilter.InputFilter;
-import livonia.connector.http.streamFilter.PassthroughFilter;
 import livonia.lifecycle.Lifecycle;
 import livonia.lifecycle.LifecycleException;
 import livonia.lifecycle.LifecycleListener;
 import livonia.log.BaseLogger;
 import livonia.utils.LifecycleHelper;
+import livonia.utils.ServerInfo;
 import org.slf4j.Logger;
 
 import javax.servlet.ServletException;
@@ -32,10 +30,10 @@ import static livonia.utils.CookieUtils.convertToCookieList;
  * <pre>
  * └── {@link #process(Socket)} - 处理传入 Socket 的完整流程：
  *      1. 初始化请求与响应
- *          └── {@link #initializeRequestAndResponse(Socket)} - 初始化请求与响应对象
+ *          └── - 初始化请求与响应对象
  *      2. 请求解析
  *          └── {@link #parseRequestAndConnection(Socket)} - 解析请求与连接部分：
- *              ├── {@link #parseRequest()} - 解析请求行
+ *              ├── {@link #parseRequest(HttpRequest)} - 解析请求行
  *              ├── {@link #parseConnection(Socket)} - 解析连接属性（协议、超时）
  *              ├── {@link #parseHeaders(Map)} - 解析请求头：
  *                  │   ├── {@link #parseCookies(String)} - 解析 Cookies
@@ -68,12 +66,6 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private final Logger logger = BaseLogger.getLogger(this.getClass());
     // 缓冲区大小
     private final int bufferSize = 8192;
-    // 从socket中获得的 InputStream
-    public InputStream socketInputStream;
-    // 从socket中获得的 OutputStream
-    public OutputStream socketOutputStream;
-    // 用于读取请求头和请求行的buffer
-    public SocketInputBuffer socketInputBuffer;
     // 从请求中获得的字符编码
     public String characterEncoding;
     // 存储HTTP头的映射
@@ -94,8 +86,6 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private int serverPort = 0;
     // 线程停止信号
     private boolean stopped = false;
-    // 解析过程中是否发生异常标志位
-    private boolean noProblem = true;
     // 是否有可用的socket
     private boolean hasSocket = false;
     // 解析器状态
@@ -114,6 +104,13 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     private String threadName = null;
     // 线程启动标志位
     private boolean started = false;
+    // 复用的流对象
+    private HttpRequestStream requestStream;
+    private HttpResponseStream responseStream;
+    // 统计信息
+    private long totalRequestsProcessed = 0;
+    private long totalBytesRead = 0;
+    private long totalBytesWritten = 0;
 
     //</editor-fold>
     //<editor-fold desc = "constructor">
@@ -132,7 +129,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     //<editor-fold desc = "解析相关">
     private void parseRequestAndConnection(Socket socket) throws IOException, ServletException {
         parseConnection(socket);
-        parseRequest();
+        parseRequest(request);
         if (http11) {
             if (ack) response.sendAck();
             if (connector.isAllowChunking()) response.setAllowChunking(true);
@@ -195,9 +192,10 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     /**
      * 解析HTTP请求
      */
-    private void parseRequest() throws IOException, ServletException {
+    private void parseRequest(HttpRequest request) throws IOException, ServletException {
+        InputStream input = request.getInputStream();
         // 1. 读取并解析请求行
-        String requestLine = readLine(socketInputBuffer, characterEncoding);
+        String requestLine = readLine(input, characterEncoding);
         status = Processor.PROCESSOR_ACTIVE;
         if (requestLine == null || requestLine.isEmpty()) {
             throw new ServletException("Empty request");
@@ -242,7 +240,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             String contentType = null;
 
             String headerLine;
-            while ((headerLine = readLine(socketInputBuffer, characterEncoding)) != null && !headerLine.isEmpty()) {
+            while ((headerLine = readLine(input, characterEncoding)) != null && !headerLine.isEmpty()) {
                 int separatorIndex = headerLine.indexOf(PunctuationMarks.COLON_SPACE);
                 if (separatorIndex == -1) {
                     logger.info("格式错误的头部: {}", headerLine);
@@ -484,22 +482,6 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
 
     //</editor-fold>
     //<editor-fold desc = "其他方法">
-    private void initializeRequestAndResponse(Socket socket) throws IOException {
-        // 编辑request的内部流
-        // 取得底层的InputStream
-        socketInputStream = socket.getInputStream();
-        // 将底层流设置到request中
-        request.setStream(socketInputStream);
-        // 取出包装过后的底层InputStream
-        socketInputBuffer = request.getSocketInputBuffer();
-        request.setResponse(response);
-
-
-        // 编辑response的内部流
-        socketOutputStream = socket.getOutputStream();
-        response.setStream(socketOutputStream);
-        response.setRequest(request);
-    }
 
     /**
      * 获取默认端口号
@@ -512,22 +494,38 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     }
 
     // 清理内存
-    void recycle() {
-        this.keepAlive = false;
-        this.ack = false;
+    private void recycle() {
+        // 重置协议相关标志
         this.http11 = false;
+        this.ack = false;
         this.protocol = null;
+        // 清空集合
         this.headers.clear();
         this.cookies.clear();
         this.parameters.clear();
+        // 重置请求信息
         this.method = null;
         this.uri = null;
         this.fullUri = null;
-        this.noProblem = true;
+        // 重置其他标志
         this.finishResponse = true;
         this.characterEncoding = "UTF-8";
+        // 回收请求和响应对象
         request.recycle();
         response.recycle();
+        /*
+         不重置keepAlive，它应该在每个连接开始时设置
+         不回收流对象，它们会被复用
+        */
+    }
+
+    public void recycleByConnector(){
+        // 清理所有资源
+        this.requestStream = null;
+        this.responseStream = null;
+        this.totalRequestsProcessed = 0;
+        this.totalBytesRead = 0;
+        this.totalBytesWritten = 0;
     }
 
     private void closeInputStream(InputStream input) {
@@ -537,7 +535,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                 logger.info("已跳过字节数 ：{}", skip);
             }
         } catch (IOException e) {
-            handleIOException(e);
+            logger.error("closeInputStream", e);
         }
     }
 
@@ -603,7 +601,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             try {
                 process(socket);
             } catch (Throwable e) {
-                handleTerribleException(e);
+                logger.error("<=>", e);
             } finally {
                 connector.recycle(this);
             }
@@ -679,134 +677,189 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     //</editor-fold>
     //<editor-fold desc = "process">
     public void process(Socket socket) {
+        boolean ok = true;
+        boolean finishResponse = true;
+        InputStream socketInputStream= null;
+        OutputStream output = null;
+
+        // 初始化keepAlive为true，允许连接复用
         keepAlive = true;
-        while (!stopped && noProblem && keepAlive) {
-            finishResponse = true;
+        try {
+            // 获取输入流
+            socketInputStream = new SocketInputBuffer(socketInputStream, bufferSize);
+        } catch (Exception e) {
+            logger.error("Socket初始化失败", e);
+            ok = false;
+        }
+        while (!stopped && ok && keepAlive) {
             try {
-                initializeRequestAndResponse(socket);
-            } catch (IOException e) {
-                handleIOException(e);
+                // 设置请求和响应的流
+                request.setStream(socketInputStream);
+                request.setResponse(response);
+                // 获取输出流
+                output = socket.getOutputStream();
+                response.setStream(output);
+                response.setRequest(request);
+                // 设置默认响应头
+                response.setHeader("Server", ServerInfo.getServerInfo());
+            } catch (Exception e) {
+                ok = false;
+                logger.error("获取，设置流失败", e);
             }
 
             // IO无异常，继续解析
             try {
-                if (noProblem) {
-                    parseRequestAndConnection(socket);
+                parseRequestAndConnection(socket);
+                // 对于HTTP/1.0，默认关闭连接除非明确指定keep-alive
+                if (!http11 && !headers.containsKey(Header.CONNECTION)) {
+                    keepAlive = false;
                 }
             } catch (EOFException e) {
-                handleEOFException();
+                // 客户端关闭连接
+                logger.info("客户端关闭连接");
+                ok = false;
+                finishResponse = false;
             } catch (ServletException e) {
-                handleServletException(e);
-            } catch (InterruptedIOException e) {
-                handleTimeoutException();
-            } catch (IOException e) {
-                handleIOException(e);
-            } catch (Exception e) {
-                handleUnknownException(e);
-            }
-            try {
-                if (noProblem) {
-                    connector.getVas().process(request, response);
+                logger.error("请求解析失败", e);
+                response.setError();
+                try {
+                    response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                } catch (IOException ex) {
+                    logger.error("发送错误响应失败", ex);
                 }
-                // ---------------------------------------
-            } catch (RuntimeException e) {
-                handleUnknownException(e);
-            } catch (Throwable e) {
-                handleTerribleException(e);
+                ok = false;
+            } catch (InterruptedIOException e) {
+                logger.error("请求超时");
+                ok = false;
+                try {
+                    response.sendError(HttpServletResponse.SC_REQUEST_TIMEOUT);
+                } catch (IOException ex) {
+                    logger.error("发送超时响应失败", ex);
+                }
+            } catch (IOException e) {
+                logger.error("IO错误", e);
+                ok = false;
+                try {
+                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                } catch (IOException ex) {
+                    logger.error("发送错误响应失败", ex);
+                }
+            } catch (Exception e) {
+                logger.error("未知错误", e);
+                ok = false;
+                try {
+                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                } catch (IOException ex) {
+                    logger.error("发送错误响应失败", ex);
+                }
             }
+
+
+            if (http11 && keepAlive) {
+                response.setHeader("Connection", "keep-alive");
+            }
+            // 创建或复用请求流
+            if (requestStream == null) {
+                requestStream = new HttpRequestStream(request, response);
+            } else {
+                requestStream.recycle();
+                requestStream.setupForNewRequest(request);
+            }
+            request.setRequestStream(requestStream);
+
+            // 创建或复用响应流
+            if (responseStream == null) {
+                responseStream = new HttpResponseStream(response, bufferSize);
+            } else {
+                responseStream.recycle();
+            }
+            response.setResponseStream(responseStream);
+
+            // 处理请求
+            if (ok) {
+                try {
+                    connector.getVas().process(request, response);
+                } catch (Exception e) {
+                    logger.error("请求处理失败", e);
+                    ok = false;
+                    try {
+                        response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    } catch (IOException ex) {
+                        logger.error("发送错误响应失败", ex);
+                    }
+                }
+            }
+
+            // 完成响应
             if (finishResponse) {
                 try {
                     response.finishResponse();
                 } catch (IOException e) {
-                    handleIOException(e);
+                    logger.error("完成响应失败", e);
+                    ok = false;
                 } catch (Throwable e) {
-                    handleTerribleException(e);
+                    logger.error("完成响应时发生严重错误", e);
+                    ok = false;
                 }
 
                 try {
                     request.finishRequest();
                 } catch (IOException e) {
-                    handleIOException(e);
+                    logger.error("完成请求失败", e);
+                    ok = false;
                 } catch (Throwable e) {
-                    handleTerribleException(e);
+                    logger.error("完成请求时发生严重错误", e);
+                    ok = false;
                 }
 
                 try {
-                    socket.getOutputStream().flush();
+                    if (output != null) {
+                        output.flush();
+                    }
                 } catch (IOException e) {
-                    handleIOException(e);
-                } catch (Throwable e) {
-                    handleTerribleException(e);
+                    logger.error("刷新输出流失败", e);
+                    ok = false;
                 }
             }
-            // 检查是否维持链接
-            if (Header.CLOSE.equals(response.getHeader(Header.CONNECTION))) {
+
+            // 检查连接是否应该关闭
+            if ("close".equalsIgnoreCase(response.getHeader("Connection"))) {
                 keepAlive = false;
             }
-            status = Processor.PROCESSOR_IDLE;
-            // 回收资源
+
+            // 对于错误响应，通常关闭连接
+            if (!ok || response.getStatus() >= 400) {
+                keepAlive = false;
+            }
+
+            // 更新统计信息
+            if (requestStream != null) {
+                totalBytesRead += requestStream.getBytesRead();
+            }
+            if (responseStream != null) {
+                totalBytesWritten += responseStream.getTotalBytesWritten();
+            }
+            totalRequestsProcessed++;
+
+            // 回收资源准备下一个请求
             recycle();
+
+            status = Processor.PROCESSOR_IDLE;
         }
 
         try {
             closeInputStream(socket.getInputStream());
             socket.close();
         } catch (IOException e) {
-            handleIOException(e);
+            logger.error("关闭socket失败", e);
         }
-
         socket = null;
+
+        logger.info("处理器统计 - 请求数: {}, 读取字节: {}, 写入字节: {}",
+                totalRequestsProcessed, totalBytesRead, totalBytesWritten);
     }
 
     //</editor-fold>
-    //<editor-fold desc = "解析失败时的异常处理">
-    private void handleEOFException() {
-        logger.warn("client or server socket shutdown!");
-        noProblem = false;
-        finishResponse = false;
-    }
-
-    private void handleServletException(ServletException e) {
-        logger.info("request内容不合法: {}", e.getMessage());
-        sendErrorResponse(HttpServletResponse.SC_BAD_REQUEST);
-    }
-
-    private void handleTimeoutException() {
-        noProblem = false;
-        sendErrorResponse(HttpServletResponse.SC_REQUEST_TIMEOUT);
-    }
-
-    private void handleIOException(IOException e) {
-        logger.error("处理请求时发生IO异常: {}", "parseRequest", e);
-        noProblem = false;
-        sendErrorResponse(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-    }
-
-    private void handleUnknownException(Exception e) {
-        logger.error("未知异常", e);
-        noProblem = false;
-        sendErrorResponse(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-    }
-
-    private void handleTerribleException(Throwable e) {
-        logger.error("未知的严重错误", e);
-        noProblem = false;
-        sendErrorResponse(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-    }
-
-    private void sendErrorResponse(int errorCode) {
-        try {
-            response.sendError(errorCode);
-        } catch (IOException e) {
-            logger.warn("发送错误响应时失败: {}", e.getMessage());
-        }
-    }
-
-    //</editor-fold>
-    //<editor-fold desc = "just for test">
-    public void setNoProblem(boolean noProblem) {
-        this.noProblem = noProblem;
-    }
     //</editor-fold>
 
 }
