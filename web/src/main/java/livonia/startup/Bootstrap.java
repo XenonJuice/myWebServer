@@ -52,7 +52,6 @@ public class Bootstrap {
             paramValues[0] = args;
             method = ergInstance.getClass().getMethod(PROCESS, paramTypes);
             method.invoke(ergInstance, paramValues);
-            System.out.println("livonia process success");
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             System.exit(2);
