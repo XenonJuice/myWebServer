@@ -73,11 +73,18 @@ public class DefaultEngine extends VasBase implements Engine {
         throw new UnsupportedOperationException("Engine can not have parent!");
     }
 
+    @Override
+    public void addMapper(String mapper) {
+        super.addMapper(defaultEngineMapper);
+    }
+
     //</editor-fold>
     //<editor-fold desc = "生命周期相关">
     @Override
     public synchronized void start() throws LifecycleException {
         System.out.println(ServerInfo.getServerInfo());
+        Mapper mapper =setMapper(defaultEngineMapper);
+        mapper.setVas(this);
         super.start();
     }
     //</editor-fold>
