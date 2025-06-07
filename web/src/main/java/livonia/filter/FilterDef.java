@@ -28,7 +28,7 @@ public class FilterDef {
         return params;
     }
 
-    public void addParam(String name, String value) {
+    public void addInitParameter(String name, String value) {
         params.put(name, value);
 
     }
