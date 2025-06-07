@@ -31,7 +31,7 @@ import java.util.HashMap;
 public class DefaultContext extends VasBase implements Context {
     private static final Logger logger = LoggerFactory.getLogger(DefaultContext.class);
     //<editor-fold desc = "attr">
-    private String defaultContextMapper = "livonia.core.DefaultContextMapper";
+    private String defaultContextMapper = "livonia.mapper.ContextMapper";
     private String basePath = "";
     // web.xml中配置的web程序的监听器
     private String[] applicationListeners = new String[0];
@@ -143,6 +143,7 @@ public class DefaultContext extends VasBase implements Context {
         setPaused(true);
         try {
             stop();
+            logger.info("context : {} reloading...", getName());
             start();
         } catch (LifecycleException e) {
             logger.error("reload context : {} failed , continue running the old context", getName(), e);
@@ -170,13 +171,13 @@ public class DefaultContext extends VasBase implements Context {
 
     @Override
     public void addApplicationListener(String listener) {
-        synchronized (applicationListenersObjects) {
-            String[] newListeners = new String[applicationListenersObjects.length + 1];
-            for (int i = 0; i < applicationListenersObjects.length; i++) {
-                if (listener.equals(applicationListenersObjects[i])) return;
+        synchronized (applicationListeners) {
+            String[] newListeners = new String[applicationListeners.length + 1];
+            for (int i = 0; i < applicationListeners.length; i++) {
+                if (listener.equals(applicationListeners[i])) return;
                 newListeners[i] = applicationListeners[i];
             }
-            newListeners[newListeners.length - 1] = listener;
+            newListeners[applicationListeners.length] = listener;
             applicationListeners = newListeners;
         }
     }
@@ -394,6 +395,8 @@ public class DefaultContext extends VasBase implements Context {
     @Override
     public synchronized void start() throws LifecycleException {
         if (started) throw new LifecycleException("context : " + getName() + " is already started");
+        Mapper mapper =setMapper(defaultContextMapper);
+        mapper.setVas(this);
         lifecycleHelper.fireLifecycleEvent(BEFORE_START_EVENT, null);
         logger.info("context : {} starting...", getName());
         setConfigured(false);
@@ -444,6 +447,7 @@ public class DefaultContext extends VasBase implements Context {
                 unbindThread(oldCL);
             }
         }
+
         if (!isConfigured()) {
             logger.error("context : {} start failed,cause configure failed", getName());
             noProblem = false;
@@ -524,6 +528,7 @@ public class DefaultContext extends VasBase implements Context {
             try {
                 Class<?> listenerClass = cl.loadClass(listeners[i]);
                 listenersObjects[i] = listenerClass.getDeclaredConstructor().newInstance();
+                logger.debug("context : {} start listener : {} succeed", getName(), listeners[i]);
             } catch (Exception e) {
                 noProblem = false;
                 logger.error("context : {} start listener : {} failed",
