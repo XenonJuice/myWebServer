@@ -34,7 +34,7 @@ public class EngineCheckpoint extends CheckpointBase {
             rejectRequest(request, response, 404);
             return;
         }
-        engine.process(request, response);
+        host.process(request, response);
     }
     //</editor-fold>
 
