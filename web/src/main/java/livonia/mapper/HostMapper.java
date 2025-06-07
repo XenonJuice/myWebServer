@@ -35,7 +35,7 @@ public class HostMapper implements Mapper {
     @Override
     public Vas map(HttpRequest request, boolean writeRequest) {
         String uri = (Decoder.decode(request.getRequestURI(), StandardCharsets.UTF_8));
-        logger.info("HostMapper : uri: '{}'", uri);
+        logger.info("HostMapper : 目标 URI: '{}'", uri);
         Context context = host.map(uri);
         if (writeRequest) {
             if (context != null) {
