@@ -14,7 +14,7 @@ import static java.io.File.separator;
 
 // JVM 的启动入口，负责构建启动环境
 public class Bootstrap {
-    //<editor-fold desc = "attr">]
+    //<editor-fold desc = "attr">
     // 服务器真正的启动类
     private static final String LIVONIA = "livonia.startup.Livonia";
     private static final String PROCESS = "process";
@@ -22,6 +22,27 @@ public class Bootstrap {
     //</editor-fold>
     //<editor-fold desc = "MAIN">
     public static void main(String[] args) {
+        // 可以通过系统属性控制是否显示动画效果
+        boolean showAnimation = Boolean.parseBoolean(System.getProperty("livonia.banner.animation", "true"));
+        
+        if (showAnimation) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        
+        // 打印启动 Banner
+        printBanner();
+        
+        if (showAnimation) {
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
         // 用于加载服务器和webapp共享的类的loder，例如加载javax servlet
         ClassLoader commonLoader = null;
         // 只加载服务器的loader
@@ -40,7 +61,7 @@ public class Bootstrap {
             // 通过类加载器加载启动类
             Class<?> ergClass = coreLoader.loadClass(LIVONIA);
             Object ergInstance = ergClass.getDeclaredConstructor().newInstance();
-            System.out.println("livonia class loaded");
+            System.out.println("=== Bootstrap : livonia core class loaded ===");
 
             // 存储启动时的命令的类型
             Class<?>[] paramTypes = new Class[1];
@@ -85,6 +106,7 @@ public class Bootstrap {
     //</editor-fold>
     //<editor-fold desc = "分配类加载器">
     private static ClassLoader[] allocateClassLoader() {
+        System.out.println("=== Bootstrap : try to allocate class loader... ===");
         ClassLoader[] ret = new ClassLoader[2];
         try {
             File[] unpacked = new File[1];
@@ -105,10 +127,10 @@ public class Bootstrap {
             ClassLoader coreLoader = ClassLoaderFactory.createClassLoader(packed, unpacked, commonLoader);
             ret[0] = commonLoader;
             ret[1] = coreLoader;
-            System.out.println("allocateClassLoader success");
+            System.out.println("=== Bootstrap : allocateClassLoader success ===");
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("allocateClassLoader error");
+            System.out.println("=== Bootstrap : allocateClassLoader error ===");
             System.exit(1);
         }
         if (ret[1] != null && ret[0] != null) return ret;
@@ -126,7 +148,7 @@ public class Bootstrap {
 
         public static ClassLoader createClassLoader(File[] packed, File[] unpacked, ClassLoader parent) {
             // 用于收集要被loader加载的路径
-            Set<URL> classPathList = new HashSet<URL>();
+            Set<URL> classPathList = new HashSet<>();
 
             // 构建测试用的 未打包的class的class path
             if (unpacked != null) {
@@ -134,6 +156,7 @@ public class Bootstrap {
                 for (File dir : unpacked) {
                     // 验证正常性
                     if (isValidDirectory(dir)) continue;
+                    System.out.println("=== Bootstrap : try to collect classes... === ");
                     System.out.println("unpacked class path : " + dir.getAbsolutePath());
                     URL url;
                     try {
@@ -177,4 +200,42 @@ public class Bootstrap {
         }
     }
     //</editor-fold>
+    
+    /**
+     * 打印启动 Banner
+     */
+    private static void printBanner() {
+        String[] bannerParts = getBannerParts();
+        String largeBanner = bannerParts[0];
+        String smallText = ":: Livonia Web Server ::" + bannerParts[1];
+        // 全部使用绿色
+        System.out.print("\033[32m" + largeBanner);
+        System.out.println(smallText);
+        
+        // 输出系统信息
+        System.out.println("\n☕ Java Version: " + System.getProperty("java.version"));
+        System.out.println("   Java Vendor: " + System.getProperty("java.vendor"));
+        System.out.println("   OS: " + System.getProperty("os.name") + " " + System.getProperty("os.version"));
+        System.out.println("   Available Processors: " + Runtime.getRuntime().availableProcessors());
+        System.out.println("   Max Memory: " + (Runtime.getRuntime().maxMemory() / 1024 / 1024) + " MB");
+        System.out.println("=====================================\n\033[0m");
+    }
+
+    private static String[] getBannerParts() {
+        String banner = """
+                
+                ╔══════════════════════════════════════════════════════╗
+                ║ ██╗     ██╗██╗   ██╗ ██████╗ ███╗   ██╗ ██╗ █████╗   ║
+                ║ ██║     ██║██║   ██║██╔═══██╗████╗  ██║ ██║██╔══██╗  ║
+                ║ ██║     ██║██║   ██║██║   ██║██╔██╗ ██║ ██║███████║  ║
+                ║ ██║     ██║╚██╗ ██╔╝██║   ██║██║╚██╗██║ ██║██╔══██║  ║
+                ║ ███████╗██║ ╚████╔╝ ╚██████╔╝██║ ╚████║ ██║██║  ██║  ║
+                ║ ╚══════╝╚═╝  ╚═══╝   ╚═════╝ ╚═╝  ╚═══╝ ╚═╝╚═╝  ╚═╝  ║
+                ╚══════════════════════════════════════════════════════╝
+                
+                :: Livonia Web Server ::        (v1.0)
+                :: Java Servlet Container ::
+                """;
+        return banner.split(":: Livonia Web Server ::");
+    }
 }
