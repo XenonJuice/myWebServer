@@ -19,7 +19,8 @@ public class SetNextRuleAccessible implements Rule {
         Class<?> childClass = child.getClass();
 
         try {
-            for (Method m : parent.getClass().getMethods()) {          // 包含继承的 public
+            for (Method m : parent.getClass().getMethods()) {
+                // 包含继承的 public
                 if (!m.getName().equals(method)) continue;
                 if (m.getParameterCount() != 1) continue;
 
