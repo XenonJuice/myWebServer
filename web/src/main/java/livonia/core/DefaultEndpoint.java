@@ -202,7 +202,7 @@ public final class DefaultEndpoint extends VasBase implements Endpoint, ServletC
 
     @Override
     public void sfree() {
-        logger.debug("endpoint : {} free servlet", getName());
+        logger.debug("endpoint : 减少对当前Servlet：{} 的访问", getName());
         countDown();
     }
 
