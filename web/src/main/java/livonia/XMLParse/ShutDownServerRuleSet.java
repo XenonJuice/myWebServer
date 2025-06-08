@@ -11,6 +11,7 @@ public class ShutDownServerRuleSet extends RuleSet {
         /* ===== <Server> ===== */
         d.addRule("Server", new ObjectCreateRule(DefaultServer.class));
         d.addRule("Server", new SetPropertiesRule());
+        d.addRule("Server", new SetNextRuleAccessible("setServer"));
     }
 
     // 设置属性的通用 Rule（类型转换）
