@@ -36,7 +36,7 @@ public class Livonia {
     private boolean isStarting = false;
     private boolean isStopping = false;
     private Thread shutdownHook = null;
-    private final Server server = null;
+    public Server server = null;
     //</editor-fold>
     //<editor-fold desc = "配置二进制目录和实例运行目录">
 
@@ -108,9 +108,9 @@ public class Livonia {
             } else if (arg.equals("-v") || arg.equals("--version")) {
                 System.out.println(getServerInfo());
                 return false;
-            } else if (arg.equals("start") && !debugMode) {
+            } else if (arg.equals("-start") ) {
                 isStarting = true;
-            } else if (arg.equals("stop")) {
+            } else if (arg.equals("-stop")) {
                 isStopping = true;
             }
         }
@@ -127,8 +127,7 @@ public class Livonia {
     //<editor-fold desc = "服务器配置文件">
     private File serverXML() {
         File file = new File(serverXMLPath);
-        if (!file.exists() || !file.isFile() || !file.canRead()
-                || !file.isAbsolute()) {
+        if (!file.exists() || !file.isFile() || !file.canRead()) {
             file = new File(System.getProperty(DEPLOY_DIR), serverXMLPath);
         }
         return file;
@@ -142,6 +141,7 @@ public class Livonia {
         // 获取XML引用
         File serverXML = serverXML();
         try (FileInputStream fileInputStream = new FileInputStream(serverXML)) {
+            d.push(this);
             d.parse(fileInputStream);
         } catch (Exception e) {
             System.out.println("Exception occurred when starting  : " + e);
@@ -187,6 +187,7 @@ public class Livonia {
         MiniDigester d = parseXMLStopping();
         File serverXML = serverXML();
         try (FileInputStream fileInputStream = new FileInputStream(serverXML)) {
+            d.push(this);
             d.parse(fileInputStream);
         } catch (Exception e) {
             System.out.println("Exception occurred when stopping  : " + e);
@@ -217,21 +218,11 @@ public class Livonia {
     private MiniDigester parseXMLStarting() {
         MiniDigester d = new MiniDigester();
         d.setNamespaceAware(true);
-        d.push(this);
         d.addRuleSet(new ServerRuleSet());
-        d.addRuleSet(new EngineRuleSet(SERVER + SOLIDUS +
-                SERVICE));
-        d.addRuleSet(new HostRuleSet(SERVER + SOLIDUS +
-                SERVICE +
-                SOLIDUS + ENGINE));
-        d.addRuleSet(new ContextRuleSet(SERVER + SOLIDUS +
-                SERVICE + SOLIDUS +
-                ENGINE +
-                SOLIDUS + HOST));
-        d.addRule(SERVER + SOLIDUS +
-                        SERVICE + SOLIDUS +
-                        ENGINE,
-                new SetTopParentClassLoaderRule(d, parentClassLoader));
+        d.addRuleSet(new EngineRuleSet(SERVER + SOLIDUS + SERVICE));
+        d.addRuleSet(new HostRuleSet(SERVER + SOLIDUS + SERVICE + SOLIDUS + ENGINE));
+        d.addRuleSet(new ContextRuleSet(SERVER + SOLIDUS + SERVICE + SOLIDUS + ENGINE + SOLIDUS + HOST));
+        d.addRule(SERVER + SOLIDUS + SERVICE + SOLIDUS + ENGINE, new SetTopParentClassLoaderRule(d, parentClassLoader));
         return d;
     }
 
@@ -278,5 +269,12 @@ public class Livonia {
         }
     }
     //</editor-fold>
+
+    public void setServer(Server server) {
+        System.out.println("Livonia.setServer called with: " + server);
+        System.out.println("Server class: " + (server != null ? server.getClass().getName() : "null"));
+
+        this.server = server;
+    }
 }
 
