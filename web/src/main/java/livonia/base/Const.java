@@ -12,7 +12,7 @@ public final class Const {
     public static class confInfo {
         public static final String CORE_DIR = "CORE_DIR";
         public static final String CORE = "core";
-        public static final String USER_DIR = "user_dir";
+        public static final String USER_DIR = "user.dir";
         public static final String DEPLOY_DIR = "DEPLOY_DIR";
         public static final String COMMON = "common";
         public static final String LIB_LOWERCASE_ONLY_ = "lib";
@@ -145,7 +145,7 @@ public final class Const {
         public static final String CLOSE = "close";
         public static final String SESSION_ID = "JSESSIONID";
         public static final String AUTHORIZATION = "Authorization";
-        public static final String HOST = "livonia.base.Host";
+        public static final String HOST = "Host";
         public static final String CONTENT_TYPE = "Content-Type";
         public static final String CONTENT_LENGTH = "Content-Length";
         public static final String ACCEPT_LANGUAGE = "Content-Language";
