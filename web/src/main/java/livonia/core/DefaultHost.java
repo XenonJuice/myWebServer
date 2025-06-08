@@ -20,7 +20,7 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
     // 部署器
     private final Deployer deployer = new HostDeployer(this);
     // 映射器对象
-    private String defaultHostMapper = "livonia.core.DefaultHostMapper";
+    private String defaultHostMapper = "livonia.mapper.HostMapper";
     //<editor-fold desc = "attr">
     // 程序根目录
     private String appBase = "";
@@ -87,11 +87,15 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
     //<editor-fold desc = "生命周期">
     @Override
     public void start() throws LifecycleException {
+        logger.debug("Starting host:{}", name);
+        Mapper mapper =setMapper(defaultHostMapper);
+        mapper.setVas(this);
         super.start();
     }
 
     @Override
     public void stop() throws LifecycleException {
+        logger.debug("Stopping host:{}", name);
         super.stop();
     }
 
