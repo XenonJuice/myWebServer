@@ -236,11 +236,11 @@ public class ResourceManager implements Lifecycle {
         for (Map.Entry<String, List<LocalResource>> entry : allResources.entrySet()) {
             String path = entry.getKey();
             List<LocalResource> resources = entry.getValue();
-            logger.debug("path : {}, }", path);
+            // logger.debug("path : {}, }", path);
             for (LocalResource resource : resources) {
-                logger.debug("resource : {}", resource);
+                // logger.debug("resource : {}", resource);
                 String name = resource.getName();
-                logger.debug("name : {}", name);
+                // logger.debug("name : {}", name);
             }
         }
         logger.debug("combine finished");
@@ -277,13 +277,17 @@ public class ResourceManager implements Lifecycle {
 
     public LocalResource getLoaderResource(String path) {
         String normalizedPath = normalizePath(path);
-        List<LocalResource> resources = classLoaderResourceMap.get(normalizedPath);
-        if (resources != null) {
-            for (LocalResource res : resources) {
+        List<LocalResource> resources01 = classLoaderResourceMap.get(normalizedPath);
+        if (resources01 != null) {
+            for (LocalResource res : resources01) {
                 if (res.exists()) {
                     return res;
                 }
             }
+        }
+        Path target =classesPaths.get(normalizedPath);
+        if (target != null) {
+            return new FileResource(target);
         }
         return null;
     }
