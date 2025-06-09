@@ -6,12 +6,12 @@
 
 # BlueJ files
 *.ctxt
+.DS_Store
 
 # Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
 # Package Files #
-*.jar
 *.war
 *.nar
 *.ear
@@ -22,3 +22,9 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+/web/server/.idea/
