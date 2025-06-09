@@ -1,9 +1,0 @@
-filters/CharacterEncodingFilter.class
-servlets/UploadServlet.class
-servlets/HelloServlet.class
-listeners/SimpleContextListener.class
-testServlet.class
-servlets/LoginServlet.class
-filters/LoggingFilter.class
-listeners/SimpleAttributeListener.class
-servlets/EchoServlet.class
