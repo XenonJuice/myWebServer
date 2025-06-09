@@ -277,7 +277,12 @@ public class WebAppLoader implements Loader, Runnable, Lifecycle, PropertyChange
 
     //要求context容器重载
     private void askForReload() {
-        Thread reloadThread = new Thread(((Context) vas)::reload);
+        Thread reloadThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                ((Context) vas).reload();
+            }
+        });
         reloadThread.start();
     }
 
