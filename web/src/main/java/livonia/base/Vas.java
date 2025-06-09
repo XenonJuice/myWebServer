@@ -56,11 +56,6 @@ public interface Vas {
     Vas map(HttpRequest req, boolean writeRequest);
 
     /**
-     * 为此容器添加映射器
-     */
-    void addMapper(Mapper mapper);
-
-    /**
      * 查找并检索与此容器相关的所有映射器。
      *
      * @return 一个 {@code Mapper} 对象的数组，代表与此容器相关的映射器。

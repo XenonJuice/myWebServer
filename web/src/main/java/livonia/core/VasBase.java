@@ -190,7 +190,6 @@ public abstract class VasBase implements Vas, Lifecycle, Channel {
         if (started) throw new LifecycleException("container already started");
         started = true;
         lifecycleHelper.fireLifecycleEvent(Lifecycle.BEFORE_START_EVENT, null);
-        // 激活此组件的下属组件
         if (loader != null && (loader instanceof Lifecycle)) {
             ((Lifecycle) loader).start();
         }
@@ -329,22 +328,22 @@ public abstract class VasBase implements Vas, Lifecycle, Channel {
      */
     @Override
     public Vas map(HttpRequest req, boolean writeRequest) {
-        Mapper mapper = findMapper(req.getUri());
         return mapper.map(req, writeRequest);
     }
 
-    /**
-     * 为此容器添加映射器
-     */
-    @Override
-    public void addMapper(Mapper mapper) {
-        synchronized (mappers) {
-            mapper.setVas(this);
-            mappers.put(this.name, mapper);
+    public Mapper setMapper(String mapperName) {
+        try{
+            Class<?> clazz = Class.forName(mapperName);
+            Mapper mapper = (Mapper) clazz.getDeclaredConstructor().newInstance();
+            synchronized (mappers) {
+                this.mapper = mapper;
+                mappers.put(mapperName, mapper);
+            }
+        } catch (Exception e){
+            logger.error("add mapper failed", e);
         }
-        if (mappers.size() == 1) {
-            this.mapper = mapper;
-        } else this.mapper = null;
+
+        return mapper;
     }
 
     /**
