@@ -121,6 +121,25 @@
                             </resources>
                         </configuration>
                     </execution>
+                    <!-- 复制 logback.xml 到 server 根目录 -->
+                    <execution>
+                        <id>copy-logback-to-server</id>
+                        <phase>compile</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.basedir}/server</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src/main/resources</directory>
+                                    <includes>
+                                        <include>logback.xml</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <!-- 复制运行时依赖到 server/core/lib -->
