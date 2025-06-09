@@ -35,6 +35,14 @@ public class WebRuleSet extends RuleSet {
         d.addRule("web-app/filter", new ObjectCreateRule(FilterDef.class));
         d.addCallMethod("web-app/filter/filter-name", "setFilterName");   // 单参数直接简写
         d.addCallMethod("web-app/filter/filter-class", "setFilterClass");
+        // 为 init-param 收集 param-name 和 param-value
+        List<String> initParams = new ArrayList<>();
+        d.addRule("web-app/filter/init-param/param-name",
+                new CallParamRule(initParams, 0));
+        d.addRule("web-app/filter/init-param/param-value",
+                new CallParamRule(initParams, 1));
+        d.addRule("web-app/filter/init-param",
+                new CallMethodRule("addInitParameter", initParams, String.class, String.class));
         d.addRule("web-app/filter", new SetNextRuleAccessible("addFilterDef"));
 
         /* ---------- <filter‑mapping> ---------- */
