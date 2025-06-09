@@ -41,7 +41,7 @@ public class EndpointCheckpoint extends CheckpointBase {
         logger.info("EndpointCheckpoint : process in {}", getVas().getName());
         boolean unavailable = false;
         Servlet servlet = null;
-        Throwable t = null;
+        Throwable t;
         DefaultEndpoint endpoint = (DefaultEndpoint) getVas();
 
         // 检查该context是否被标记为失效
