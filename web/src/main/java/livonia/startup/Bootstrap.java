@@ -22,25 +22,37 @@ public class Bootstrap {
     //</editor-fold>
     //<editor-fold desc = "MAIN">
     public static void main(String[] args) {
-        // 可以通过系统属性控制是否显示动画效果
-        boolean showAnimation = Boolean.parseBoolean(System.getProperty("livonia.banner.animation", "true"));
-        
-        if (showAnimation) {
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+        // 检查是否是停止命令
+        boolean isStopCommand = false;
+        for (String arg : args) {
+            if ("-stop".equals(arg)) {
+                isStopCommand = true;
+                break;
             }
         }
         
-        // 打印启动 Banner
-        printBanner();
-        
-        if (showAnimation) {
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+        // 只在启动时显示banner，停止时不显示
+        if (!isStopCommand) {
+            // 可以通过系统属性控制是否显示动画效果
+            boolean showAnimation = Boolean.parseBoolean(System.getProperty("livonia.banner.animation", "true"));
+            
+            if (showAnimation) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            
+            // 打印启动 Banner
+            printBanner();
+            
+            if (showAnimation) {
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
             }
         }
         // 用于加载服务器和webapp共享的类的loder，例如加载javax servlet
@@ -48,9 +60,9 @@ public class Bootstrap {
         // 只加载服务器的loader
         ClassLoader coreLoader;
         // 配置运行实例目录
-        getInstanceDir();
+        getInstanceDir(isStopCommand);
         // 创建类加载器
-        ClassLoader[] commonAndCore = allocateClassLoader();
+        ClassLoader[] commonAndCore = allocateClassLoader(isStopCommand);
         if (commonAndCore == null) throw new RuntimeException("allocate class loader error");
         commonLoader = commonAndCore[0];
         coreLoader = commonAndCore[1];
@@ -61,7 +73,9 @@ public class Bootstrap {
             // 通过类加载器加载启动类
             Class<?> ergClass = coreLoader.loadClass(LIVONIA);
             Object ergInstance = ergClass.getDeclaredConstructor().newInstance();
-            System.out.println("=== Bootstrap : livonia core class loaded ===");
+            if (!isStopCommand) {
+                System.out.println("=== Bootstrap : livonia core class loaded ===");
+            }
 
             // 存储启动时的命令的类型
             Class<?>[] paramTypes = new Class[1];
@@ -91,43 +105,70 @@ public class Bootstrap {
      * 此方法将使用 {@code getCoreDir} 方法返回的值初始化它。
      * 这确保在进一步操作之前，部署目录被正确建立。
      */
-    private static void getInstanceDir() {
+    private static void getInstanceDir(boolean isStopCommand) {
         if (System.getProperty(DEPLOY_DIR) == null)
-            System.setProperty(DEPLOY_DIR, getCoreDir());
+            System.setProperty(DEPLOY_DIR, getCoreDir(isStopCommand));
     }
 
     /**
      * 取得服务器核心包的位置
      */
-    private static String getCoreDir() {
-        return System.getProperty(CORE_DIR, System.getProperty(USER_DIR));
+    private static String getCoreDir(boolean isStopCommand) {
+        String coreDir = System.getProperty(CORE_DIR);
+        if (coreDir == null) {
+            // 查找当前目录下的 server 目录
+            File currentDir = new File(System.getProperty(USER_DIR));
+            File serverDir = new File(currentDir, "server");
+            if (!serverDir.exists() || !serverDir.isDirectory()) {
+                // 如果直接子目录没有，查找下一级
+                File[] subdirs = currentDir.listFiles(File::isDirectory);
+                if (subdirs != null) {
+                    for (File subdir : subdirs) {
+                        serverDir = new File(subdir, "server");
+                        if (serverDir.exists() && serverDir.isDirectory()) {
+                            break;
+                        }
+                    }
+                }
+            }
+            coreDir = serverDir.exists() ? serverDir.getAbsolutePath() : System.getProperty(USER_DIR);
+            // 只在非停止命令时显示
+            if (!isStopCommand) {
+                System.out.println("=== Bootstrap : CORE_DIR set to: " + coreDir + " ===");
+            }
+        }
+        return coreDir;
     }
 
     //</editor-fold>
     //<editor-fold desc = "分配类加载器">
-    private static ClassLoader[] allocateClassLoader() {
-        System.out.println("=== Bootstrap : try to allocate class loader... ===");
+    private static ClassLoader[] allocateClassLoader(boolean isStopCommand) {
+        if (!isStopCommand) {
+            System.out.println("=== Bootstrap : try to allocate class loader... ===");
+        }
         ClassLoader[] ret = new ClassLoader[2];
         try {
             File[] unpacked = new File[1];
             File[] packed = new File[1];
             // 指向servlet包的File对象
-            File common = new File(getCoreDir(), COMMON + separator + LIB_LOWERCASE_ONLY_);
-            File unpackedCommon = new File(getCoreDir(), COMMON + separator + CLASSES_ONLY);// 方便测试
+            File common = new File(getCoreDir(isStopCommand), COMMON + separator + LIB_LOWERCASE_ONLY_);
+            File unpackedCommon = new File(getCoreDir(isStopCommand), COMMON + separator + CLASSES_ONLY);// 方便测试
             unpacked[0] = unpackedCommon;
             packed[0] = common;
             // 创建类加载器
-            ClassLoader commonLoader = ClassLoaderFactory.createClassLoader(packed, unpacked, null);
+            ClassLoader commonLoader = ClassLoaderFactory.createClassLoader(packed, unpacked, null, isStopCommand);
             // 指向服务器核心类的File对象
-            File core = new File(getCoreDir(), CORE + separator + LIB_LOWERCASE_ONLY_);
-            File unpackedCore = new File(getCoreDir(), CORE + separator + CLASSES_ONLY);// 方便测试
+            File core = new File(getCoreDir(isStopCommand), CORE + separator + LIB_LOWERCASE_ONLY_);
+            File unpackedCore = new File(getCoreDir(isStopCommand), CORE + separator + CLASSES_ONLY);// 方便测试
             unpacked[0] = unpackedCore;
             packed[0] = core;
             // 创建类加载器
-            ClassLoader coreLoader = ClassLoaderFactory.createClassLoader(packed, unpacked, commonLoader);
+            ClassLoader coreLoader = ClassLoaderFactory.createClassLoader(packed, unpacked, commonLoader, isStopCommand);
             ret[0] = commonLoader;
             ret[1] = coreLoader;
-            System.out.println("=== Bootstrap : allocateClassLoader success ===");
+            if (!isStopCommand) {
+                System.out.println("=== Bootstrap : allocateClassLoader success ===");
+            }
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println("=== Bootstrap : allocateClassLoader error ===");
@@ -146,7 +187,7 @@ public class Bootstrap {
             return dir != null && dir.exists() && dir.isDirectory() && dir.canRead();
         }
 
-        public static ClassLoader createClassLoader(File[] packed, File[] unpacked, ClassLoader parent) {
+        public static ClassLoader createClassLoader(File[] packed, File[] unpacked, ClassLoader parent, boolean isStopCommand) {
             // 用于收集要被loader加载的路径
             Set<URL> classPathList = new HashSet<>();
 
@@ -155,9 +196,11 @@ public class Bootstrap {
                 // 将每一个未打包class作为File对象
                 for (File dir : unpacked) {
                     // 验证正常性
-                    if (isValidDirectory(dir)) continue;
-                    System.out.println("=== Bootstrap : try to collect classes... === ");
-                    System.out.println("unpacked class path : " + dir.getAbsolutePath());
+                    if (!isValidDirectory(dir)) continue;
+                    if (!isStopCommand) {
+                        System.out.println("=== Bootstrap : try to collect classes... === ");
+                        System.out.println("unpacked class path : " + dir.getAbsolutePath());
+                    }
                     URL url;
                     try {
                         url = dir.getCanonicalFile().toURI().toURL();
@@ -173,14 +216,18 @@ public class Bootstrap {
             // 构建一般的压缩的class 的class path
             if (packed != null) {
                 for (File dir : packed) {
-                    if (isValidDirectory(dir)) continue;
-                    System.out.println("packed class path : " + dir.getAbsolutePath());
+                    if (!isValidDirectory(dir)) continue;
+                    if (!isStopCommand) {
+                        System.out.println("packed class path : " + dir.getAbsolutePath());
+                    }
                     String[] fileNames = dir.list();
                     if (fileNames == null) continue;
                     for (String fileName : fileNames) {
                         if (fileName.endsWith(DOTJAR)) {
                             File jarFile = new File(dir, fileName);
-                            System.out.println("packed jar file : " + jarFile.getAbsolutePath());
+                            if (!isStopCommand) {
+                                System.out.println("packed jar file : " + jarFile.getAbsolutePath());
+                            }
                             URL url;
                             try {
                                 url = jarFile.getCanonicalFile().toURI().toURL();
