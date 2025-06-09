@@ -75,10 +75,6 @@ public class DefaultContext extends VasBase implements Context {
         this.defaultContextMapper = mapper.getClass().getName();
     }
 
-    public String getMapper() {
-        return defaultContextMapper;
-    }
-
     //</editor-fold>
     public boolean isPaused() {
         return paused;
@@ -402,6 +398,19 @@ public class DefaultContext extends VasBase implements Context {
         setConfigured(false);
         setAvailable(false);
         boolean noProblem = true;
+        
+        // Resolve the absolute basePath relative to the Host's appBase
+        if (basePath != null && !basePath.startsWith("/")) {
+            // Get the Host's appBase
+            Host host = (Host) getParent();
+            if (host != null && host.getAppBase() != null) {
+                // Resolve relative to the Host's appBase
+                String resolvedPath = host.getAppBase() + "/" + basePath;
+                logger.debug("Resolved basePath from {} to {}", basePath, resolvedPath);
+                basePath = resolvedPath;
+            }
+        }
+        
         // 资源管理器设置
         try {
             ResourceManager resources = new ResourceManager(this);
@@ -420,7 +429,6 @@ public class DefaultContext extends VasBase implements Context {
         ClassLoader oldCL = bindThread();
         if (noProblem) {
             try {
-                // addMapper(new ContextMapper());
                 // 启动自定义的类加载器
                 Loader loader = getLoader();
                 // 启动自定义类加载器
