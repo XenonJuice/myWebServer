@@ -4,10 +4,13 @@ import livonia.base.Endpoint;
 import livonia.log.BaseLogger;
 
 import javax.servlet.*;
+import static livonia.base.Const.PunctuationMarks.COMMA;
+import static livonia.base.Const.PunctuationMarks.SEMICOLON;
 import javax.servlet.http.*;
 import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.net.URLDecoder;
 import java.security.Principal;
 import java.util.*;
 
@@ -19,8 +22,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     //<editor-fold desc="attr">
     // 存储请求属性
     private final Map<String, Object> attributes = new HashMap<>();
-    // 缓冲区大小
-    private final int bufferSize = 8192;
     // sessionId是否来自cookie？
     protected boolean isRequestedSessionIdFromCookie = false;
     // sessionId是否来自URL？
@@ -47,12 +48,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     private Map<String, List<String>> parameters;
     // 请求体内容（字节数组形式）
     private byte[] body = null;
-    // 封装后的 ServletInputStream
-    private HttpRequestStream servletInputStream;
-    private InputStream clientInputStream;
-    private SocketInputBuffer socketInputBuffer;
-    // reader
-    private BufferedReader reader;
     //存储远程客户端的IP 地址
     private InetAddress inet;
     // 请求的远程地址和主机名
@@ -75,18 +70,87 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     // 绑定的servlet端点
     private Endpoint endpoint = null;
     private String contextPath;
+    // 流相关
+    private InputStream socketInputBuffer;
+    // （HttpServletStream）
+    private ServletInputStream requestStream;
+    private BufferedReader reader;
+    private boolean streamUsed = false;
+    private boolean readerUsed = false;
+    // POST参数是否已解析
+    private boolean postParametersParsed = false;
 
 
     //</editor-fold>
-    //<editor-fold desc="getter & setter">
-    public SocketInputBuffer getSocketInputBuffer() {
+
+    //<editor-fold desc="流管理方法">
+    /**
+     * 设置底层输入流（通常是Socket的输入流）
+     * 这个方法在每个新请求开始时被调用
+     */
+    public void setStream(InputStream inputStream) {
+        this.socketInputBuffer = inputStream;
+    }
+
+    /**
+     * 获取ServletInputStream
+     * 延迟创建，支持复用
+     */
+    @Override
+    public ServletInputStream getInputStream() {
+        if (readerUsed) {
+            throw new IllegalStateException("getReader() has already been called");
+        }
+
+        streamUsed = true;
+
+        if (requestStream == null) {
+            requestStream = createInputStream();
+        }
+
+        return requestStream;
+    }
+
+    /**
+     * 创建新的输入流（仅在必要时调用）
+     */
+    protected ServletInputStream createInputStream() {
+        return new HttpRequestStream(this);
+    }
+
+    /**
+     * 设置请求流（由HttpProcessor调用）
+     */
+    public void setRequestStream(HttpRequestStream stream) {
+        this.requestStream = stream;
+    }
+
+    /**
+     * 获取Reader
+     */
+    @Override
+    public BufferedReader getReader() throws IOException {
+        if (streamUsed) {
+            throw new IllegalStateException("getInputStream() has already been called");
+        }
+        readerUsed = true;
+        if (reader == null) {
+            InputStreamReader isr = new InputStreamReader(
+                    getStream(), getCharacterEncoding());
+            reader = new BufferedReader(isr);
+        }
+        return reader;
+    }
+
+    /**
+     * 获取底层的SocketInputBuffer（供其他组件使用）
+     */
+    public InputStream getStream() {
         return socketInputBuffer;
     }
+    //</editor-fold>
 
-    public void setSocketInputBuffer(SocketInputBuffer socketInputBuffer) {
-        this.socketInputBuffer = socketInputBuffer;
-    }
-
+    //<editor-fold desc="getter & setter">
     public HttpConnector getConnector() {
         return connector;
     }
@@ -109,15 +173,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     public void setSocket(Socket socket) {
         this.socket = socket;
-    }
-
-    public InputStream getStream() {
-        return clientInputStream;
-    }
-
-    public void setStream(InputStream inputStream) {
-        this.clientInputStream = inputStream;
-        this.socketInputBuffer = new SocketInputBuffer(inputStream, bufferSize);
     }
 
     @Override
@@ -416,19 +471,8 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     }
 
     @Override
-    public ServletInputStream getInputStream() {
-        if (this.servletInputStream == null) {
-            this.servletInputStream = (HttpRequestStream) createInputStream();
-        }
-        return servletInputStream;
-    }
-
-    public ServletInputStream createInputStream() {
-        return new HttpRequestStream(this, response);
-    }
-
-    @Override
     public String getParameter(String name) {
+        parseParams();
         List<String> values = parameters.get(name);
         return (values != null && !values.isEmpty()) ? values.getFirst() : null;
     }
@@ -439,11 +483,13 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public Enumeration<String> getParameterNames() {
+        parseParams();
         return Collections.enumeration(parameters.keySet());
     }
 
     @Override
     public String[] getParameterValues(String name) {
+        parseParams();
         List<String> values = parameters.get(name);
         if (values == null || values.isEmpty()) return null;
         return values.toArray(new String[0]);
@@ -451,6 +497,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     @Override
     public Map<String, String[]> getParameterMap() {
+        parseParams();
         Map<String, String[]> map = new HashMap<>();
         for (Map.Entry<String, List<String>> entry : parameters.entrySet()) {
             map.put(entry.getKey(), entry.getValue().toArray(new String[0]));
@@ -493,15 +540,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     public void setServerPort(int port) {
         this.serverPort = port;
-    }
-
-    @Override
-    public BufferedReader getReader() throws IOException {
-        this.reader =
-                new BufferedReader
-                        (new InputStreamReader(
-                                new ByteArrayInputStream(Objects.requireNonNullElseGet(body, () -> new byte[0])), characterEncoding));
-        return this.reader;
     }
 
     @Override
@@ -549,10 +587,10 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         if (acceptLanguage == null || acceptLanguage.isEmpty()) {
             return Collections.enumeration(Collections.singletonList(Locale.getDefault()));
         }
-        String[] locales = acceptLanguage.split(",");
+        String[] locales = acceptLanguage.split(COMMA);
         List<Locale> localeList = new ArrayList<>();
         for (String loc : locales) {
-            String[] parts = loc.trim().split(";");
+            String[] parts = loc.trim().split(SEMICOLON);
             try {
                 localeList.add(Locale.forLanguageTag(parts[0]));
             } catch (Exception e) {
@@ -657,7 +695,6 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         this.uri = uri;
     }
     //</editor-fold>
-
     //<editor-fold desc="其他方法">
 
     public HttpResponse getResponse() {
@@ -672,26 +709,47 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
      * 回收对象，清理资源
      */
     public void recycle() {
+        // 清空请求基本信息
         method = null;
         uri = null;
         protocol = null;
-        if (headers != null) headers.clear();
-        if (parameters != null) parameters.clear();
-        body = null;
+        contextPath = null;
+        servletPath = null;
+        pathInfo = null;
+        // 清空集合
         attributes.clear();
-        servletInputStream = null;
-        socketInputBuffer = null;
+        if (headers != null) {
+            headers.clear();
+        }
+        if (parameters != null) {
+            parameters.clear();
+        }
+        cookies.clear();
+        // 重置流状态
+        streamUsed = false;
+        readerUsed = false;
+        postParametersParsed = false;
+        // 清空Reader（下次需要时重新创建）
+        reader = null;
+        // 重置会话信息
+        requestedSessionId = null;
+        isRequestedSessionIdFromCookie = false;
+        isRequestedSessionIdFromURL = false;
+        // 重置服务器信息
         remoteAddr = null;
         remoteHost = null;
-        locale = null;
+        // 重置编码和区域设置
         characterEncoding = "UTF-8";
-        scheme = null;
+        locale = null;
+        // 清空其他引用
         response = null;
+        endpoint = null;
+        socketInputBuffer = null;
     }
 
     public void finishRequest() throws IOException {
-        if (clientInputStream != null) {
-            if (this.servletInputStream != null) this.servletInputStream.close();
+        if (socketInputBuffer != null) {
+            if (this.requestStream != null) this.requestStream.close();
             if (this.reader != null) reader.close();
         } else {
             logger.warn("finishRequest失败，socket的输出流为null");
@@ -700,6 +758,88 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
 
     public void setEndpoint(Endpoint endpoint) {
         this.endpoint = endpoint;
+    }
+
+    /**
+     * 解析POST请求参数（懒加载）
+     */
+    private void parseParams() {
+        // 如果已经解析过，直接返回
+        if (postParametersParsed) {
+            return;
+        }
+
+        // 只处理POST请求
+        if (!"POST".equalsIgnoreCase(method)) {
+            return;
+        }
+        
+        // 检查流是否已被使用
+        if (streamUsed || readerUsed) {
+            return;
+        }
+        
+        // 检查Content-Type
+        String contentType = getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("application/x-www-form-urlencoded")) {
+            return;
+        }
+        
+        // 获取Content-Length
+        int contentLength = getContentLength();
+        if (contentLength <= 0) {
+            return;  // 不支持 chunked 编码，直接跳过
+        }
+        
+        try {
+            // 读取请求体
+            String queryString = getQueryString(contentLength);
+            parseParametersInternal(queryString);
+            
+        } catch (IOException e) {
+            logger.error("解析POST参数失败", e);
+        }
+
+        // 标记为已尝试解析
+        postParametersParsed = true;
+    }
+
+    private String getQueryString(int contentLength) throws IOException {
+        byte[] buffer = new byte[contentLength];
+        ServletInputStream inputStream = getInputStream();
+        int bytesRead = 0;
+        while (bytesRead < contentLength) {
+            int read = inputStream.read(buffer, bytesRead, contentLength - bytesRead);
+            if (read == -1) {
+                break;
+            }
+            bytesRead += read;
+        }
+
+        // 解析参数
+        return new String(buffer, 0, bytesRead, characterEncoding);
+    }
+
+    /**
+     * 内部方法：解析参数字符串（URL编码格式）
+     * 复用 HttpProcessor 中的逻辑
+     */
+    private void parseParametersInternal(String queryString) {
+        if (queryString == null || queryString.isEmpty()) {
+            return;
+        }
+        String[] pairs = queryString.split("&");
+        for (String pair : pairs) {
+            if (pair.isEmpty()) continue;
+            String[] keyValue = pair.split("=", 2);
+            try {
+                String key = URLDecoder.decode(keyValue[0], characterEncoding);
+                String value = keyValue.length > 1 ? URLDecoder.decode(keyValue[1], characterEncoding) : "";
+                parameters.computeIfAbsent(key, k -> new ArrayList<>()).add(value);
+            } catch (UnsupportedEncodingException e) {
+                logger.error("解码参数失败: {}", pair, e);
+            }
+        }
     }
     //</editor-fold>
 }
