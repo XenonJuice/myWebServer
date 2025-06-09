@@ -238,6 +238,7 @@ public class MiniDigester {
 
     public void clear() {
         stack.clear();
+        ruleMap.clear();
     }
 
     private void invokeRules(String path, RulePhase phase, Attributes attrs, String bodyText) {
