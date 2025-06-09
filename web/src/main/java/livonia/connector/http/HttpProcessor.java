@@ -6,7 +6,6 @@ import livonia.lifecycle.LifecycleException;
 import livonia.lifecycle.LifecycleListener;
 import livonia.log.BaseLogger;
 import livonia.utils.LifecycleHelper;
-import livonia.utils.ServerInfo;
 import org.slf4j.Logger;
 
 import javax.servlet.ServletException;
@@ -14,12 +13,20 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.URLDecoder;
 import java.util.*;
 
 import static livonia.base.Const.CharPunctuationMarks.CR;
 import static livonia.base.Const.CharPunctuationMarks.LF;
+import static livonia.base.Const.CharPunctuationMarks.COLON;
 import static livonia.base.Const.HttpProtocol.HTTP_0_9;
+import static livonia.base.Const.HttpProtocol.HTTP_1_1;
+import static livonia.base.Const.PunctuationMarks.COLON_SPACE;
+import static livonia.base.Const.PunctuationMarks.SPACE;
+import static livonia.base.Const.PunctuationMarks.COMMA;
+import static livonia.base.Const.PunctuationMarks.SEMICOLON;
+import static livonia.base.Const.Header.*;
 import static livonia.utils.CookieUtils.convertToCookieArray;
 import static livonia.utils.CookieUtils.convertToCookieList;
 
@@ -32,8 +39,8 @@ import static livonia.utils.CookieUtils.convertToCookieList;
  *      1. 初始化请求与响应
  *          └── - 初始化请求与响应对象
  *      2. 请求解析
- *          └── {@link #parseRequestAndConnection(Socket)} - 解析请求与连接部分：
- *              ├── {@link #parseRequest(HttpRequest)} - 解析请求行
+ *          └── {@link #parseRequestAndConnection(Socket, InputStream)} - 解析请求与连接部分：
+ *              ├── {@link #parseRequest(InputStream)} - 解析请求行
  *              ├── {@link #parseConnection(Socket)} - 解析连接属性（协议、超时）
  *              ├── {@link #parseHeaders(Map)} - 解析请求头：
  *                  │   ├── {@link #parseCookies(String)} - 解析 Cookies
@@ -127,9 +134,9 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
 
     //</editor-fold>
     //<editor-fold desc = "解析相关">
-    private void parseRequestAndConnection(Socket socket) throws IOException, ServletException {
+    private void parseRequestAndConnection(Socket socket, InputStream socketInputBuffer) throws IOException, ServletException {
         parseConnection(socket);
-        parseRequest(request);
+        parseRequest(socketInputBuffer);
         if (http11) {
             if (ack) response.sendAck();
             if (connector.isAllowChunking()) response.setAllowChunking(true);
@@ -140,7 +147,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
      * 解析连接
      */
     private void parseConnection(Socket socket) {
-        logger.info("解析连接: IP : {} port : {}",
+        logger.debug("解析连接: IP : {} port : {}",
                 socket.getInetAddress(), connector.getPort());
         request.setInet(socket.getInetAddress());
         if (proxyPort != 0) request.setServerPort(proxyPort);
@@ -153,55 +160,55 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
      * 如果到达流的末尾返回 null。
      */
     private String readLine(InputStream in, String charset) throws IOException {
-        byte[] buffer = new byte[1024]; // 每次最多读取1024个字节
-        StringBuilder lineBuilder = new StringBuilder(); // 用于存储结果
-        boolean lastWasCR = false; // 标识上一个字节是否是 CR
+        StringBuilder sb = new StringBuilder();
+        int ch;
 
-        int bytesRead;
-        while ((bytesRead = in.read(buffer)) != -1) {
-            for (int i = 0; i < bytesRead; i++) {
-                byte b = buffer[i];
-                if (b == CR) { // 检测到 CR
-                    lastWasCR = true;
-                } else if (b == LF) { // 检测到 LF
-                    if (lastWasCR) {
-                        // 如果前一个是 CR，现在是 LF，说明一行结束
-                        return lineBuilder.toString(); // 返回当前行
-                    }
+        while ((ch = in.read()) != -1) {
+            if (ch == CR) {
+                // 读到 CR，期待下一个是 LF
+                int next = in.read();
+                if (next == LF) {
+                    // CRLF 找到，返回当前行
+                    return sb.toString();
+                } else if (next != -1) {
+                    // 不是 LF，把两个字符都加入
+                    sb.append((char) ch);
+                    sb.append((char) next);
                 } else {
-                    // 如果前一位是CR，但现在不是LF，则将CR加入结果
-                    if (lastWasCR) {
-                        lineBuilder.append(CR);
-                        lastWasCR = false; // 重置状态
-                    }
-                    // 将当前字节加入结果
-                    lineBuilder.append((char) b);
+                    // EOF
+                    sb.append((char) ch);
+                    return sb.toString();
                 }
+            } else if (ch == LF) {
+                // 单独的 LF 也认为是行结束
+                return sb.toString();
+            } else {
+                sb.append((char) ch);
             }
         }
 
-        // 流结束，处理最后一行
-        if (!lineBuilder.isEmpty() || lastWasCR) {
-            return lineBuilder.toString();
-        }
-
-        // 没有读取到任何数据时，返回 null 表示流结束
-        return null;
+        // 到达流末尾
+        return sb.length() > 0 ? sb.toString() : null;
     }
 
     /**
      * 解析HTTP请求
      */
-    private void parseRequest(HttpRequest request) throws IOException, ServletException {
-        InputStream input = request.getInputStream();
+    private void parseRequest(InputStream socketInputBuffer) throws IOException, ServletException {
         // 1. 读取并解析请求行
-        String requestLine = readLine(input, characterEncoding);
+        String requestLine = readLine(socketInputBuffer, characterEncoding);
         status = Processor.PROCESSOR_ACTIVE;
-        if (requestLine == null || requestLine.isEmpty()) {
-            throw new ServletException("Empty request");
+        if (requestLine == null) {
+            // 到达流末尾，客户端关闭了连接
+            throw new EOFException("Client closed connection");
+        }
+        if (requestLine.isEmpty()) {
+            // 空行可能是 keep-alive 连接上的正常情况
+            // 或者是客户端发送了错误的请求
+            throw new EOFException("Empty request line");
         }
 
-        String[] requestLineParts = requestLine.split(PunctuationMarks.SPACE, 3);
+        String[] requestLineParts = requestLine.split(SPACE, 3);
         if (requestLineParts.length == 2) {
             // HTTP/0.9
             method = requestLineParts[0];
@@ -218,10 +225,11 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
         if (protocol.equals(HttpProtocol.HTTP_1_1)) {
             http11 = true;
         }
+        request.setProtocol(protocol);
 
-        logger.info("请求方法: {}", method);
-        logger.info("完整URI: {}", fullUri);
-        logger.info("协议版本: {}", protocol);
+        logger.debug("请求方法: {}", method);
+        logger.debug("完整URI: {}", fullUri);
+        logger.debug("协议版本: {}", protocol);
 
         // 解析URI和查询字符串
         if (fullUri.contains("?")) {
@@ -240,8 +248,8 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             String contentType = null;
 
             String headerLine;
-            while ((headerLine = readLine(input, characterEncoding)) != null && !headerLine.isEmpty()) {
-                int separatorIndex = headerLine.indexOf(PunctuationMarks.COLON_SPACE);
+            while ((headerLine = readLine(socketInputBuffer, characterEncoding)) != null && !headerLine.isEmpty()) {
+                int separatorIndex = headerLine.indexOf(COLON_SPACE);
                 if (separatorIndex == -1) {
                     logger.info("格式错误的头部: {}", headerLine);
                     continue;
@@ -262,7 +270,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
 
                 if (Header.CONTENT_TYPE.equalsIgnoreCase(key)) {
                     contentType = value;
-                    String[] typeParts = value.split(PunctuationMarks.SEMICOLON);
+                    String[] typeParts = value.split(SEMICOLON);
                     if (typeParts.length > 1) {
                         String charsetPart = typeParts[1].trim();
                         if (charsetPart.startsWith("charset=")) {
@@ -357,7 +365,6 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
 
         // 为request设置权限
         if (headers.containsKey(Header.AUTHORIZATION)) {
-            //TODO
             System.out.println("权限未实现");
             // request.setAuthorization();
         }
@@ -368,11 +375,11 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             if (acceptLanguageHeaders != null && !acceptLanguageHeaders.isEmpty()) {
                 String acceptLanguage = acceptLanguageHeaders.getFirst(); // 只取第一个值
                 if (acceptLanguage != null && !acceptLanguage.isEmpty()) {
-                    String[] locales = acceptLanguage.split(PunctuationMarks.COMMA);
+                    String[] locales = acceptLanguage.split(COMMA);
                     double highestWeight = -1.0;
 
                     for (String localeEntry : locales) {
-                        String[] parts = localeEntry.trim().split(PunctuationMarks.COMMA);
+                        String[] parts = localeEntry.trim().split(COMMA);
                         String languageTag = parts[0].trim();
                         double weight = 1.0; // 默认权重
 
@@ -438,7 +445,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                         request.setServerPort(port);
 
                     } else { // 针对IPv4或主机名处理
-                        int colonIndex = host.indexOf(':'); // 检查是否包含冒号
+                        int colonIndex = host.indexOf(COLON); // 检查是否包含冒号
                         if (colonIndex < 0) {
                             request.setServerName(Objects.requireNonNullElse(proxyName, host.trim()));
                             request.setServerPort(getDefaultPort(connector.getScheme()));
@@ -465,7 +472,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
 
     private int getPort(int closingBracketIndex, String host) {
         String portString = null;
-        if (closingBracketIndex + 1 < host.length() && host.charAt(closingBracketIndex + 1) == ':') {
+        if (closingBracketIndex + 1 < host.length() && host.charAt(closingBracketIndex + 1) == COLON) {
             portString = host.substring(closingBracketIndex + 2).trim(); // 提取端口号
         }
 
@@ -519,7 +526,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
         */
     }
 
-    public void recycleByConnector(){
+    public void recycleByConnector() {
         // 清理所有资源
         this.requestStream = null;
         this.responseStream = null;
@@ -535,7 +542,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                 logger.info("已跳过字节数 ：{}", skip);
             }
         } catch (IOException e) {
-            logger.error("closeInputStream", e);
+            logger.error("closeInputStream失败 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
         }
     }
 
@@ -555,9 +562,9 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
         // 唤醒waitSocket()
         notifyAll();
         if (socket == null) {
-            logger.info("收到停止信号，socket为null");
+            logger.debug("收到停止信号，socket为null");
         } else {
-            logger.info("已分配到一个请求,来自：{}", socket.getRemoteSocketAddress());
+            logger.debug("已分配到一个请求,来自：{}", socket.getRemoteSocketAddress());
         }
     }
 
@@ -586,7 +593,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
          * 5. 正常进行之后的线程停止流程...
          */
         notifyAll();
-        logger.info("正在等待请求");
+        logger.debug("处理器线程进入等待状态，等待新的Socket分配");
         return socket;
     }
 
@@ -601,7 +608,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             try {
                 process(socket);
             } catch (Throwable e) {
-                logger.error("<=>", e);
+                logger.error("HTTP请求处理线程异常终止 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
             } finally {
                 connector.recycle(this);
             }
@@ -614,7 +621,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     }
 
     void threadStart() {
-        logger.info("HttpProcessor:后台线程启动");
+        // logger.debug("HttpProcessor:后台线程启动");
         thread = new Thread(this, threadName);
         // HttpProcessor作为socket解析器，可设置为守护线程
         thread.setDaemon(true);
@@ -679,16 +686,16 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
     public void process(Socket socket) {
         boolean ok = true;
         boolean finishResponse = true;
-        InputStream socketInputStream= null;
+        SocketInputBuffer socketInputStream = null;
         OutputStream output = null;
 
         // 初始化keepAlive为true，允许连接复用
         keepAlive = true;
         try {
             // 获取输入流
-            socketInputStream = new SocketInputBuffer(socketInputStream, bufferSize);
+            socketInputStream = new SocketInputBuffer(socket.getInputStream(), bufferSize);
         } catch (Exception e) {
-            logger.error("Socket初始化失败", e);
+            logger.error("无法获取Socket输入流，连接初始化失败 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
             ok = false;
         }
         while (!stopped && ok && keepAlive) {
@@ -701,91 +708,100 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                 response.setStream(output);
                 response.setRequest(request);
                 // 设置默认响应头
-                response.setHeader("Server", ServerInfo.getServerInfo());
+                // response.setHeader("Server", ServerInfo.getServerInfo());
             } catch (Exception e) {
                 ok = false;
-                logger.error("获取，设置流失败", e);
+                logger.error("请求响应流初始化失败，无法建立I/O通道 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
             }
 
             // IO无异常，继续解析
             try {
-                parseRequestAndConnection(socket);
+                parseRequestAndConnection(socket, socketInputStream);
                 // 对于HTTP/1.0，默认关闭连接除非明确指定keep-alive
                 if (!http11 && !headers.containsKey(Header.CONNECTION)) {
                     keepAlive = false;
                 }
+
             } catch (EOFException e) {
                 // 客户端关闭连接
-                logger.info("客户端关闭连接");
+                logger.info("检测到EOF，客户端已关闭TCP连接 [{}]", e.getClass().getSimpleName());
                 ok = false;
                 finishResponse = false;
             } catch (ServletException e) {
-                logger.error("请求解析失败", e);
+                logger.error("HTTP请求解析异常，请求格式不符合规范 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
                 response.setError();
                 try {
                     response.sendError(HttpServletResponse.SC_BAD_REQUEST);
                 } catch (IOException ex) {
-                    logger.error("发送错误响应失败", ex);
+                    logger.error("发送错误响应失败 [{}]: {}", ex.getClass().getSimpleName(), ex.getMessage());
                 }
                 ok = false;
             } catch (InterruptedIOException e) {
-                logger.error("请求超时");
+                logger.warn("Socket读取超时，等待客户端数据超时 [{}]: {}", e.getClass().getSimpleName(), e.getMessage());
                 ok = false;
-                try {
-                    response.sendError(HttpServletResponse.SC_REQUEST_TIMEOUT);
-                } catch (IOException ex) {
-                    logger.error("发送超时响应失败", ex);
+                if (!response.isCommitted()) {
+                    try {
+                        response.sendError(HttpServletResponse.SC_REQUEST_TIMEOUT);
+                    } catch (IOException ex) {
+                        logger.debug("发送超时响应失败 [{}]: {}", ex.getClass().getSimpleName(), ex.getMessage());
+                    }
                 }
+                finishResponse = false;
+            } catch (SocketException e) {
+                // 客户端断开连接（Connection reset）
+                logger.debug("TCP连接被重置，客户端强制关闭连接 [{}]: {}", e.getClass().getSimpleName(), e.getMessage());
+                ok = false;
+                finishResponse = false; // 不尝试发送响应
             } catch (IOException e) {
-                logger.error("IO错误", e);
+                logger.error("Socket I/O操作异常 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
                 ok = false;
                 try {
                     response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 } catch (IOException ex) {
-                    logger.error("发送错误响应失败", ex);
+                    logger.error("发送错误响应失败 [{}]: {}", ex.getClass().getSimpleName(), ex.getMessage());
                 }
             } catch (Exception e) {
-                logger.error("未知错误", e);
+                logger.error("处理HTTP请求时发生未预期的异常 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
                 ok = false;
                 try {
                     response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 } catch (IOException ex) {
-                    logger.error("发送错误响应失败", ex);
+                    logger.error("发送错误响应失败 [{}]: {}", ex.getClass().getSimpleName(), ex.getMessage());
                 }
             }
-
-
-            if (http11 && keepAlive) {
-                response.setHeader("Connection", "keep-alive");
-            }
-            // 创建或复用请求流
-            if (requestStream == null) {
-                requestStream = new HttpRequestStream(request, response);
-            } else {
-                requestStream.recycle();
-                requestStream.setupForNewRequest(request);
-            }
-            request.setRequestStream(requestStream);
-
-            // 创建或复用响应流
-            if (responseStream == null) {
-                responseStream = new HttpResponseStream(response, bufferSize);
-            } else {
-                responseStream.recycle();
-            }
-            response.setResponseStream(responseStream);
 
             // 处理请求
             if (ok) {
+                if (http11 && keepAlive) {
+                    response.setHeader("Connection", "keep-alive");
+                }
+                // 创建或复用请求流
+                if (requestStream == null) {
+                    requestStream = new HttpRequestStream(request);
+                } else {
+                    requestStream.recycle();
+                    requestStream.setupForNewRequest(request);
+                }
+                request.setRequestStream(requestStream);
+
+                // 创建或复用响应流
+                if (responseStream == null) {
+                    responseStream = new HttpResponseStream(response, bufferSize);
+                } else {
+                    responseStream.recycle();
+                }
+                response.setResponseStream(responseStream);
+
+
                 try {
                     connector.getVas().process(request, response);
                 } catch (Exception e) {
-                    logger.error("请求处理失败", e);
+                    logger.error("Servlet容器处理请求失败 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
                     ok = false;
                     try {
                         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                     } catch (IOException ex) {
-                        logger.error("发送错误响应失败", ex);
+                        logger.error("发送错误响应失败 [{}]: {}", ex.getClass().getSimpleName(), ex.getMessage());
                     }
                 }
             }
@@ -795,20 +811,24 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                 try {
                     response.finishResponse();
                 } catch (IOException e) {
-                    logger.error("完成响应失败", e);
+                    if (e.getMessage() != null && (e.getMessage().contains("Broken pipe") || e.getMessage().contains("Connection reset"))) {
+                        logger.debug("写入响应数据时检测到管道破裂，客户端已断开 [{}]: {}", e.getClass().getSimpleName(), e.getMessage());
+                    } else {
+                        logger.error("响应数据写入失败，无法完成HTTP响应 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
+                    }
                     ok = false;
                 } catch (Throwable e) {
-                    logger.error("完成响应时发生严重错误", e);
+                    logger.error("完成响应时发生严重错误 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
                     ok = false;
                 }
 
                 try {
                     request.finishRequest();
                 } catch (IOException e) {
-                    logger.error("完成请求失败", e);
+                    logger.error("完成请求失败 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
                     ok = false;
                 } catch (Throwable e) {
-                    logger.error("完成请求时发生严重错误", e);
+                    logger.error("完成请求时发生严重错误 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
                     ok = false;
                 }
 
@@ -817,7 +837,11 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
                         output.flush();
                     }
                 } catch (IOException e) {
-                    logger.error("刷新输出流失败", e);
+                    if (e.getMessage() != null && (e.getMessage().contains("Broken pipe") || e.getMessage().contains("Connection reset"))) {
+                        logger.debug("刷新输出流时客户端已断开 [{}]: {}", e.getClass().getSimpleName(), e.getMessage());
+                    } else {
+                        logger.warn("刷新输出流失败 [{}]: {}", e.getClass().getSimpleName(), e.getMessage());
+                    }
                     ok = false;
                 }
             }
@@ -851,7 +875,7 @@ public class HttpProcessor extends BaseLogger implements Runnable, Lifecycle {
             closeInputStream(socket.getInputStream());
             socket.close();
         } catch (IOException e) {
-            logger.error("关闭socket失败", e);
+            logger.error("释放Socket资源失败，连接可能未正确关闭 [{}]: {}", e.getClass().getSimpleName(), e.getMessage(), e);
         }
         socket = null;
 
