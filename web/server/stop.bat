@@ -92,8 +92,8 @@ if exist "%DEFAULT_CONFIG%" (
         set "CLASSPATH=!CLASSPATH!;%%i"
     )
     
-    REM 添加资源目录
-    set "CLASSPATH=!CLASSPATH!;src\main\resources"
+    REM 添加 server 目录（包含 logback.xml）
+    set "CLASSPATH=!CLASSPATH!;%SCRIPT_DIR%"
     
     REM 设置 JVM 参数
     set "JVM_OPTS="

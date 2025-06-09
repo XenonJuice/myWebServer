@@ -84,8 +84,8 @@ if [ -f "$DEFAULT_CONFIG" ]; then
         CLASSPATH="$CLASSPATH:$jar"
     done
     
-    # 添加资源目录
-    CLASSPATH="$CLASSPATH:src/main/resources"
+    # 添加 server 目录（包含 logback.xml）
+    CLASSPATH="$CLASSPATH:$SCRIPT_DIR"
     
     # 设置 JVM 参数
     JVM_OPTS=""
