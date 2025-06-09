@@ -21,7 +21,9 @@ import java.util.Map;
 
 import static livonia.base.Const.commonCharacters.EMPTY;
 import static livonia.base.Const.commonCharacters.SOLIDUS;
+import static livonia.base.Const.confInfo.CORE_DIR;
 import static livonia.base.Const.webApp.ROOT;
+import static livonia.base.Const.webApp.WEB_XML_PATH;
 import static livonia.lifecycle.Lifecycle.START_EVENT;
 import static livonia.lifecycle.Lifecycle.STOP_EVENT;
 
@@ -80,7 +82,7 @@ public final class InnerHostListener implements LifecycleListener, Runnable {
         String appBase = host.getAppBase();
         Path path = Paths.get(appBase);
         if (!path.isAbsolute()) {
-            String base = System.getProperty("simpleWebService.appBase");
+            String base = System.getProperty(CORE_DIR);
             path = Paths.get(base, appBase);
         }
         return path;
@@ -88,9 +90,9 @@ public final class InnerHostListener implements LifecycleListener, Runnable {
 
     // 部署webApp
     private void deployApps() {
-        logger.info("InnerHostListener ：try to deploy apps");
+        logger.debug("InnerHostListener ：try to deploy apps");
         Path appBase = appBase();
-        logger.debug("InnerHostListener : appBase is " + appBase);
+        logger.debug("InnerHostListener : appBase is {}", appBase);
         if (!appBase.toFile().exists() || !appBase.toFile().isDirectory()) {
             return;
         }
@@ -166,9 +168,7 @@ public final class InnerHostListener implements LifecycleListener, Runnable {
                 ResourceManager resource = context.getResources();
                 // 若这里没有获取到资源管理，则说明context中发生异常，暂且略过
                 if (resource == null) continue;
-                Map<String, List<LocalResource>> configMap = resource.getConfigMap();
-                // 从资源管理中拿到webXML引用
-                LocalResource webXml = configMap.get(Const.webApp.WEB_XML).getFirst();
+                LocalResource webXml = resource.getResource(WEB_XML_PATH);
                 // 获取最后修改时间
                 long lastModified = webXml.getLastModified();
                 // 获取之前已经被存入更新映射的同一文件的最后修改时间

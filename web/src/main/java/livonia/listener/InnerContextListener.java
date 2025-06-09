@@ -36,6 +36,7 @@ public final class InnerContextListener implements LifecycleListener {
     @Override
     public void lifecycleEvent(LifecycleEvent event) {
         context = (Context) event.getLifecycle();
+        logger.info("InnerContextListener : context name:{}", context.getName());
         if (event.getType().equals(Lifecycle.START_EVENT)) {
             start();
         }
@@ -116,9 +117,9 @@ public final class InnerContextListener implements LifecycleListener {
             }
             synchronized (digester) {
                 try {
+                    digester.clear();
                     new WebRuleSet().addRuleInstances(digester);
                     in = servletContext.getResourceAsStream(WEB_XML_PATH);
-                    digester.clear();
                     // 这里要把上下文（也就是<web-app>）先放进去
                     digester.push(context);
                     digester.parse(in);
