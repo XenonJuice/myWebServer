@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE web-app PUBLIC
+        "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+        "http://java.sun.com/dtd/web-app_2_3.dtd">
+
+<web-app>
+    <display-name>My Servlet 2.3 Application</display-name>
+    <description>A sample web application using Servlet 2.3</description>
+
+    <!-- Context 初始化参数 -->
+    <context-param>
+        <param-name>admin-email</param-name>
+        <param-value>admin@example.com</param-value>
+    </context-param>
+
+    <!-- 过滤器配置 -->
+    <filter>
+        <filter-name>LoggingFilter</filter-name>
+        <filter-class>filters.LoggingFilter</filter-class>
+    </filter>
+
+    <filter>
+        <filter-name>CharacterEncodingFilter</filter-name>
+        <filter-class>filters.CharacterEncodingFilter</filter-class>
+        <init-param>
+            <param-name>encoding</param-name>
+            <param-value>UTF-8</param-value>
+        </init-param>
+    </filter>
+
+    <!-- 过滤器映射 -->
+    <filter-mapping>
+        <filter-name>LoggingFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>CharacterEncodingFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <!-- 监听器配置 -->
+    <listener>
+        <listener-class>listeners.SimpleContextListener</listener-class>
+    </listener>
+
+    <listener>
+        <listener-class>listeners.SimpleAttributeListener</listener-class>
+    </listener>
+
+    <!-- Servlet 配置 -->
+    <servlet>
+        <servlet-name>HelloServlet</servlet-name>
+        <servlet-class>servlets.HelloServlet</servlet-class>
+        <init-param>
+            <param-name>message</param-name>
+            <param-value>Welcome to Servlet 2.3!</param-value>
+        </init-param>
+        <load-on-startup>1</load-on-startup>
+    </servlet>
+
+    <servlet>
+        <servlet-name>LoginServlet</servlet-name>
+        <servlet-class>servlets.LoginServlet</servlet-class>
+    </servlet>
+
+    <servlet>
+        <servlet-name>EchoServlet</servlet-name>
+        <servlet-class>servlets.EchoServlet</servlet-class>
+    </servlet>
+
+    <servlet>
+        <servlet-name>UploadServlet</servlet-name>
+        <servlet-class>servlets.UploadServlet</servlet-class>
+    </servlet>
+
+    <!-- Servlet 映射 -->
+    <servlet-mapping>
+        <servlet-name>HelloServlet</servlet-name>
+        <url-pattern>/hello</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>LoginServlet</servlet-name>
+        <url-pattern>/login</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>EchoServlet</servlet-name>
+        <url-pattern>/echo</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>UploadServlet</servlet-name>
+        <url-pattern>/upload</url-pattern>
+    </servlet-mapping>
+
+</web-app>
