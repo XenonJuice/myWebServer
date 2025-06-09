@@ -35,7 +35,7 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
     // 对象锁
     private final Object lock = new Object();
     // 当前解析器数量
-    private final int currentProcessors = 0;
+    private int currentProcessors = 0;
     // 生米周期助手
     protected LifecycleHelper helper = new LifecycleHelper(this);
     // 经过本连接器处理的所有请求的协议名
@@ -251,7 +251,7 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
     }
 
     void threadStart() {
-        logger.info("HttpConnector:后台线程启动");
+        // logger.debug("HttpConnector:后台线程启动");
         thread = new Thread(this, threadName);
         // HttpConnector作为socket监视器，可设置为守护线程
         thread.setDaemon(true);
@@ -413,7 +413,7 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
 
 
     private HttpProcessor newProcessor() {
-        HttpProcessor processor = new HttpProcessor(this, currentProcessors);
+        HttpProcessor processor = new HttpProcessor(this, currentProcessors++);
         try {
             processor.start();
         } catch (LifecycleException e) {
@@ -429,6 +429,7 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
      * 回收资源
      */
     void recycle(HttpProcessor processor) {
+        processor.recycleByConnector();
         processors.offer(processor);
     }
 
