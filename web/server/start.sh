@@ -96,11 +96,14 @@ cd "$PROJECT_DIR"
 # 检查是否已经编译
 if [ ! -d "server/core/classes" ]; then
     echo "项目尚未编译，正在执行 Maven 编译..."
+    # 回到父目录编译整个项目
+    cd "$PROJECT_DIR/.."
     mvn clean compile
     if [ $? -ne 0 ]; then
         echo "编译失败，请检查错误信息"
         exit 1
     fi
+    cd "$PROJECT_DIR"
 fi
 
 # 设置 CLASSPATH
