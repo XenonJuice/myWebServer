@@ -77,6 +77,7 @@ public class HttpConnector extends BaseLogger implements Runnable, Lifecycle, Co
     private Vas vas = null;
     // 绑定的Service
     private Service service = null;
+
     //</editor-fold>
     //<editor-fold desc="getter & setter">
     public void setVas(Vas vas) {

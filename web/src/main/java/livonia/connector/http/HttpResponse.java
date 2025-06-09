@@ -3,9 +3,6 @@ package livonia.connector.http;
 import livonia.base.Const;
 import livonia.base.Context;
 import livonia.log.BaseLogger;
-import java.io.Writer;
-
-
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.Cookie;
@@ -16,11 +13,8 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static livonia.base.Const.Header;
-import static livonia.base.Const.PunctuationMarks.CRLF;
 import static livonia.base.Const.PunctuationMarks.COLON_SPACE;
-import static livonia.base.Const.PunctuationMarks.SEMICOLON;
-import static livonia.base.Const.PunctuationMarks.COMMA;
-import static livonia.base.Const.CharPunctuationMarks.COLON;
+import static livonia.base.Const.PunctuationMarks.CRLF;
 import static livonia.utils.CookieUtils.formatCookie;
 
 /**
@@ -189,7 +183,7 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
             if (writer != null) {
                 writer.flush();
             }
-            
+
             // 设置默认的Content-Length
             if (contentLength == -1 && !isChunking()) {
                 if (responseStream != null) {
@@ -201,9 +195,9 @@ public class HttpResponse extends BaseLogger implements HttpServletResponse {
                     contentLength = 0;
                 }
                 setContentLengthLong(contentLength);
-                logger.warn("自动计算Content-Length: {} bytes (totalWritten={}, buffered={})", 
-                        contentLength, 
-                        responseStream.getTotalBytesWritten(), 
+                logger.warn("自动计算Content-Length: {} bytes (totalWritten={}, buffered={})",
+                        contentLength,
+                        responseStream.getTotalBytesWritten(),
                         responseStream.getBufferedDataSize());
             }
 

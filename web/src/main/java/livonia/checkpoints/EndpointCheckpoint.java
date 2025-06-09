@@ -18,9 +18,9 @@ import javax.servlet.Servlet;
 import javax.servlet.UnavailableException;
 import java.util.function.Predicate;
 
-import static livonia.base.Const.commonCharacters.*;
 import static javax.servlet.http.HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
 import static javax.servlet.http.HttpServletResponse.SC_SERVICE_UNAVAILABLE;
+import static livonia.base.Const.commonCharacters.*;
 
 public class EndpointCheckpoint extends CheckpointBase {
     //<editor-fold desc = "attr">

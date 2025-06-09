@@ -4,8 +4,6 @@ import livonia.base.Endpoint;
 import livonia.log.BaseLogger;
 
 import javax.servlet.*;
-import static livonia.base.Const.PunctuationMarks.COMMA;
-import static livonia.base.Const.PunctuationMarks.SEMICOLON;
 import javax.servlet.http.*;
 import java.io.*;
 import java.net.InetAddress;
@@ -13,6 +11,9 @@ import java.net.Socket;
 import java.net.URLDecoder;
 import java.security.Principal;
 import java.util.*;
+
+import static livonia.base.Const.PunctuationMarks.COMMA;
+import static livonia.base.Const.PunctuationMarks.SEMICOLON;
 
 /**
  * 自定义 HttpRequest 类，实现 HttpServletRequest 接口。
@@ -84,6 +85,7 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
     //</editor-fold>
 
     //<editor-fold desc="流管理方法">
+
     /**
      * 设置底层输入流（通常是Socket的输入流）
      * 这个方法在每个新请求开始时被调用
@@ -773,29 +775,29 @@ public class HttpRequest extends BaseLogger implements HttpServletRequest {
         if (!"POST".equalsIgnoreCase(method)) {
             return;
         }
-        
+
         // 检查流是否已被使用
         if (streamUsed || readerUsed) {
             return;
         }
-        
+
         // 检查Content-Type
         String contentType = getContentType();
         if (contentType == null || !contentType.toLowerCase().startsWith("application/x-www-form-urlencoded")) {
             return;
         }
-        
+
         // 获取Content-Length
         int contentLength = getContentLength();
         if (contentLength <= 0) {
             return;  // 不支持 chunked 编码，直接跳过
         }
-        
+
         try {
             // 读取请求体
             String queryString = getQueryString(contentLength);
             parseParametersInternal(queryString);
-            
+
         } catch (IOException e) {
             logger.error("解析POST参数失败", e);
         }

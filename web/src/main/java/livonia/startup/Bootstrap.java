@@ -7,10 +7,10 @@ import java.net.URLClassLoader;
 import java.util.HashSet;
 import java.util.Set;
 
+import static java.io.File.separator;
 import static livonia.base.Const.confInfo.*;
 import static livonia.base.Const.webApp.CLASSES_ONLY;
 import static livonia.base.Const.webApp.DOTJAR;
-import static java.io.File.separator;
 
 // JVM 的启动入口，负责构建启动环境
 public class Bootstrap {
@@ -30,12 +30,12 @@ public class Bootstrap {
                 break;
             }
         }
-        
+
         // 只在启动时显示banner，停止时不显示
         if (!isStopCommand) {
             // 可以通过系统属性控制是否显示动画效果
             boolean showAnimation = Boolean.parseBoolean(System.getProperty("livonia.banner.animation", "true"));
-            
+
             if (showAnimation) {
                 try {
                     Thread.sleep(2000);
@@ -43,10 +43,10 @@ public class Bootstrap {
                     Thread.currentThread().interrupt();
                 }
             }
-            
+
             // 打印启动 Banner
             printBanner();
-            
+
             if (showAnimation) {
                 try {
                     Thread.sleep(2000);
@@ -247,7 +247,7 @@ public class Bootstrap {
         }
     }
     //</editor-fold>
-    
+
     /**
      * 打印启动 Banner
      */
@@ -258,7 +258,7 @@ public class Bootstrap {
         // 全部使用绿色
         System.out.print("\033[32m" + largeBanner);
         System.out.println(smallText);
-        
+
         // 输出系统信息
         System.out.println("\n☕ Java Version: " + System.getProperty("java.version"));
         System.out.println("   Java Vendor: " + System.getProperty("java.vendor"));

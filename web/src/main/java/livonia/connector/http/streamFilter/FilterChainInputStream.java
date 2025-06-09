@@ -16,6 +16,7 @@ public class FilterChainInputStream extends InputStream {
     //</editor-fold>
 
     //<editor-fold desc = "构造器">
+
     /**
      * 构造时传入“顶层过滤器”实例。例如： new PassthroughFilter(socketInputBuffer)。
      *
@@ -26,6 +27,7 @@ public class FilterChainInputStream extends InputStream {
     }
     //</editor-fold>
     //<editor-fold desc = "抽象方法实现">
+
     /**
      * 单字节读取。委托给 read(b, off, len) 实现。
      */
@@ -38,10 +40,10 @@ public class FilterChainInputStream extends InputStream {
 
     /**
      * 从过滤器链中读取至多 len 个字节，并写入到 b[off..off+len-1]。
-     *   1. 创建一个容量为 len 的 ByteChunk。
-     *   2. 调用 topFilter.doRead(chunk)，将解码后的字节放入 chunk 中。
-     *   3. 如果 doRead 返回 -1，表示 EOF，直接返回 -1。
-     *   4. 否则，将 chunk 中的字节复制到目标数组 b，并返回复制的字节数。
+     * 1. 创建一个容量为 len 的 ByteChunk。
+     * 2. 调用 topFilter.doRead(chunk)，将解码后的字节放入 chunk 中。
+     * 3. 如果 doRead 返回 -1，表示 EOF，直接返回 -1。
+     * 4. 否则，将 chunk 中的字节复制到目标数组 b，并返回复制的字节数。
      *
      * @param b   目标字节数组
      * @param off 写入时的起始偏移
@@ -70,6 +72,7 @@ public class FilterChainInputStream extends InputStream {
     //</editor-fold>
 
     //<editor-fold desc = "其他方法">
+
     /**
      * 当业务层认为“请求体已读完”时，需要调用此方法通知过滤器链写入任何必要的尾部定界符，
      * 例如分块编码要在流尾写入 "0\r\n\r\n"。如果过滤器不需要尾部（如 PassthroughFilter），则此方法无操作。
@@ -80,7 +83,8 @@ public class FilterChainInputStream extends InputStream {
         topFilter.end();
     }
 
-    /**ƒ
+    /**
+     * ƒ
      * 复用此 FilterChainInputStream 之前，需要调用此方法让所有过滤器重置状态。
      * 例如 ChunkedFilter 会在这里将其内部状态（remainingLength、eof 等）归零，
      * 以便下一个请求再次使用。

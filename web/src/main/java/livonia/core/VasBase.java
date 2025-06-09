@@ -332,14 +332,14 @@ public abstract class VasBase implements Vas, Lifecycle, Channel {
     }
 
     public Mapper setMapper(String mapperName) {
-        try{
+        try {
             Class<?> clazz = Class.forName(mapperName);
             Mapper mapper = (Mapper) clazz.getDeclaredConstructor().newInstance();
             synchronized (mappers) {
                 this.mapper = mapper;
                 mappers.put(mapperName, mapper);
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error("add mapper failed", e);
         }
 

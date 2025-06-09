@@ -1,6 +1,7 @@
 package listeners;
 
-import javax.servlet.*;
+import javax.servlet.ServletContextAttributeEvent;
+import javax.servlet.ServletContextAttributeListener;
 
 /**
  * 简单的属性监听器

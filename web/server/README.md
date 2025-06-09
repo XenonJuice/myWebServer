@@ -1,6 +1,7 @@
 # Livonia Web Server
 
 ## 目录结构
+
 ```
 server/
 ├── start.sh          # 启动脚本
@@ -18,6 +19,7 @@ server/
 ## 使用方法
 
 ### 编译项目
+
 ```bash
 # 编译服务器核心
 cd ../
@@ -29,15 +31,18 @@ mvn clean compile
 ```
 
 ### 启动服务器
+
 ```bash
 cd web/server
 ./start.sh
 ```
 
 ### 停止服务器
+
 ```bash
 ./stop.sh
 ```
 
 ### 访问应用
+
 http://localhost:8080/testServlet/hello

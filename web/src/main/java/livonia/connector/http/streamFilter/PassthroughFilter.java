@@ -12,6 +12,7 @@ public class PassthroughFilter implements InputFilter {
     private final InputStream next;
     //</editor-fold>
     //<editor-fold desc = "构造器">
+
     /**
      * 构造时传入上游流。
      *
@@ -22,6 +23,7 @@ public class PassthroughFilter implements InputFilter {
     }
     //</editor-fold>
     //<editor-fold desc = "接口实现">
+
     /**
      * 返回此 Filter 的编码名称：passthrough 表示不做任何编码/解码。
      */

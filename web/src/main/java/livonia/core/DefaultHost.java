@@ -88,7 +88,7 @@ public class DefaultHost extends VasBase implements Host, Host.Deployer {
     @Override
     public void start() throws LifecycleException {
         logger.debug("Starting host:{}", name);
-        Mapper mapper =setMapper(defaultHostMapper);
+        Mapper mapper = setMapper(defaultHostMapper);
         mapper.setVas(this);
         super.start();
     }

@@ -222,6 +222,7 @@ public class SocketInputBuffer extends InputStream {
     }
 
     //<editor-fold desc = "复用相关方法">
+
     /**
      * 为复用准备：设置新的底层输入流
      *
@@ -266,6 +267,7 @@ public class SocketInputBuffer extends InputStream {
     }
     //</editor-fold>
     //<editor-fold desc = "关闭相关">
+
     /**
      * 关闭此输入流并释放与该流关联的所有系统资源
      *

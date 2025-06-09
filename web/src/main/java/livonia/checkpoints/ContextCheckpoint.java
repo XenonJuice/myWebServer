@@ -12,9 +12,9 @@ import org.slf4j.Logger;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static javax.servlet.http.HttpServletResponse.*;
 import static livonia.base.Const.webApp.META_INF;
 import static livonia.base.Const.webApp.WEB_INF;
-import static javax.servlet.http.HttpServletResponse.*;
 
 public class ContextCheckpoint extends CheckpointBase {
     //<editor-fold desc = "attr">

@@ -28,10 +28,11 @@ public class ContentLengthFilter implements InputFilter {
     //</editor-fold>
 
     //<editor-fold desc = "构造器">
+
     /**
      * 构造一个Content-Length过滤器
      *
-     * @param next 上游输入流
+     * @param next          上游输入流
      * @param contentLength Content-Length值
      */
     public ContentLengthFilter(InputStream next, long contentLength) {
@@ -49,6 +50,7 @@ public class ContentLengthFilter implements InputFilter {
     //</editor-fold>
 
     //<editor-fold desc = "接口实现">
+
     /**
      * 返回此 Filter 的编码名称
      */
@@ -147,6 +149,7 @@ public class ContentLengthFilter implements InputFilter {
     //</editor-fold>
 
     //<editor-fold desc = "其他方法">
+
     /**
      * 设置新的Content-Length（用于复用时）
      *

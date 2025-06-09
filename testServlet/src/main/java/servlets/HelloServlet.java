@@ -1,8 +1,14 @@
 package servlets;
 
-import javax.servlet.*;
-import javax.servlet.http.*;
-import java.io.*;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 
 /**
  * Servlet 2.3 版本的 servlets.HelloServlet

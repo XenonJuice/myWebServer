@@ -26,6 +26,7 @@ public class ByteChunk {
     //
     //</editor-fold>
     //<editor-fold desc = "构造器">
+
     /**
      * 构造一个固定容量的 ByteChunk。
      *
@@ -40,7 +41,7 @@ public class ByteChunk {
      * 构造一个支持自动扩容的 ByteChunk。
      *
      * @param initialCapacity 初始容量
-     * @param autoExpand 是否允许自动扩容
+     * @param autoExpand      是否允许自动扩容
      */
     public ByteChunk(int initialCapacity, boolean autoExpand) {
         this.buf = new byte[initialCapacity];
@@ -49,6 +50,7 @@ public class ByteChunk {
     }
     //</editor-fold>
     //<editor-fold desc = "方法">
+
     /**
      * 返回当前有效数据的长度 (end - start)。
      */
@@ -224,12 +226,13 @@ public class ByteChunk {
      *
      * @param dest 要被写入的目标数组
      * @param off  写入目标数组时的起始偏移
-     * @return     复制的字节数（等于 getLength()）
+     * @return 复制的字节数（等于 getLength()）
      */
     public int getBytes(byte[] dest, int off) {
         if (dest == null) throw new NullPointerException("Destination array is null");
         int len = getLength();
-        if (off < 0 || off + len > dest.length) throw new IndexOutOfBoundsException("Invalid offset/length for destination");
+        if (off < 0 || off + len > dest.length)
+            throw new IndexOutOfBoundsException("Invalid offset/length for destination");
         if (len > 0) System.arraycopy(buf, start, dest, off, len);
         return len;
     }
@@ -246,6 +249,7 @@ public class ByteChunk {
         }
         return buf[start + index];
     }
+
     /**
      * 清空当前内容，将 start 和 end 都重置到 0。下一次使用时相当于一个空容器。
      */

@@ -285,7 +285,7 @@ public class ResourceManager implements Lifecycle {
                 }
             }
         }
-        Path target =classesPaths.get(normalizedPath);
+        Path target = classesPaths.get(normalizedPath);
         if (target != null) {
             return new FileResource(target);
         }

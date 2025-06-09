@@ -3,7 +3,6 @@ package livonia.XMLParse;
 import livonia.base.Loader;
 import livonia.base.Vas;
 import org.xml.sax.Attributes;
-import java.lang.reflect.Method;
 
 public class CreateWebAppLoaderRule implements Rule {
     private final MiniDigester digester;

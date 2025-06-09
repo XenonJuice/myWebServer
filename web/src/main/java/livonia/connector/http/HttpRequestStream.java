@@ -38,6 +38,7 @@ public class HttpRequestStream extends ServletInputStream {
     private boolean closed = false;
     // 统计信息
     private long bytesRead = 0;
+
     // 过滤器类型枚举
     private enum FilterType {
         NONE,
@@ -48,18 +49,20 @@ public class HttpRequestStream extends ServletInputStream {
     //</editor-fold>
 
     //<editor-fold desc = "构造器">
+
     /**
      * 构造函数，初始化 HttpRequestStream
      *
      * @param request HTTP请求对象
      */
-    public HttpRequestStream(HttpRequest request){
+    public HttpRequestStream(HttpRequest request) {
         this.socketInputStream = request.getStream();
         setupFilters(request);
     }
     //</editor-fold>
 
     //<editor-fold desc = "初始化方法">
+
     /**
      * 根据请求头设置合适的过滤器链
      *
@@ -134,6 +137,7 @@ public class HttpRequestStream extends ServletInputStream {
     //</editor-fold>
 
     //<editor-fold desc = "ServletInputStream方法实现">
+
     /**
      * 检查输入流是否已完成读取
      *
@@ -260,6 +264,7 @@ public class HttpRequestStream extends ServletInputStream {
     //</editor-fold>
 
     //<editor-fold desc = "复用相关方法">
+
     /**
      * 为下一个请求重置流状态
      */
@@ -307,6 +312,7 @@ public class HttpRequestStream extends ServletInputStream {
     //</editor-fold>
 
     //<editor-fold desc = "其他方法">
+
     /**
      * 跳过指定数量的字节
      *

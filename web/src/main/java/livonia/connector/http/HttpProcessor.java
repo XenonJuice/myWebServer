@@ -1,6 +1,9 @@
 package livonia.connector.http;
 
-import livonia.base.Const.*;
+import livonia.base.Const.Ack;
+import livonia.base.Const.Header;
+import livonia.base.Const.HttpProtocol;
+import livonia.base.Const.Processor;
 import livonia.lifecycle.Lifecycle;
 import livonia.lifecycle.LifecycleException;
 import livonia.lifecycle.LifecycleListener;
@@ -17,16 +20,15 @@ import java.net.SocketException;
 import java.net.URLDecoder;
 import java.util.*;
 
+import static livonia.base.Const.CharPunctuationMarks.*;
+import static livonia.base.Const.CharPunctuationMarks.COLON;
 import static livonia.base.Const.CharPunctuationMarks.CR;
 import static livonia.base.Const.CharPunctuationMarks.LF;
-import static livonia.base.Const.CharPunctuationMarks.COLON;
 import static livonia.base.Const.HttpProtocol.HTTP_0_9;
-import static livonia.base.Const.HttpProtocol.HTTP_1_1;
-import static livonia.base.Const.PunctuationMarks.COLON_SPACE;
-import static livonia.base.Const.PunctuationMarks.SPACE;
+import static livonia.base.Const.PunctuationMarks.*;
 import static livonia.base.Const.PunctuationMarks.COMMA;
 import static livonia.base.Const.PunctuationMarks.SEMICOLON;
-import static livonia.base.Const.Header.*;
+import static livonia.base.Const.PunctuationMarks.SPACE;
 import static livonia.utils.CookieUtils.convertToCookieArray;
 import static livonia.utils.CookieUtils.convertToCookieList;
 

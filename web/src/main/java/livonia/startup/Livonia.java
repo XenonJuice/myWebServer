@@ -108,7 +108,7 @@ public class Livonia {
             } else if (arg.equals("-v") || arg.equals("--version")) {
                 System.out.println(getServerInfo());
                 return false;
-            } else if (arg.equals("-start") ) {
+            } else if (arg.equals("-start")) {
                 isStarting = true;
             } else if (arg.equals("-stop")) {
                 isStopping = true;

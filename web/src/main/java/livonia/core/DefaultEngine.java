@@ -79,7 +79,7 @@ public class DefaultEngine extends VasBase implements Engine {
     @Override
     public synchronized void start() throws LifecycleException {
         System.out.println(ServerInfo.getServerInfo());
-        Mapper mapper =setMapper(defaultEngineMapper);
+        Mapper mapper = setMapper(defaultEngineMapper);
         mapper.setVas(this);
         super.start();
     }

@@ -1,13 +1,14 @@
 package livonia.connector.http;
 
 import livonia.base.Const.Header;
-import static livonia.base.Const.PunctuationMarks.CRLF;
 
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.OutputStream;
+
+import static livonia.base.Const.PunctuationMarks.CRLF;
 
 /**
  * 自定义的 ServletOutputStream 实现

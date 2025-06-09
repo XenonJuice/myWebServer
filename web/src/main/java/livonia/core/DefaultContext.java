@@ -391,14 +391,14 @@ public class DefaultContext extends VasBase implements Context {
     @Override
     public synchronized void start() throws LifecycleException {
         if (started) throw new LifecycleException("context : " + getName() + " is already started");
-        Mapper mapper =setMapper(defaultContextMapper);
+        Mapper mapper = setMapper(defaultContextMapper);
         mapper.setVas(this);
         lifecycleHelper.fireLifecycleEvent(BEFORE_START_EVENT, null);
         logger.info("context : {} starting...", getName());
         setConfigured(false);
         setAvailable(false);
         boolean noProblem = true;
-        
+
         // Resolve the absolute basePath relative to the Host's appBase
         if (basePath != null && !basePath.startsWith("/")) {
             // Get the Host's appBase
@@ -410,7 +410,7 @@ public class DefaultContext extends VasBase implements Context {
                 basePath = resolvedPath;
             }
         }
-        
+
         // 资源管理器设置
         try {
             ResourceManager resources = new ResourceManager(this);
