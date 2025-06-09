@@ -15,7 +15,6 @@ public class ContextRuleSet extends RuleSet {
 
     @Override
     public void addRuleInstances(MiniDigester digester) {
-        // todo i just forget what to do... wait for test and maybe add some more rules
         digester.addRule(prefix + CONTEXT, new ObjectCreateRule(DefaultContext.class));
         digester.addRule(prefix + CONTEXT, new SetPropertiesRule());
         digester.addRule(prefix + CONTEXT, new InnerListenerRule("livonia.listener.InnerContextListener"));
