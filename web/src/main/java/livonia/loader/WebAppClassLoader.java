@@ -220,12 +220,12 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
 
     // 检查web资源是否有更新
     public boolean modified() {
-        logger.debug("modified: {}", entries.size());
+        logger.debug("检查web资源是否有更新，当前已被加载的类的总数为: {}", entries.size());
         for (Map.Entry<String, ResourceEntry> entry : entries.entrySet()) {
             long oldTime = entry.getValue().lastModified;
             long newTime = localResource.getClassResource(entry.getKey()).getLastModified();
             if (oldTime != newTime) {
-                logger.debug("modified: {} , oldTime: {} , newTime: {}",
+                logger.debug("监测到web资源变化: {} , oldTime: {} , newTime: {}",
                         entry.getKey(), new Date(oldTime), new Date(newTime));
                 return true;
             }
@@ -236,9 +236,9 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
             if (jar.getName().endsWith(Const.webApp.DOTJAR) && jar.canRead()) {
                 Long oldTime = jarTimes.get(jar.getName());
                 if (oldTime == null) {
-                    logger.info("webAppClassLoader modified ：jar has been added: {} in Context : {}", jar.getName(), localResource.getContext().getName());
+                    logger.info("webAppClassLoader 检查更新 ：jar has been added: {} in Context : {}", jar.getName(), localResource.getContext().getName());
                 } else if (oldTime != jar.getLastModified()) {
-                    logger.info("webAppClassLoader modified ：jar has been modified: {} in Context : {}", jar.getName(), localResource.getContext().getName());
+                    logger.info("webAppClassLoader 检查更新 ：jar has been modified: {} in Context : {}", jar.getName(), localResource.getContext().getName());
                     return true;
                 }
 
@@ -319,7 +319,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
             if (loadingFromSysLoader) {
                 try {
                     clazz = sysLoader.loadClass(name);
-                    logger.debug("loadClass: sysLoader.loadClass: {}", clazz);
+                    // logger.debug("loadClass:{} sysLoader.loadClass: {}",sysLoader.toString(), clazz);
                     if (resolve) resolveClass(clazz);
                     return clazz;
                 } catch (ClassNotFoundException _) {
@@ -346,7 +346,7 @@ public class WebAppClassLoader extends URLClassLoader implements Lifecycle {
             // 检查本地仓库
             clazz = this.findClass(name);
             if (clazz != null) {
-                logger.debug("loadClass: findLoadedClassFromLocal: {}", clazz);
+                // logger.debug("loadClass: findLoadedClassFromLocal: {}", clazz);
                 if (resolve) resolveClass(clazz);
                 return clazz;
             }
