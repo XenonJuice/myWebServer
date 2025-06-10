@@ -28,3 +28,36 @@ replay_pid*
 *.iws
 *.ipr
 /web/server/.idea/
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# Build output
+out/
+build/
+dist/
+
+# Dependencies (should be managed by Maven)
+lib/
+libs/
+*.jar
+
+# Runtime files
+*.pid
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# OS specific
+Thumbs.db
+.directory
