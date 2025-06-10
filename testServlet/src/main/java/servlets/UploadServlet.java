@@ -43,13 +43,19 @@ public class UploadServlet extends HttpServlet {
         System.out.println(content);
         System.out.println("-------- END OF CONTENT --------");
 
-        // 回传响应
-        response.setContentType("text/plain");
+        // 回传响应 - 返回HTML页面
+        response.setContentType("text/html; charset=UTF-8");
         PrintWriter out = response.getWriter();
-        out.println("Upload successful!");
-        out.println("Bytes received: " + totalBytes);
-        out.println("\nContent echo:");
-        out.println(content);
+        out.println("<html>");
+        out.println("<head><title>Upload Result</title></head>");
+        out.println("<body>");
+        out.println("<h2>Upload successful!</h2>");
+        out.println("<p>Bytes received: " + totalBytes + "</p>");
+        out.println("<h3>Content echo:</h3>");
+        out.println("<pre>" + content + "</pre>");
+        out.println("<br><a href='upload'>Upload another file</a>");
+        out.println("</body>");
+        out.println("</html>");
         out.close();
     }
 
