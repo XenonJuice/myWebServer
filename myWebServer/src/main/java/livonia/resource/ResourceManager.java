@@ -73,6 +73,11 @@ public class ResourceManager implements Lifecycle {
     //<editor-fold desc = "扫描资源">
     // 始终以斜杠开头 例如/com/example/
     public void scanFileSystem(Path rootDir) {
+        // 检查目录是否存在
+        if (!Files.exists(rootDir)) {
+            logger.debug("目录不存在，跳过扫描: {}", rootDir);
+            return;
+        }
         // 递归遍历整个目录树
         try {
             Files.walk(rootDir)
@@ -86,12 +91,19 @@ public class ResourceManager implements Lifecycle {
                         addStaticResources(resourcePath, resource);
                     });
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            logger.error("扫描文件系统失败: {}", rootDir, e);
         }
     }
 
     public void scanClassDir(Path classesDir) {
         try {
+            // 检查目录是否存在，如果不存在则创建
+            if (!Files.exists(classesDir)) {
+                logger.debug("WEB-INF/classes 目录不存在，创建目录: {}", classesDir);
+                Files.createDirectories(classesDir);
+                return; // 新创建的目录是空的，直接返回
+            }
+            
             Files.walk(classesDir)
                     .filter(p -> p.toString().endsWith(DOTCLASS))
                     .forEach(p -> {
@@ -367,14 +379,23 @@ public class ResourceManager implements Lifecycle {
         // 扫描静态资源
         scanFileSystem(staticDir);
         // 扫描 WEB-INF/lib 下的所有 jar 文件
-        try (DirectoryStream<Path> jarStream = Files.newDirectoryStream(libDir, "*.jar")) {
-            for (Path jarPath : jarStream) {
-                File jarFile = jarPath.toFile();
-                scanJarFile(jarFile);
-                logger.debug("Scanned jar file: {}", jarFile.getAbsolutePath());
+        if (!Files.exists(libDir)) {
+            logger.debug("WEB-INF/lib 目录不存在，创建目录: {}", libDir);
+            try {
+                Files.createDirectories(libDir);
+            } catch (IOException e) {
+                logger.error("创建 WEB-INF/lib 目录失败", e);
             }
-        } catch (IOException e) {
-            logger.error("Failed to scan jar files in WEB-INF/lib", e);
+        } else {
+            try (DirectoryStream<Path> jarStream = Files.newDirectoryStream(libDir, "*.jar")) {
+                for (Path jarPath : jarStream) {
+                    File jarFile = jarPath.toFile();
+                    scanJarFile(jarFile);
+                    logger.debug("Scanned jar file: {}", jarFile.getAbsolutePath());
+                }
+            } catch (IOException e) {
+                logger.error("Failed to scan jar files in WEB-INF/lib", e);
+            }
         }
         // 扫描所有配置文件
         scanConfigResources(webInfRoot);
