@@ -28,7 +28,7 @@ public class Livonia {
                       -v,--version    Show version information
                       start           Start the server
                       stop            Stop the server""";
-    private final ClassLoader parentClassLoader = null;
+    private ClassLoader parentClassLoader = null;
     //</editor-fold>
     //<editor-fold desc = "attr">
     private boolean debugMode = false;
@@ -62,6 +62,10 @@ public class Livonia {
         if (System.getProperty(DEPLOY_DIR) == null) {
             System.setProperty(DEPLOY_DIR, System.getProperty(USER_DIR));
         }
+    }
+
+    public void setParentClassLoader(ClassLoader parentClassLoader) {
+        this.parentClassLoader =parentClassLoader;
     }
 
 

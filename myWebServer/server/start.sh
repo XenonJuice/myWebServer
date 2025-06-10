@@ -110,9 +110,18 @@ fi
 CLASSPATH="server/core/classes"
 
 # 添加依赖 JAR 包到 CLASSPATH
-# 这里使用 Maven 的依赖路径
-for jar in $(mvn dependency:build-classpath -q -DincludeScope=compile -Dmdep.outputFile=/dev/stdout); do
-    CLASSPATH="$CLASSPATH:$jar"
+# 添加 core/lib 下的所有 jar 包（服务器运行时依赖）
+for jar in server/core/lib/*.jar; do
+    if [ -f "$jar" ]; then
+        CLASSPATH="$CLASSPATH:$jar"
+    fi
+done
+
+# 添加 common/lib 下的 servlet-api（Web应用共享）
+for jar in server/common/lib/*.jar; do
+    if [ -f "$jar" ]; then
+        CLASSPATH="$CLASSPATH:$jar"
+    fi
 done
 
 # 添加 server 目录（包含 logback.xml）

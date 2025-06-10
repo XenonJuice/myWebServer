@@ -47,7 +47,7 @@
     <build>
         <finalName>${project.artifactId}</finalName>
         <!-- 指定编译输出目录直接到部署位置 -->
-        <outputDirectory>${project.basedir}/../web/server/webapps/testServlet/WEB-INF/classes</outputDirectory>
+        <outputDirectory>${project.basedir}/../myWebServer/server/webapps/testServlet/WEB-INF/classes</outputDirectory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -72,7 +72,7 @@
                             <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.basedir}/../web/server/webapps/testServlet/WEB-INF/classes
+                            <outputDirectory>${project.basedir}/../myWebServer/server/webapps/testServlet/WEB-INF/classes
                             </outputDirectory>
                             <resources>
                                 <resource>
@@ -92,7 +92,7 @@
                             <goal>copy-resources</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.basedir}/../web/server/webapps/testServlet/WEB-INF
+                            <outputDirectory>${project.basedir}/../myWebServer/server/webapps/testServlet/WEB-INF
                             </outputDirectory>
                             <resources>
                                 <resource>
@@ -120,7 +120,7 @@
                             <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.basedir}/../web/server/webapps/testServlet/WEB-INF/lib
+                            <outputDirectory>${project.basedir}/../myWebServer/server/webapps/testServlet/WEB-INF/lib
                             </outputDirectory>
                             <includeScope>runtime</includeScope>
                             <excludeScope>provided</excludeScope>

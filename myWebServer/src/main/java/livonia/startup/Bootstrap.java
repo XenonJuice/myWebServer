@@ -71,8 +71,8 @@ public class Bootstrap {
         Thread.currentThread().setContextClassLoader(coreLoader);
         try {
             // 通过类加载器加载启动类
-            Class<?> ergClass = coreLoader.loadClass(LIVONIA);
-            Object ergInstance = ergClass.getDeclaredConstructor().newInstance();
+            Class<?> livonia = coreLoader.loadClass(LIVONIA);
+            Object livoInstance = livonia.getDeclaredConstructor().newInstance();
             if (!isStopCommand) {
                 System.out.println("=== Bootstrap : livonia core class loaded ===");
             }
@@ -83,10 +83,20 @@ public class Bootstrap {
             Object[] paramValues = new Object[1];
             // 要调用的方法
             Method method;
+            System.out.println("=== Bootstrap : set Linovia's parent class loader ===");
+            // 调用Livonia的设置父类加载器的方法
+            String methodName = "setParentClassLoader";
+            // 将livonia的父类加载器设置为commonLoader
+            paramTypes[0] = ClassLoader.class;
+            paramValues[0] = commonLoader;
+            method = livoInstance.getClass().getMethod(methodName, paramTypes);
+            method.invoke(livoInstance, paramValues);
+            System.out.println("=== Bootstrap : set Linovia's parent class loader success ===");
+            System.out.println("=== Bootstrap : invoke Linovia's process method ===");
             paramTypes[0] = args.getClass();
             paramValues[0] = args;
-            method = ergInstance.getClass().getMethod(PROCESS, paramTypes);
-            method.invoke(ergInstance, paramValues);
+            method = livoInstance.getClass().getMethod(PROCESS, paramTypes);
+            method.invoke(livoInstance, paramValues);
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             System.exit(2);
@@ -196,7 +206,7 @@ public class Bootstrap {
                 // 将每一个未打包class作为File对象
                 for (File dir : unpacked) {
                     // 验证正常性
-                    if (!isValidDirectory(dir)) continue;
+                    if (isValidDirectory(dir)) continue;
                     if (!isStopCommand) {
                         System.out.println("=== Bootstrap : try to collect classes... === ");
                         System.out.println("unpacked class path : " + dir.getAbsolutePath());
