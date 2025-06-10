@@ -14,7 +14,7 @@
     <description>Parent project for Livonia Web Server</description>
 
     <modules>
-        <module>web</module>
+        <module>myWebServer</module>
         <module>testServlet</module>
     </modules>
 

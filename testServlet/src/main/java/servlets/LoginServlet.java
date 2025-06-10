@@ -21,7 +21,7 @@ public class LoginServlet extends HttpServlet {
         // 先构建完整的 HTML 内容
         StringBuilder html = new StringBuilder();
         html.append("<html>\n");
-        html.append("<head>李林健</head>\n");
+        html.append("<head>admin admin</head>\n");
         html.append("<head><title>Login</title></head>\n");
         html.append("<body>\n");
         html.append("<h1>Login</h1>\n");
