@@ -10,10 +10,10 @@ public final class Const {
      * 配置信息
      */
     public static class confInfo {
-        public static final String CORE_DIR = "CORE_DIR";
+        public static final String CORE_DIR = "core.dir";
         public static final String CORE = "core";
         public static final String USER_DIR = "user.dir";
-        public static final String DEPLOY_DIR = "DEPLOY_DIR";
+        public static final String DEPLOY_DIR = "deploy.dir";
         public static final String COMMON = "common";
         public static final String LIB_LOWERCASE_ONLY_ = "lib";
         public static final String SERVER = "Server";
