@@ -5,6 +5,7 @@ import livonia.base.Server;
 import livonia.base.Vas;
 import livonia.lifecycle.Lifecycle;
 import livonia.lifecycle.LifecycleException;
+import livonia.utils.ServerXmlWriter;
 import org.xml.sax.Attributes;
 
 import java.io.File;
@@ -37,6 +38,8 @@ public class Livonia {
     private boolean isStopping = false;
     private Thread shutdownHook = null;
     public Server server = null;
+    private boolean saveDynamicApps = false;  // 是否保存动态部署的应用
+    private String xmlConfigFile = null;      // 配置文件路径
     //</editor-fold>
     //<editor-fold desc = "配置二进制目录和实例运行目录">
 
@@ -144,6 +147,9 @@ public class Livonia {
         MiniDigester d = parseXMLStarting();
         // 获取XML引用
         File serverXML = serverXML();
+        xmlConfigFile = serverXML.getAbsolutePath();  // 保存配置文件路径
+        saveDynamicApps = true;  // 启用保存动态应用功能
+        
         try (FileInputStream fileInputStream = new FileInputStream(serverXML)) {
             d.push(this);
             d.parse(fileInputStream);
@@ -178,6 +184,17 @@ public class Livonia {
                 System.out.println("Exception occurred when Shutdown hook  removed");
             }
             ((Lifecycle) server).stop();
+            
+            // 正常关闭时也保存配置
+            if (saveDynamicApps && xmlConfigFile != null) {
+                try {
+                    System.out.println("正在保存服务器配置（包括动态部署的应用）...");
+                    ServerXmlWriter.writeServerXml(server, xmlConfigFile);
+                } catch (Exception ex) {
+                    System.out.println("保存配置失败: " + ex);
+                    ex.printStackTrace();
+                }
+            }
         } catch (LifecycleException e) {
             System.out.println("Exception occurred when stopping : " + e);
             e.printStackTrace();
@@ -264,6 +281,17 @@ public class Livonia {
         public void run() {
             if (server != null) {
                 try {
+                    // 保存当前配置（包括动态部署的应用）
+                    if (saveDynamicApps && xmlConfigFile != null) {
+                        try {
+                            System.out.println("正在保存服务器配置（包括动态部署的应用）...");
+                            ServerXmlWriter.writeServerXml(server, xmlConfigFile);
+                        } catch (Exception e) {
+                            System.out.println("保存配置失败: " + e);
+                            e.printStackTrace();
+                        }
+                    }
+                    
                     ((Lifecycle) server).stop();
                 } catch (LifecycleException e) {
                     System.out.println("Exception when stopping : " + e);
