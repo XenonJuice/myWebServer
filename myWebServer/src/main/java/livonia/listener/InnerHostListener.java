@@ -36,7 +36,7 @@ public final class InnerHostListener implements LifecycleListener, Runnable {
     // context class
     private final String contextClass = "livonia.core.DefaultContext";
     // 检查周期
-    private final int checkCycle = 100000;
+    private final int checkCycle = 10000;
     // 所有已部署的webApp
     private final ArrayList<String> deployedApps = new ArrayList<>();
     // webXML更新映射
@@ -89,45 +89,108 @@ public final class InnerHostListener implements LifecycleListener, Runnable {
     // 部署webApp
     private void deployApps() {
         logger.debug("InnerHostListener ：try to deploy apps");
+        // 获取Host的应用基础目录
         Path appBase = appBase();
         logger.debug("InnerHostListener : appBase is {}", appBase);
+        
+        // 检查appBase目录是否存在且为目录
         if (!appBase.toFile().exists() || !appBase.toFile().isDirectory()) {
             return;
         }
+        
+        // 获取appBase目录下的所有文件和子目录
         String[] files = appBase.toFile().list();
 
         if (files != null) {
+            // 遍历每个文件/目录
             for (String file : files) {
+                // 跳过META-INF目录（这是特殊的元数据目录）
                 if (file.equalsIgnoreCase(
                         (Const.webApp.META_INF)
                                 .substring(1))) {
                     continue;
                 }
+                // 跳过WEB-INF目录（这是特殊的Web应用配置目录）
                 if (file.equalsIgnoreCase(
                         (Const.webApp.WEB_INF)
                                 .substring(1))) {
                     continue;
                 }
+                
+                // 如果该目录已经在deployedApps列表中，说明已经处理过，跳过
                 if (deployedApps.contains(file)) continue;
+                
+                // 构建该文件的完整路径
                 Path path = Paths.get(appBase.toString(), file);
+                
+                // 只处理目录（Web应用必须是目录）
                 if (path.toFile().isDirectory()) {
-                    deployedApps.add(file);
+                    // 检查是否有WEB-INF目录
                     Path webInfoPath = Paths.get(path.toString(), Const.webApp.WEB_INF);
                     if (!webInfoPath.toFile().exists() || !webInfoPath.toFile().isDirectory()) {
-                        return;
+                        logger.debug("Skipping {} - no WEB-INF directory", file);
+                        continue; 
                     }
-                    // 拼接contextPath
+                    
+                    // 检查该物理目录是否已经被部署
+                    boolean alreadyDeployed = false;
+                    // 获取所有已部署的Context路径
+                    String[] contextPaths = ((Host.Deployer) host).findDeployedApps();
+                    // 遍历每个已部署的Context
+                    for (String cp : contextPaths) {
+                        // 获取Context对象
+                        Context ctx = ((Host.Deployer) host).findDeployedApp(cp);
+                        if (ctx != null) {
+                            // 获取该Context的basePath（物理路径）
+                            String basePath = ctx.getBasePath();
+                            // 比较basePath是否指向当前扫描的目录
+                            // 需要处理三种情况：
+                            // 1. basePath直接等于目录名（相对路径）："simpleApp1"
+                            // 2. basePath以/结尾的绝对路径："/path/to/simpleApp1/"
+                            // 3. basePath以\结尾的绝对路径（Windows）："C:\path\to\simpleApp1\"
+                            if (basePath != null && (basePath.equals(file) || 
+                                basePath.endsWith("/" + file) || 
+                                basePath.endsWith("\\" + file))) {
+                                logger.debug("Directory {} already deployed as context path {}", file, cp);
+                                alreadyDeployed = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 如果该目录已经被某个Context使用，跳过部署
+                    if (alreadyDeployed) {
+                        // 仍然添加到deployedApps列表，避免后续重复检查
+                        deployedApps.add(file);
+                        continue;
+                    }
+                    
+                    // 构建Context路径（URL路径）
+                    // 规则：目录名前加"/"，如simpleApp1 -> /simpleApp1
                     String contextPath = SOLIDUS + file;
-                    // 判断是否为更路径
+                    
+                    // 特殊处理：如果目录名是ROOT，则Context路径为空（根应用）
                     if (file.equalsIgnoreCase(ROOT)) {
                         contextPath = EMPTY;
                     }
-                    // 若已部署则跳过
-                    if (host.findChild(contextPath) != null) continue;
+                    
+                    // 检查该Context路径是否已存在
+                    if (host.findChild(contextPath) != null) {
+                        logger.debug("Context path {} already exists", contextPath);
+                        // 添加到deployedApps，避免重复处理
+                        deployedApps.add(file);
+                        continue;
+                    }
+                    
+                    // 所有检查通过，开始部署
                     logger.info("deploying app : {}", file);
+                    // 先添加到deployedApps，标记为已处理
+                    deployedApps.add(file);
+                    
                     try {
-                        String canonicalPath = path.toFile().getCanonicalPath();
+                        // 构建部署URI
                         URI deploymentUri = path.toUri();
+                        // 调用Host的install方法进行实际部署
                         ((Host.Deployer) host).install(contextPath, deploymentUri.toURL());
                     } catch (Exception e) {
                         logger.error("deploying app error", e);
@@ -177,6 +240,7 @@ public final class InnerHostListener implements LifecycleListener, Runnable {
                     // 或者发现时间不一致，这说明已经更新了
                 } else if (lastUpdate != lastModified) {
                     logger.debug(":webApp ：{} webXml has been modified ，try to reload", contextName);
+                    webXmlUpdateMapping.put(contextName, lastModified);
                     context.reload();
                 }
             } catch (RuntimeException e) {
