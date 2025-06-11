@@ -405,7 +405,15 @@ public class DefaultContext extends VasBase implements Context {
             Host host = (Host) getParent();
             if (host != null && host.getAppBase() != null) {
                 // Resolve relative to the Host's appBase
-                String resolvedPath = host.getAppBase() + "/" + basePath;
+                String hostAppBase = host.getAppBase();
+                // if Host's appBase is relative, resolve it against CORE_DIR
+                if (!hostAppBase.startsWith("/")) {
+                    String coreDir = System.getProperty("core.dir");
+                    if (coreDir != null) {
+                        hostAppBase = coreDir + "/" + hostAppBase;
+                    }
+                }
+                String resolvedPath = hostAppBase + "/" + basePath;
                 logger.debug("Resolved basePath from {} to {}", basePath, resolvedPath);
                 basePath = resolvedPath;
             }
