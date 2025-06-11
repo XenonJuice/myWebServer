@@ -30,7 +30,7 @@ public class ApplicationFilterConfig implements FilterConfig {
 
     @Override
     public ServletContext getServletContext() {
-        return null;
+        return context.getServletContext();
     }
 
     @Override
