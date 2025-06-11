@@ -7,4 +7,11 @@ package livonia.base;
  */
 public interface Connector {
 
+    int getPort();
+
+    String getProtocol();
+
+    void setProtocol(String protocol);
+
+
 }
