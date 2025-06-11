@@ -18,7 +18,9 @@ public class LoggingFilter implements Filter {
      */
     public void init(FilterConfig filterConfig) throws ServletException {
         this.filterConfig = filterConfig;
-        System.out.println("LoggingFilter initialized");
+        System.out.println("[testServlet - LoggingFilter] 初始化完成");
+        System.out.println("  过滤器名称: " + filterConfig.getFilterName());
+        System.out.println("  Servlet上下文: " + filterConfig.getServletContext().getServletContextName());
     }
 
     /**
@@ -39,25 +41,40 @@ public class LoggingFilter implements Filter {
         String method = httpRequest.getMethod();
         String uri = httpRequest.getRequestURI();
         String queryString = httpRequest.getQueryString();
+        String contentType = httpRequest.getContentType();
+        String userAgent = httpRequest.getHeader("User-Agent");
 
-        System.out.println("[" + new Date() + "] " + method + " " + uri +
-                (queryString != null ? "?" + queryString : "") +
-                " from " + remoteAddr);
+        System.out.println("[testServlet - LoggingFilter] ========== 请求开始 ==========");
+        System.out.println("  时间: " + new Date());
+        System.out.println("  方法: " + method);
+        System.out.println("  URI: " + uri);
+        System.out.println("  查询字符串: " + (queryString != null ? queryString : "无"));
+        System.out.println("  远程地址: " + remoteAddr);
+        System.out.println("  Content-Type: " + (contentType != null ? contentType : "无"));
+        System.out.println("  User-Agent: " + (userAgent != null ? userAgent : "无"));
+        System.out.println("  Session ID: " + (httpRequest.getSession(false) != null ? httpRequest.getSession().getId() : "无会话"));
 
         // 继续过滤器链
         chain.doFilter(request, response);
 
         // 记录响应信息
         long duration = System.currentTimeMillis() - startTime;
-        System.out.println("[" + new Date() + "] Response completed in " +
-                duration + "ms");
+        int status = httpResponse.getStatus();
+        String responseContentType = httpResponse.getContentType();
+        
+        System.out.println("[testServlet - LoggingFilter] ========== 响应完成 ==========");
+        System.out.println("  时间: " + new Date());
+        System.out.println("  状态码: " + status);
+        System.out.println("  Content-Type: " + (responseContentType != null ? responseContentType : "无"));
+        System.out.println("  耗时: " + duration + "ms");
+        System.out.println("");
     }
 
     /**
      * 销毁过滤器
      */
     public void destroy() {
-        System.out.println("LoggingFilter destroyed");
+        System.out.println("[testServlet - LoggingFilter] 销毁");
         this.filterConfig = null;
     }
 }
