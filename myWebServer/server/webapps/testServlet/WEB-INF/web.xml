@@ -54,7 +54,7 @@
         <servlet-class>servlets.HelloServlet</servlet-class>
         <init-param>
             <param-name>message</param-name>
-            <param-value>Welcome to Servlet 2.3!</param-value>
+            <param-value>Welcome to Test Servlet!</param-value>
         </init-param>
         <load-on-startup>1</load-on-startup>
     </servlet>
