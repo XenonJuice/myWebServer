@@ -48,13 +48,17 @@
         <listener-class>listeners.SimpleAttributeListener</listener-class>
     </listener>
 
+    <listener>
+        <listener-class>listeners.SimpleRequestListener</listener-class>
+    </listener>
+
     <!-- Servlet 配置 -->
     <servlet>
         <servlet-name>HelloServlet</servlet-name>
         <servlet-class>servlets.HelloServlet</servlet-class>
         <init-param>
             <param-name>message</param-name>
-            <param-value>Welcome to Test Servlet!</param-value>
+            <param-value>Welcome to Servlet 2.3!</param-value>
         </init-param>
         <load-on-startup>1</load-on-startup>
     </servlet>
