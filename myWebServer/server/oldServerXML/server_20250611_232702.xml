@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Server shutdownCommand="SHUTDOWN" shutdownPort="8005">
+    <Service name="testService">
+        <Connector port="8080" protocol="HTTP/1.1"/>
+        <Engine defaultHostName="localhost" name="testEngine">
+            <Host appBase="webapps" name="localhost">
+                <Context basePath="simpleApp2" path="/app2"/>
+                <Context basePath="simpleApp3" path="/app3"/>
+                <Context basePath="dynamicApp" path="/dynamicApp"/>
+                <Context basePath="simpleApp1" path="/app1"/>
+                <Context basePath="testServlet" path="/testServlet"/>
+            </Host>
+            <Host appBase="webapps" name="lilinjian">
+                <Context basePath="simpleApp2" path="/app2"/>
+                <Context basePath="simpleApp3" path="/app3"/>
+                <Context basePath="dynamicApp" path="/dynamicApp"/>
+                <Context basePath="simpleApp1" path="/app1"/>
+                <Context basePath="testServlet" path="/testServlet"/>
+            </Host>
+        </Engine>
+    </Service>
+</Server>

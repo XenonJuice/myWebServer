@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Server shutdownPort="8005" shutdownCommand="SHUTDOWN">
+    <Service name="testService">
+        <Connector port="8080" protocol="HTTP/1.1"/>
+        <Engine name="testEngine" defaultHostName="localhost">
+            <Host name="localhost" appBase="webapps">
+                <Context path="/testServlet" basePath="testServlet"/>
+                <Context path="/app1" basePath="simpleApp1"/>
+                <Context path="/app2" basePath="simpleApp2"/>
+                <Context path="/app3" basePath="simpleApp3"/>
+            </Host>
+        </Engine>
+    </Service>
+</Server>
+

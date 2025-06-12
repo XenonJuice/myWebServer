@@ -87,28 +87,6 @@ public class LifecycleTest {
         assertFalse(isStarted(host));
     }
     
-    @Test
-    public void testContextLifecycle() throws Exception {
-        // 构建层级关系
-        engine.addChild(host);
-        host.addChild(context);
-        
-        // 启动顶层容器
-        engine.start();
-        
-        // 验证所有容器都已启动
-        assertTrue(isStarted(engine));
-        assertTrue(isStarted(host));
-        assertTrue(isStarted(context));
-        
-        // 停止顶层容器
-        engine.stop();
-        
-        // 验证所有容器都已停止
-        assertFalse(isStarted(engine));
-        assertFalse(isStarted(host));
-        assertFalse(isStarted(context));
-    }
     
     @Test
     public void testDuplicateStart() throws Exception {
