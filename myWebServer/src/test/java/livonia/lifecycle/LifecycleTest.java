@@ -26,7 +26,6 @@ public class LifecycleTest {
         host = new DefaultHost();
         host.setName("localhost");
         host.setAppBase("webapps");
-        
         context = new DefaultContext();
         context.setName("testContext");
         context.setPath("/test");
