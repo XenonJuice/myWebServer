@@ -1,7 +1,7 @@
 # Livonia Web Server
 
 <div align="center">
-  <img src="https://github.com/xenonJuice/Livonia/workflows/Build%20and%20Test/badge.svg" alt="Build Status">
+  <img src="https://github.com/XenonJuice/myWebServer/workflows/Build%20and%20Test/badge.svg" alt="Build Status">
   <img src="https://img.shields.io/badge/Java-23-orange.svg" alt="Java 23">
   <img src="https://img.shields.io/badge/Servlet-2.5-green.svg" alt="Servlet 2.5">
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License">
@@ -253,7 +253,7 @@ public class AppContextListener implements ServletContextListener {
 
 ## 👨‍💻 作者
 
-- **xenonJuice** - [GitHub](https://github.com/xenonJuice)
+- **XenonJuice** - [GitHub](https://github.com/XenonJuice)
 
 ## 🙏 致谢
 
