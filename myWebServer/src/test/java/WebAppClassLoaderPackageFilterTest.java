@@ -1,3 +1,5 @@
+package java;
+
 import livonia.loader.WebAppClassLoader;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,9 +13,10 @@ public class WebAppClassLoaderPackageFilterTest {
     private WebAppClassLoader webAppClassLoader;
 
     @BeforeEach
-    public void setUp() {
+    public void setUp() throws Exception {
         webAppClassLoader = new WebAppClassLoader();
         webAppClassLoader.setDelegate(true);
+        webAppClassLoader.start();
     }
 
     /**
