@@ -247,6 +247,12 @@ public class AppContextListener implements ServletContextListener {
 - 多线程并发编程与线程安全设计
 - 大型项目的模块化架构设计
 
+## 🔮 未来展望
+- **NIO 支持** - 引入 Java NIO 提升并发处理能力
+- **SSL/TLS** - 添加 HTTPS 安全连接支持
+- **Servlet 3.0+** - 支持异步处理和注解配置
+
+
 ## 📄 License
 
 本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
