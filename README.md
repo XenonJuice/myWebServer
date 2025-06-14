@@ -1,3 +1,9 @@
+<div align="right">
+  <a href="README.md">English</a> | 
+  <a href="README.zh-CN.md">简体中文</a> | 
+  <a href="README.ja.md">日本語</a>
+</div>
+
 # Livonia Web Server
 
 <div align="center">
@@ -7,24 +13,24 @@
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT License">
 </div>
 
-## 🚀 项目简介
+## 🚀 Project Overview
 
-Livonia 是一个基于 Java 实现的轻量级 Web 服务器，采用了与 Apache Tomcat 相似的架构设计，实现了 Servlet 规范的核心功能。项目涵盖了 Web 容器架构、HTTP 协议解析、自定义类加载器、动态部署等关键技术的完整实现。
+Livonia is a lightweight web server implementation in Java, featuring an architecture similar to Apache Tomcat, implementing core Servlet specification functionality. The project encompasses complete implementations of web container architecture, HTTP protocol parsing, custom classloaders, and dynamic deployment.
 
-## ✨ 核心特性
+## ✨ Core Features
 
-- **完整的 Servlet 容器实现** - 支持 Servlet、Filter、Listener 等核心组件
-- **层次化容器架构** - Server → Service → Engine → Host → Context → Endpoint
-- **多应用部署** - 单个服务器实例可同时部署运行多个独立的 Web 应用
-- **虚拟主机支持** - 支持基于域名的虚拟主机，不同域名访问不同的应用集合
-- **动态应用部署** - 支持运行时动态部署/卸载 Web 应用，无需重启服务器
-- **自定义类加载器** - 实现 Web 应用隔离，每个应用独立的类空间
-- **HTTP/1.1 协议** - 支持持久连接、分块传输编码等特性
-- **请求映射与分发** - 实现了完整的请求路由机制
-- **XML 配置解析** - 自定义 XML 解析器处理 server.xml 和 web.xml
-- **生命周期管理** - 统一的组件生命周期管理机制
+- **Complete Servlet Container Implementation** - Supports core components including Servlet, Filter, and Listener
+- **Hierarchical Container Architecture** - Server → Service → Engine → Host → Context → Endpoint
+- **Multi-Application Deployment** - Single server instance can deploy and run multiple independent web applications
+- **Virtual Host Support** - Domain-based virtual hosting, different domains access different application sets
+- **Dynamic Application Deployment** - Runtime application deployment/undeployment without server restart
+- **Custom ClassLoader** - Implements web application isolation with independent class space for each app
+- **HTTP/1.1 Protocol** - Supports persistent connections, chunked transfer encoding
+- **Request Mapping & Dispatching** - Complete request routing mechanism implementation
+- **XML Configuration Parsing** - Custom XML parser for server.xml and web.xml
+- **Lifecycle Management** - Unified component lifecycle management mechanism
 
-## 🏗️ 系统架构
+## 🏗️ System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -47,26 +53,26 @@ Livonia 是一个基于 Java 实现的轻量级 Web 服务器，采用了与 Apa
 └─────────────────────────────────────────────────────┘
 ```
 
-## 🛠️ 技术实现
+## 🛠️ Technical Implementation
 
-### 1. 网络通信层
-- 基于 Java Socket 的网络通信实现
-- HTTP/1.1 协议解析与响应生成
-- 支持持久连接（Keep-Alive）
-- 分块传输编码（Chunked Transfer Encoding）
-- 对象池复用处理器线程
+### 1. Network Communication Layer
+- Java Socket-based network communication
+- HTTP/1.1 protocol parsing and response generation
+- Persistent connection support (Keep-Alive)
+- Chunked Transfer Encoding
+- Processor thread object pool reuse
 
-### 2. 容器管理
-- **Server**: 顶层容器，管理整个服务器实例
-- **Service**: 将 Connector 和 Engine 组合在一起
-- **Engine**: 请求处理引擎，管理虚拟主机
-- **Host**: 虚拟主机，管理 Web 应用
-- **Context**: Web 应用上下文
-- **Endpoint**: Servlet 管理器，负责 Servlet 的生命周期
-- **Channel**: 请求处理通道，管理检查点链
-- **Checkpoint**: 请求处理检查点，实现请求拦截和处理
+### 2. Container Management
+- **Server**: Top-level container managing the entire server instance
+- **Service**: Groups Connector and Engine together
+- **Engine**: Request processing engine managing virtual hosts
+- **Host**: Virtual host managing web applications
+- **Context**: Web application context
+- **Endpoint**: Servlet manager responsible for servlet lifecycle
+- **Channel**: Request processing channel managing checkpoint chain
+- **Checkpoint**: Request processing checkpoint implementing request interception and processing
 
-### 3. 请求处理流程
+### 3. Request Processing Flow
 ```
 HTTP Request → Connector → Processor 
                   ↓
@@ -78,81 +84,81 @@ HTTP Request → Connector → Processor
                   ↓
              Endpoint → FilterChain → Servlet
                   ↓
-HTTP Response ← 返回给客户端
+HTTP Response ← Return to Client
 ```
 
-### 4. 类加载机制
-- 自定义 WebAppClassLoader 实现应用隔离
-- 遵循双亲委派模型，优先加载 Web 应用类
-- 支持热部署和热加载
+### 4. ClassLoader Mechanism
+- Custom WebAppClassLoader implements application isolation
+- Follows parent delegation model, prioritizes web application classes
+- Supports hot deployment and hot reloading
 
-### 5. 动态部署
-- InnerHostListener 监听器定期扫描 webapps 目录
-- 自动检测新应用并动态部署
-- 支持应用更新检测 ： 通过 web.xml 修改时间以及webAppClassLoader内置检测类更新
-- 服务器关闭时，自动检测web应用的变化并自动保存动态部署的应用到配置文件
+### 5. Dynamic Deployment
+- InnerHostListener periodically scans webapps directory
+- Automatically detects and deploys new applications
+- Supports application update detection via web.xml modification time and WebAppClassLoader built-in class update detection
+- Automatically saves dynamically deployed applications to configuration file on server shutdown
 
-## 📦 项目结构
+## 📦 Project Structure
 
 ```
 myWebServer/
 ├── src/main/java/livonia/
-│   ├── base/          # 核心接口定义
-│   ├── core/          # 默认实现类
-│   ├── connector/     # HTTP 连接器实现
-│   ├── checkpoints/   # 检查点实现
-│   ├── lifecycle/     # 生命周期管理
-│   ├── loader/        # 类加载器实现
-│   ├── filter/        # 过滤器链实现
-│   ├── listener/      # 监听器实现
-│   ├── mapper/        # 请求映射器
-│   ├── resource/      # 资源管理
-│   ├── utils/         # 工具类
-│   └── startup/       # 启动类
+│   ├── base/          # Core interface definitions
+│   ├── core/          # Default implementation classes
+│   ├── connector/     # HTTP connector implementation
+│   ├── checkpoints/   # Checkpoint implementations
+│   ├── lifecycle/     # Lifecycle management
+│   ├── loader/        # ClassLoader implementation
+│   ├── filter/        # Filter chain implementation
+│   ├── listener/      # Listener implementation
+│   ├── mapper/        # Request mapper
+│   ├── resource/      # Resource management
+│   ├── utils/         # Utility classes
+│   └── startup/       # Startup classes
 ├── server/
-│   ├── webapps/       # Web 应用部署目录
-│   ├── lib/           # 服务器依赖库
-│   └── server.xml     # 服务器配置文件
-└── testServlet/       # 示例 Web 应用
+│   ├── webapps/       # Web application deployment directory
+│   ├── lib/           # Server dependency libraries
+│   └── server.xml     # Server configuration file
+└── testServlet/       # Sample web application
 ```
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 1. 构建项目
+### 1. Build Project
 ```bash
 mvn clean package
 ```
 
-### 2. 启动服务器
+### 2. Start Server
 ```bash
 cd myWebServer/server
 ./start.sh
 ```
 
-### 3. 访问示例应用
+### 3. Access Sample Applications
 - http://localhost:8080/testServlet
 - http://localhost:8080/app1
 - http://localhost:8080/app2
 
-### 4. 动态部署新应用
-将符合 Servlet 规范的 Web 应用复制到 `server/webapps/` 目录，服务器将在 10 秒内自动检测并部署。
+### 4. Deploy New Applications Dynamically
+Copy Servlet-compliant web applications to `server/webapps/` directory, server will automatically detect and deploy within 10 seconds.
 
-## 📝 配置文件
+## 📝 Configuration
 
-### server.xml 示例（多虚拟主机配置）
+### server.xml Example (Multi-Virtual Host Configuration)
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <Server shutdownPort="8005" shutdownCommand="SHUTDOWN">
     <Service name="testService">
         <Connector port="8080" protocol="HTTP/1.1"/>
         <Engine name="testEngine" defaultHostName="localhost">
-            <!-- 默认虚拟主机 -->
+            <!-- Default Virtual Host -->
             <Host name="localhost" appBase="webapps">
                 <Context path="/app1" basePath="simpleApp1"/>
                 <Context path="/app2" basePath="simpleApp2"/>
                 <Context path="/testServlet" basePath="testServlet"/>
             </Host>
-            <!-- 第二个虚拟主机 -->
+            <!-- Second Virtual Host -->
             <Host name="xenonJuice" appBase="webapps">
                 <Context path="/app3" basePath="simpleApp3"/>
                 <Context path="/dynamicApp" basePath="dynamicApp"/>
@@ -162,27 +168,27 @@ cd myWebServer/server
 </Server>
 ```
 
-### 虚拟主机访问演示
+### Virtual Host Access Demo
 
-使用 curl 测试不同虚拟主机：
+Test different virtual hosts using curl:
 
 ```bash
-# 访问默认主机 localhost 的应用
+# Access default host localhost applications
 curl http://localhost:8080/app1
 curl http://localhost:8080/testServlet
 
-# 使用 Host 头访问第二个虚拟主机
+# Access second virtual host using Host header
 curl -H "Host: xenonJuice" http://localhost:8080/app3
 curl -H "Host: xenonJuice" http://localhost:8080/dynamicApp
 
-# 或配置 hosts 文件后直接访问
+# Or access directly after configuring hosts file
 # echo "127.0.0.1 demo.local" >> /etc/hosts
 # curl http://demo.local:8080/app3
 ```
 
-## 🔧 核心功能展示
+## 🔧 Core Functionality Demo
 
-### 1. Servlet 支持
+### 1. Servlet Support
 ```java
 public class HelloServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, 
@@ -193,22 +199,22 @@ public class HelloServlet extends HttpServlet {
 }
 ```
 
-### 2. Filter 链
+### 2. Filter Chain
 ```java
 public class LoggingFilter implements Filter {
     public void doFilter(ServletRequest request, 
                         ServletResponse response, 
                         FilterChain chain) throws IOException, ServletException {
-        // 请求前处理
+        // Pre-processing
         System.out.println("Request received: " + ((HttpServletRequest)request).getRequestURI());
         chain.doFilter(request, response);
-        // 响应后处理
+        // Post-processing
         System.out.println("Response sent");
     }
 }
 ```
 
-### 3. 监听器
+### 3. Listeners
 ```java
 public class AppContextListener implements ServletContextListener {
     public void contextInitialized(ServletContextEvent sce) {
@@ -221,53 +227,53 @@ public class AppContextListener implements ServletContextListener {
 }
 ```
 
-## 💡 设计亮点
+## 💡 Design Highlights
 
-1. **模块化设计** - 各组件职责清晰，易于扩展
-2. **设计模式应用** - 责任链、观察者、工厂等模式的合理运用
-3. **性能优化** - 对象池、缓存等技术提升性能
-4. **健壮性** - 完善的异常处理和资源管理
-5. **可配置性** - 灵活的 XML 配置支持
+1. **Modular Design** - Clear component responsibilities, easy to extend
+2. **Design Pattern Application** - Appropriate use of Chain of Responsibility, Observer, Factory patterns
+3. **Performance Optimization** - Object pooling, caching for improved performance
+4. **Robustness** - Comprehensive exception handling and resource management
+5. **Configurability** - Flexible XML configuration support
 
-## 🎯 技术难点与解决方案
+## 🎯 Technical Challenges & Solutions
 
-1. **HTTP 协议解析** - 实现了完整的 HTTP/1.1 请求解析器，支持各种请求方法和头部处理
-2. **并发处理** - 使用 HttpProcessor 对象池处理并发请求，实现了线程安全的容器管理
-3. **类加载隔离** - 自定义类加载器实现不同 Web 应用间的类隔离
-4. **动态部署** - 通过文件系统监听和类加载器重载实现热部署
-5. **请求映射** - 实现了 Servlet 规范的 URL 模式匹配算法
+1. **HTTP Protocol Parsing** - Implemented complete HTTP/1.1 request parser supporting various request methods and header handling
+2. **Concurrent Processing** - Uses HttpProcessor object pool for concurrent request handling with thread-safe container management
+3. **Class Isolation** - Custom classloader implementation for class isolation between different web applications
+4. **Dynamic Deployment** - Hot deployment through filesystem monitoring and classloader reloading
+5. **Request Mapping** - Implements Servlet specification URL pattern matching algorithm
 
-## 🎓 技术收获
+## 🎓 Learning Outcomes
 
-通过阅读Livonia实现代码，可深入理解：
-- Web 服务器的内部工作机制与请求处理流程
-- Servlet 容器的完整生命周期管理
-- HTTP 协议的底层实现细节
-- Java 类加载器的隔离机制与热部署原理
-- 多线程并发编程与线程安全设计
-- 大型项目的模块化架构设计
+By studying Livonia's implementation code, you can deeply understand:
+- Internal working mechanisms and request processing flow of web servers
+- Complete lifecycle management of Servlet containers
+- Low-level implementation details of HTTP protocol
+- Java classloader isolation mechanisms and hot deployment principles
+- Multi-threaded concurrent programming and thread-safe design
+- Modular architecture design for large projects
 
-## 🔮 未来展望
-- **NIO 支持** - 引入 Java NIO 提升并发处理能力
-- **SSL/TLS** - 添加 HTTPS 安全连接支持
-- **Servlet 3.0+** - 支持异步处理和注解配置
-
+## 🔮 Future Roadmap
+- **NIO Support** - Introduce Java NIO for improved concurrent processing
+- **SSL/TLS** - Add HTTPS secure connection support
+- **Servlet 3.0+** - Support asynchronous processing and annotation configuration
+- **Server Clustering** - Support multi-instance clustering
 
 ## 📄 License
 
-本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 👨‍💻 作者
+## 👨‍💻 Author
 
 - **XenonJuice** - [GitHub](https://github.com/XenonJuice)
 
-## 🙏 致谢
+## 🙏 Acknowledgments
 
-- 感谢 Apache Tomcat 项目提供的架构参考
-- 感谢 Servlet 规范制定者
+- Thanks to Apache Tomcat project for architectural reference
+- Thanks to Servlet specification creators
 
 ---
 
 <div align="center">
-  <i>如果这个项目对你有帮助，请给个 ⭐ Star！</i>
+  <i>If this project helps you, please give it a ⭐ Star!</i>
 </div>
