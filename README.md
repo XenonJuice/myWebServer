@@ -1,6 +1,8 @@
 <div align="center">
 
-**[English](README.md)** | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
+[![English](https://img.shields.io/badge/Language-English-blue?style=for-the-badge)](README.md)
+[![简体中文](https://img.shields.io/badge/语言-简体中文-red?style=for-the-badge)](README.zh-CN.md)
+[![日本語](https://img.shields.io/badge/言語-日本語-green?style=for-the-badge)](README.ja.md)
 
 </div>
 
