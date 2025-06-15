@@ -9,9 +9,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Servlet 2.3 版本的 servlets.HelloServlet
+ * HelloServlet
  */
 public class HelloServlet extends HttpServlet {
 
@@ -25,7 +26,7 @@ public class HelloServlet extends HttpServlet {
         // 从 web.xml 中读取初始化参数
         message = config.getInitParameter("message");
         if (message == null) {
-            message = "Hello from Servlet 2.3!";
+            message = "Hello from Servlet";
         }
         System.out.println("servlets.HelloServlet initialized with message: " + message);
     }
@@ -35,7 +36,7 @@ public class HelloServlet extends HttpServlet {
 
         // 使用 ByteArrayOutputStream 来精确计算字节
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PrintWriter tempWriter = new PrintWriter(new OutputStreamWriter(baos, "UTF-8"));
+        PrintWriter tempWriter = new PrintWriter(new OutputStreamWriter(baos, StandardCharsets.UTF_8));
 
         tempWriter.println("<html>");
         tempWriter.println("<head>");
@@ -56,8 +57,6 @@ public class HelloServlet extends HttpServlet {
 
         // 设置响应头
         response.setContentType("text/html; charset=UTF-8");
-        response.setContentLength(content.length);  // 关键！
-
         // 写入内容
         response.getOutputStream().write(content);
         response.getOutputStream().flush();
