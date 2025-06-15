@@ -1,0 +1,21 @@
+# Docker Compose 配置文件
+version: '3.8'
+
+services:
+  livonia:
+    # 构建配置
+    build: .
+    # 容器名称
+    container_name: livonia-server
+    # 端口映射
+    ports:
+      - "8080:8080"
+    # 数据卷挂载
+    volumes:
+      - ./myWebServer/server/webapps:/app/myWebServer/server/webapps
+      - ./logs:/app/logs
+    # 环境变量
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    # 重启策略
+    restart: unless-stopped

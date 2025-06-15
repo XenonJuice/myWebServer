@@ -1,0 +1,35 @@
+# Git 相关
+.git
+.gitignore
+
+# IDE 相关
+.idea
+*.iml
+.vscode
+
+# 构建产物
+target/
+!target/livonia-1.0-SNAPSHOT.jar
+
+# 日志文件
+logs/
+*.log
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+
+# 文档
+*.md
+!README.md
+
+# 测试相关
+src/test/
+testServlet/
+
+# 部署脚本（这些是热部署辅助脚本，不需要包含在镜像中）
+auto-deploy.sh
+deploy-directory.sh
+deploy-helper.py
+deploy-manager.html
