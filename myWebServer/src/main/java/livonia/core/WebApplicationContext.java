@@ -5,6 +5,7 @@ import livonia.base.Context;
 import livonia.base.Host;
 import livonia.log.BaseLogger;
 import livonia.resource.ResourceManager;
+import livonia.utils.ServerInfo;
 import org.slf4j.Logger;
 
 import javax.servlet.*;
@@ -328,7 +329,7 @@ public class WebApplicationContext implements ServletContext {
 
     @Override
     public String getServerInfo() {
-        return "myWebServer/1.0";
+        return ServerInfo.getServerInfo();
     }
 
     @Override
