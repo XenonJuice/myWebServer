@@ -14,8 +14,11 @@ services:
     volumes:
       - ./myWebServer/server/webapps:/app/myWebServer/server/webapps
       - ./logs:/app/logs
+      # timeZone
+      - /etc/localtime:/etc/localtime:ro 
     # 环境变量
     environment:
       - JAVA_OPTS=-Xmx512m -Xms256m
+      - TZ=Asia/Tokyo
     # 重启策略
     restart: no
