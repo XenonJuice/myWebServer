@@ -1,4 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+测试用Web应用模块
+作用：
+1. 验证Livonia服务器的Servlet容器功能
+2. 提供测试用的Servlet实现示例
+3. 展示Web应用的标准目录结构
+
+配置：
+- 继承父POM（com.livonia:livonia-server-parent）
+- 直接编译到部署位置：../myWebServer/server/webapps/testServlet/WEB-INF/classes
+- Servlet API使用provided scope（由服务器提供，不打包到应用中）
+
+与myWebServer的关系：
+- 依赖myWebServer提供的Servlet容器环境
+- 编译后的文件直接放到myWebServer的webapps目录下
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
