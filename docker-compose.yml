@@ -18,4 +18,4 @@ services:
     environment:
       - JAVA_OPTS=-Xmx512m -Xms256m
     # 重启策略
-    restart: unless-stopped
+    restart: no
