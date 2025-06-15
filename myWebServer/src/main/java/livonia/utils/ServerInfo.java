@@ -18,7 +18,7 @@ public final class ServerInfo {
             SERVER_INFO = props.getProperty("server.info");
         } catch (Exception _) {
         } finally {
-            if (SERVER_INFO == null) SERVER_INFO = "LILINJIAN/1.0";
+            if (SERVER_INFO == null) SERVER_INFO = "Livonia/1.0";
         }
     }
 
