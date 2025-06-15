@@ -245,6 +245,46 @@ public class AppContextListener implements ServletContextListener {
 4. **Dynamic Deployment** - Hot deployment through filesystem monitoring and classloader reloading
 5. **Request Mapping** - Implements Servlet specification URL pattern matching algorithm
 
+## 🐳 Docker Support
+
+Livonia provides complete Docker containerization support for easy deployment and testing.
+
+### Quick Start with Docker
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Run in background
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f
+
+# Stop container
+docker-compose down
+```
+
+### Docker Configuration
+
+The project includes:
+- **Dockerfile** - Defines container image with OpenJDK 23 and all necessary dependencies
+- **docker-compose.yml** - Orchestrates container with volume mounts for webapp hot deployment
+- **.dockerignore** - Optimizes build context by excluding unnecessary files
+
+### Development Workflow
+
+1. **Local Development**: Code changes require rebuild
+   ```bash
+   mvn clean package
+   docker-compose down
+   docker-compose up --build
+   ```
+
+2. **Webapp Changes**: Automatically reflected via volume mounts
+   - Changes to files in `webapps/` directory are immediately available
+   - No container restart needed for static content
+
 ## 🎓 Learning Outcomes
 
 By studying Livonia's implementation code, you can deeply understand:

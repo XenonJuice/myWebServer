@@ -245,6 +245,46 @@ public class AppContextListener implements ServletContextListener {
 4. **動的デプロイメント** - ファイルシステム監視とクラスローダーリロードによるホットデプロイメント
 5. **リクエストマッピング** - Servlet仕様のURLパターンマッチングアルゴリズムを実装
 
+## 🐳 Dockerサポート
+
+Livoniaは、簡単なデプロイメントとテストのための完全なDockerコンテナ化サポートを提供します。
+
+### Dockerでのクイックスタート
+
+```bash
+# Docker Composeでビルドして実行
+docker-compose up --build
+
+# バックグラウンドで実行
+docker-compose up -d --build
+
+# ログを表示
+docker-compose logs -f
+
+# コンテナを停止
+docker-compose down
+```
+
+### Docker設定
+
+プロジェクトには以下が含まれます：
+- **Dockerfile** - OpenJDK 23と必要な依存関係をすべて含むコンテナイメージを定義
+- **docker-compose.yml** - webappホットデプロイメント用のボリュームマウントでコンテナをオーケストレート
+- **.dockerignore** - 不要なファイルを除外してビルドコンテキストを最適化
+
+### 開発ワークフロー
+
+1. **ローカル開発**：コード変更には再ビルドが必要
+   ```bash
+   mvn clean package
+   docker-compose down
+   docker-compose up --build
+   ```
+
+2. **Webappの変更**：ボリュームマウントにより自動的に反映
+   - `webapps/`ディレクトリ内のファイル変更は即座に利用可能
+   - 静的コンテンツはコンテナの再起動不要
+
 ## 🎓 学習成果
 
 Livoniaの実装コードを学習することで、以下を深く理解できます：
